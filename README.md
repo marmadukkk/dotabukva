@@ -10,7 +10,7 @@
 - 📜 История спинов + сохранение своих описаний (localStorage)
 - 📱 Отлично выглядит на телефоне и десктопе
 - 🐍 Полностью на Python (FastAPI) + современный фронтенд без сборки
-- 127 героев + 33 буквы
+- 126 героев + 33 буквы
 
 ## Запуск локально
 
@@ -18,26 +18,24 @@
 cd dota-bukva
 
 # Создай venv (рекомендуется)
-python -m venv venv
-source venv/bin/activate   # Linux/Mac
-# или venv\Scripts\activate  # Windows
+python -m venv .venv
+source .venv/bin/activate   # Linux / macOS
 
 pip install -r requirements.txt
 
-python app.py
-# или
-uvicorn app:app --reload
+# Запуск
+.venv/bin/python -m uvicorn app:app --reload --port 8000
 ```
 
-Открой http://localhost:8000
+Открой http://127.0.0.1:8000
 
 ## Как это работает
 
-- `GET /` — отдаёт красивую HTML-страницу (Jinja)
-- `GET /api/spin` — Python выбирает случайного героя + букву и отдаёт JSON
-- Фронтенд (ванильный JS + Tailwind) получает результат и **анимационно прокручивает** барабаны так, чтобы выпасть именно на нужный герой и букву
+- `GET /` — отдаёт красивую HTML-страницу (FastAPI отдаёт templates/index.html при локальном запуске)
+- `GET /api/spin` и `GET /api/heroes` — Python выбирает случайного героя + букву и отдаёт JSON
+- Фронтенд (ванильный JS + Tailwind + Web Animations API) получает результат с сервера и **точно прокручивает** оба барабана так, чтобы выпасть именно на нужный герой и букву (никаких расхождений)
 
-Анимация написана через Web Animations API + requestAnimationFrame-подобный подход, очень плавная (60fps).
+Анимация сделана через Web Animations API, очень плавная, с несколькими оборотами и точным snap'ом на результат.
 
 ## Для деплоя на Vercel
 
@@ -80,17 +78,19 @@ Vercel поддерживает Python через serverless functions.
 
 ```
 dota-bukva/
-├── app.py                 # FastAPI локально (грузит данные из data/)
+├── app.py                 # FastAPI для локального запуска
 ├── api/
-│   └── spin.py            # Vercel Serverless функция (тот же рандом)
+│   ├── spin.py            # Vercel serverless для /api/spin
+│   └── heroes.py          # Vercel serverless для /api/heroes
 ├── data/
-│   └── heroes.json        # Единственный источник данных героев (126+)
+│   └── heroes.json        # Единственный источник данных (126 героев)
 ├── public/
-│   └── index.html         # Статическая сборка фронтенда для Vercel
+│   └── index.html         # Статический фронтенд для Vercel
 ├── templates/
-│   └── index.html         # Исходник фронтенда (для локальной разработки)
-├── vercel.json            # Конфиг роутинга и сборки для Vercel
+│   └── index.html         # Исходный HTML+JS (для локальной разработки)
+├── vercel.json
 ├── requirements.txt
+├── .gitignore
 └── README.md
 ```
 
