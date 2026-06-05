@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOTA-BUKVA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&amp;family=Inter:wght@400;500;600&amp;display=swap');
+        
+        :root {
+            --dota-red: #c23c2a;
+            --dota-gold: #d4af37;
+        }
+        
+        body {
+            font-family: 'Inter', system_ui, sans-serif;
+        }
+        
+        .font-display {
+            font-family: 'Cinzel', 'Georgia', serif;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .dota-bg {
+            background: #0a0a0a;
+            background-image: 
+                linear-gradient(rgba(194, 60, 42, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(194, 60, 42, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .dota-card {
+            background: #111111;
+            border: 2px solid #4a3728;
+            box-shadow: 0 0 15px rgba(0,0,0,0.9),
+                        inset 0 0 10px rgba(0,0,0,0.6);
+            position: relative;
+        }
+
+        .dota-card::before {
+            content: '';
+            position: absolute;
+            top: -1px; left: -1px; right: -1px; bottom: -1px;
+            border: 1px solid #d4af37;
+            opacity: 0.15;
+            pointer-events: none;
+            border-radius: inherit;
+        }
+
+        .section-title {
+            font-size: 12px;
+            letter-spacing: 3px;
+            font-weight: 700;
+            color: #d4af37;
+            text-transform: uppercase;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+
+        .hero-name {
+            font-size: 42px;
+            line-height: 1;
+            font-weight: 700;
+            letter-spacing: -2px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+        }
+
+        .big-letter {
+            font-size: 32px;
+            line-height: 1;
+            font-weight: 800;
+            letter-spacing: -2px;
+            text-shadow: 0 3px 6px rgba(0,0,0,0.9);
+        }
+
+        .slot-window {
+            overflow: hidden;
+            border-radius: 8px;
+            background: #0a0a0a;
+            border: 3px solid #4a3728;
+            box-shadow: 0 0 20px rgba(0,0,0,0.9),
+                        inset 0 0 15px rgba(0,0,0,0.7),
+                        0 0 0 1px #d4af37;
+            position: relative;
+        }
+
+        .slot-window::before {
+            content: '';
+            position: absolute;
+            left: 0; right: 0; top: 0;
+            height: 30%;
+            background: linear-gradient(to bottom, rgba(212, 175, 55, 0.08), transparent);
+            pointer-events: none;
+            z-index: 2;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .slot-window::after {
+            content: '';
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            height: 25%;
+            background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+            pointer-events: none;
+            z-index: 2;
+            border-radius: 0 0 8px 8px;
+        }
+
+        .slot-strip {
+            will-change: transform;
+            transition: transform cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .slot-item {
+            height: 78px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            font-weight: 600;
+            font-size: 21px;
+            border-bottom: 1px solid #27272a;
+            background: #18181b;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .slot-item:last-child {
+            border-bottom: none;
+        }
+
+        .slot-item.active {
+            background: #1f1f1f;
+            color: #f0c060;
+            border-bottom-color: #d4af37;
+        }
+
+        .letter-strip .slot-item {
+            height: 110px;
+            font-size: 68px;
+            font-weight: 800;
+            justify-content: center;
+            letter-spacing: -4px;
+        }
+
+        .reel-shadow {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.9),
+                        inset 0 0 60px rgba(194,60,42,0.1);
+        }
+
+        .spin-button {
+            transition: all 0.1s cubic-bezier(0.23, 1, 0.32, 1);
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #d4af37;
+            background: linear-gradient(#c23c2a, #8b2a1f);
+            box-shadow: 0 0 10px rgba(194,60,42,0.5),
+                        inset 0 2px 4px rgba(255,255,255,0.2),
+                        inset 0 -2px 4px rgba(0,0,0,0.5);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        .spin-button:hover {
+            background: linear-gradient(#e04a38, #a33221);
+            border-color: #f0c060;
+            box-shadow: 0 0 20px rgba(212,175,55,0.6),
+                        inset 0 2px 4px rgba(255,255,255,0.3);
+        }
+        
+        .spin-button:active {
+            transform: scale(0.96);
+            background: linear-gradient(#8b2a1f, #c23c2a);
+        }
+
+        .spin-button::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -100%;
+            width: 50%;
+            height: 200%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255,255,255,0.3),
+                transparent
+            );
+            transition: 0.6s;
+        }
+        
+        .spin-button:hover::after {
+            left: 250%;
+        }
+
+        .result-glow {
+            box-shadow: 0 0 0 2px #d4af37,
+                        0 0 30px rgba(212,175,55,0.4);
+        }
+
+        .dota-gold {
+            color: #d4af37;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+
+        .hero-portrait {
+            width: 92px;
+            height: 92px;
+            border-radius: 9999px;
+            overflow: hidden;
+            border: 4px solid #d4af37;
+            box-shadow: 0 0 15px rgba(212,175,55,0.4),
+                        0 10px 15px -3px rgb(0 0 0 / 0.5);
+            background: #0a0a0a;
+            flex-shrink: 0;
+        }
+
+        .hero-portrait img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .hero-portrait:hover img {
+            transform: scale(1.08);
+        }
+
+        .attr-badge {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            padding: 1px 9px;
+            border-radius: 9999px;
+        }
+
+        .history-item {
+            transition: all 0.1s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .history-item:hover {
+            background-color: #1a1a1a;
+            border-left-color: #d4af37;
+            transform: translateX(2px);
+        }
+
+        .slot-item.spinning {
+            filter: blur(1.5px);
+        }
+
+        .slot-item.reel-landed {
+            background: rgba(194, 60, 42, 0.25);
+            box-shadow: 0 0 0 2px #d4af37,
+                        inset 0 0 10px rgba(212,175,55,0.2);
+            color: #f0c060;
+        }
+
+        .dota-divider {
+            background: linear-gradient(to right, transparent, #3f3f46, transparent);
+            height: 1px;
+        }
+
+        .stat {
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-200 dota-bg min-h-screen">
+    
+    <nav class="border-b-2 border-[#4a3728] bg-[#0a0a0a] sticky top-0 z-50 shadow-lg">
+        <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-x-3">
+                <div class="flex items-center gap-x-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center shadow-inner">
+                        <i class="fa-solid fa-dice text-white text-2xl"></i>
+                    </div>
+                    <div>
+                        <span class="font-display text-2xl font-semibold tracking-tighter">DOTA-BUKVA</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-x-4 text-sm">
+                <div onclick="showHowToPlay()" 
+                     class="flex items-center gap-x-2 px-4 py-1 hover:bg-[#1a1a1a] rounded border border-[#4a3728] hover:border-[#d4af37] cursor-pointer transition-colors text-[#d4af37] hover:text-white text-xs tracking-widest">
+                    <i class="fa-solid fa-question-circle"></i>
+                    <span class="hidden sm:inline font-medium">КАК ИГРАТЬ</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto px-5 pt-4 pb-4">
+        
+        
+        <div class="text-center flex-shrink-0 mb-2">
+            <h1 class="font-display text-5xl sm:text-6xl font-bold tracking-tighter mb-2">
+                Крути.<br>
+                Получай героя.<br>
+                <span class="text-[#d4af37]">Описывай на букву.</span>
+            </h1>
+        </div>
+
+        
+        <div class="max-w-[860px] mx-auto">
+            
+            
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+                
+                
+                <div class="lg:col-span-3">
+                    <div class="flex items-center mb-2 px-1">
+                        <div class="section-title flex items-center gap-x-2">
+                            <i class="fa-solid fa-user-ninja"></i>
+                            <span>ГЕРОЙ</span>
+                        </div>
+                    </div>
+                    
+                    <div id="hero-reel" 
+                         class="slot-window h-[236px] relative cursor-pointer"
+                         onclick="if (!isSpinning) spin()">
+                        <div id="hero-strip" class="slot-strip">
+                            
+                        </div>
+                        <div class="reel-shadow"></div>
+                        
+                        
+                        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-24px)] h-[78px] border border-white/30 rounded-xl pointer-events-none z-20"></div>
+                    </div>
+                </div>
+
+                
+                <div class="lg:col-span-2">
+                    <div class="flex items-center justify-between mb-2 px-1">
+                        <div class="section-title flex items-center gap-x-2">
+                            <i class="fa-solid fa-font"></i>
+                            <span>БУКВА</span>
+                        </div>
+                    </div>
+                    
+                    <div id="letter-reel" 
+                         class="slot-window h-[236px] relative cursor-pointer"
+                         onclick="if (!isSpinning) spin()">
+                        <div id="letter-strip" class="slot-strip letter-strip">
+                            
+                        </div>
+                        <div class="reel-shadow"></div>
+                        
+                        
+                        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-32px)] h-[110px] border border-white/30 rounded-2xl pointer-events-none z-20"></div>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="flex justify-center mb-1 flex-shrink-0">
+                <button onclick="spin()"
+                        id="spin-btn"
+                        class="spin-button group flex items-center justify-center gap-x-2 px-8 h-9 text-base font-semibold tracking-tighter
+                               bg-gradient-to-b from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 active:from-red-700
+                               text-white rounded-2xl shadow-xl shadow-red-950/50 border border-red-500/30
+                               disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100">
+                    <div class="flex items-center gap-x-2">
+                        <i class="fa-solid fa-dice text-lg group-active:rotate-12 transition-transform" id="spin-icon"></i>
+                        <span id="spin-text" class="font-display tracking-[3px]">КРУТИТЬ</span>
+                    </div>
+                </button>
+            </div>
+
+            
+            <div id="result-card" class="hidden flex-shrink-0 dota-card rounded p-3 border-2 border-[#4a3728] text-sm">
+                <div class="flex flex-col md:flex-row gap-6 items-start">
+                    
+                    
+                    <div class="flex items-center gap-x-4 flex-1">
+                        <div id="result-portrait" class="w-12 h-12 rounded-full overflow-hidden border-2 border-[#d4af37] flex-shrink-0">
+                            <img id="result-image" alt="Hero portrait" class="w-full h-full object-cover">
+                        </div>
+                        
+                        <div class="min-w-0 flex-1">
+                            <div id="result-hero" 
+                                 class="font-display text-[#f0c060] text-4xl leading-none tracking-tighter"></div>
+                        </div>
+                    </div>
+
+                    
+                    <div class="flex-shrink-0 text-center md:text-right">
+                        <div class="text-[10px] tracking-[3px] font-bold text-[#d4af37] mb-1">НА БУКВУ</div>
+                        <div id="result-letter"
+                             class="font-display text-4xl leading-none text-[#f0c060] tabular-nums text-shadow-lg"></div>
+                    </div>
+                </div>
+
+
+            </div>
+
+            
+            <div class="flex-shrink-0 mt-1 text-xs">
+                <div class="flex items-center justify-between mb-0.5 px-1 border-b border-[#4a3728] pb-1">
+                    <div class="section-title text-[10px]">ИСТОРИЯ СПИНОВ</div>
+                    <button onclick="clearHistory()" 
+                            class="text-[10px] text-[#d4af37] hover:text-white flex items-center gap-x-1 transition-colors border border-[#4a3728] px-2 py-0.5 rounded hover:bg-[#1a1a1a]">
+                        <i class="fa-solid fa-trash text-[8px]"></i>
+                        <span>ОЧИСТИТЬ</span>
+                    </button>
+                </div>
+                
+                <div id="history-list" 
+                     class="dota-card rounded border border-[#4a3728] divide-y divide-[#4a3728] overflow-auto text-[10px] max-h-48">
+                    
+                    <div class="px-2 py-1 text-center text-[#d4af37]" id="history-empty">
+                        ПУСТО. КРУТИ — РЕЗУЛЬТАТЫ ЗДЕСЬ.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    
+    <div id="howto-modal" onclick="if (event.target.id === 'howto-modal') hideHowToPlay()" 
+         class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-5">
+        <div onclick="event.stopImmediatePropagation()" 
+             class="dota-card max-w-lg w-full rounded p-7 border-2 border-[#4a3728]">
+            <div class="flex justify-between items-center mb-4 border-b border-[#4a3728] pb-3">
+                <div class="font-display text-xl tracking-[2px] text-[#d4af37]">КАК ИГРАТЬ</div>
+                <button onclick="hideHowToPlay()" class="text-2xl leading-none text-[#d4af37] hover:text-white">×</button>
+            </div>
+            
+            <div class="space-y-5 text-[15px] text-[#e0d2b0]">
+                <div class="flex gap-4">
+                    <div class="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">1</div>
+                    <div>Нажимаешь большую красную кнопку <span class="font-medium text-[#d4af37]">«КРУТИТЬ»</span>.</div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">2</div>
+                    <div>Красивая анимация прокрутки выдаёт случайного <span class="font-medium text-[#d4af37]">героя</span> и случайную <span class="font-medium text-[#d4af37]">букву</span> русского алфавита.</div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">3</div>
+                    <div>Один человек должен <span class="font-medium text-[#d4af37]">описать героя</span>, начиная описание с выпавшей буквы. Чем смешнее, точнее или креативнее — тем лучше.</div>
+                </div>
+            </div>
+            
+            <div class="mt-6 text-xs bg-[#1a1a1a] border border-[#4a3728] p-3 rounded text-[#d4af37]">
+                ИДЕАЛЬНО ДЛЯ ПАТИ В 5+ ЧЕЛОВЕК. МОЖНО ИГРАТЬ ПО КРУГУ: КАЖДЫЙ ПОЛУЧАЕТ СВОЕГО ГЕРОЯ И БУКВУ.
+            </div>
+            
+            <button onclick="hideHowToPlay()" 
+                    class="mt-6 w-full h-11 bg-[#c23c2a] hover:bg-[#e04a38] text-white font-semibold rounded border border-[#d4af37] tracking-widest">ПОНЯТНО, ПОГНАЛИ!</button>
+        </div>
+    </div>
+
+    <script>
+        // Tailwind script
+        function initTailwind() {
+            document.documentElement.style.setProperty('--accent', '#c23c2a');
+        }
+        
+        // Data
+        let heroesData = [];
+        let isSpinning = false;
+        
+        // Load heroes data from backend (for consistency)
+        async function loadHeroesData() {
+            try {
+                const res = await fetch('/api/heroes');
+                const data = await res.json();
+                heroesData = data.heroes || [];
+            } catch (e) {
+                console.warn('Не удалось загрузить героев с сервера, используем дефолт');
+                // Fallback will be populated from backend anyway via spin
+            }
+        }
+        
+        // Build hero reel items (duplicated many times for long spins)
+        function buildHeroStrip() {
+            const strip = document.getElementById('hero-strip');
+            strip.innerHTML = '';
+            
+            // More duplicates to avoid edge/gap during snap and long spins
+            const duplicates = 15;
+            
+            for (let d = 0; d < duplicates; d++) {
+                heroesData.forEach((hero, idx) => {
+                    const item = document.createElement('div');
+                    item.className = `slot-item text-white flex items-center gap-x-3`;
+                    item.dataset.heroRu = hero.ru;
+                    item.dataset.heroEn = hero.en;
+                    item.dataset.idx = idx;
+                    
+                    const color = getAttrColor(hero.attr);
+                    
+                    item.innerHTML = `
+                        <div class="flex items-center gap-x-3 w-full">
+                            <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${color}"></div>
+                            <span class="font-semibold truncate">${hero.en}</span>
+                        </div>
+                    `;
+                    strip.appendChild(item);
+                });
+            }
+            
+            // Store total items count for calculations
+            strip.dataset.itemCount = heroesData.length;
+            strip.dataset.duplicates = duplicates;
+        }
+        
+        // Get color for hero attribute (str/agi/int/uni)
+        function getAttrColor(attr) {
+            const colors = {
+                'str': '#f97316',
+                'agi': '#22c55e',
+                'int': '#a855f7',
+                'uni': '#eab308'
+            };
+            return colors[attr] || '#71717a';
+        }
+        
+                function buildLetterStrip() {
+            const strip = document.getElementById('letter-strip');
+            strip.innerHTML = '';
+            
+            const letters = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ".split('');
+            const duplicates = 20;
+            
+            for (let d = 0; d < duplicates; d++) {
+                letters.forEach(letter => {
+                    const item = document.createElement('div');
+                    item.className = `slot-item text-white flex items-center justify-center font-display`;
+                    item.dataset.letter = letter;
+                    item.textContent = letter;
+                    strip.appendChild(item);
+                });
+            }
+            
+            strip.dataset.itemCount = letters.length;
+            strip.dataset.duplicates = duplicates;
+        }
+        
+        function getItemHeight(isLetter = false) {
+            return isLetter ? 110 : 78;
+        }
+        
+                async function spin() {
+            if (isSpinning) return;
+            isSpinning = true;
+            
+            const btn = document.getElementById('spin-btn');
+            const spinText = document.getElementById('spin-text');
+            const spinIcon = document.getElementById('spin-icon');
+            
+                        btn.disabled = true;
+            spinText.textContent = 'КРУТИМ...';
+            spinIcon.classList.add('fa-spin');
+            
+                        document.getElementById('result-card').classList.add('hidden');
+            
+                        let result;
+            try {
+                const res = await fetch('/api/spin');
+                result = await res.json();
+            } catch (err) {
+                                console.warn('Backend spin failed, using client random');
+                const fallbackHeroes = heroesData.length ? heroesData : getFallbackHeroes();
+                const hero = fallbackHeroes[Math.floor(Math.random() * fallbackHeroes.length)];
+                const letters = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ".split('');
+                result = {
+                    hero: hero.en,
+                    hero_ru: hero.ru,
+                    hero_en: hero.en,
+                    short: hero.short,
+                    attr: hero.attr,
+                    attr_label: hero.attr === 'str' ? 'СИЛА' : hero.attr === 'agi' ? 'ЛОВКОСТЬ' : hero.attr === 'int' ? 'ИНТЕЛЛЕКТ' : 'УНИВЕРСАЛ',
+                    color: getAttrColor(hero.attr),
+                    image: `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${hero.short}_lg.png`,
+                    letter: letters[Math.floor(Math.random() * letters.length)]
+                };
+            }
+            
+                        const heroStrip = document.getElementById('hero-strip');
+            const letterStrip = document.getElementById('letter-strip');
+            
+                        const heroTargetIdx = findHeroIndexInStrip(heroStrip, result.hero || result.hero_en);
+            const letterTargetIdx = findLetterIndexInStrip(letterStrip, result.letter);
+            
+                        const heroDuration = 2650 + Math.random() * 400;
+            const letterDuration = 1950 + Math.random() * 300;
+            
+                        playSpinSounds(Math.max(heroDuration, letterDuration));
+            
+                        const heroPromise = animateReel(heroStrip, heroTargetIdx, heroDuration, false);
+            const letterPromise = animateReel(letterStrip, letterTargetIdx, letterDuration, true);
+            
+            await Promise.all([heroPromise, letterPromise]);
+            
+                        await new Promise(r => setTimeout(r, 180));             
+                        showResult(result);
+            
+                        logSpin(result);
+            
+                        btn.disabled = false;
+            spinText.textContent = 'КРУТИТЬ ЕЩЁ';
+            spinIcon.classList.remove('fa-spin');
+            
+                        if (Math.random() > 0.65) {
+                launchConfetti(28);
+            }
+            
+                        playDing();
+            
+            isSpinning = false;
+        }
+        
+        function findHeroIndexInStrip(strip, targetName) {
+            const items = Array.from(strip.children);
+            const itemCount = parseInt(strip.dataset.itemCount);
+            const dups = parseInt(strip.dataset.duplicates);
+            
+                        const middleDuplicate = Math.floor(dups / 2);
+            
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].dataset.heroEn === targetName || items[i].dataset.heroRu === targetName) {
+                                        const dupIndex = Math.floor(i / itemCount);
+                    if (dupIndex === middleDuplicate || dupIndex === middleDuplicate - 1) {
+                        return i;
+                    }
+                }
+            }
+            
+                        for (let i = 0; i < items.length; i++) {
+                if (items[i].dataset.heroEn === targetName || items[i].dataset.heroRu === targetName) return i;
+            }
+            return 0;
+        }
+        
+        function findLetterIndexInStrip(strip, targetLetter) {
+            const items = Array.from(strip.children);
+            const itemCount = parseInt(strip.dataset.itemCount);
+            const dups = parseInt(strip.dataset.duplicates);
+            const middleDuplicate = Math.floor(dups / 2);
+            
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].dataset.letter === targetLetter) {
+                    const dupIndex = Math.floor(i / itemCount);
+                    if (dupIndex >= middleDuplicate - 1) {
+                        return i;
+                    }
+                }
+            }
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].dataset.letter === targetLetter) return i;
+            }
+            return 0;
+        }
+        
+        function animateReel(strip, targetIndex, duration, isLetter) {
+            return new Promise((resolve) => {
+                const items = Array.from(strip.children);
+                if (!items.length) {
+                    resolve();
+                    return;
+                }
+                let safeIndex = Math.max(0, Math.min(targetIndex, items.length - 1));
+                const targetItem = items[safeIndex];
+
+                const itemHeightActual = targetItem.offsetHeight || getItemHeight(isLetter);
+                const windowEl = strip.parentElement;
+                const windowHeightActual = windowEl.clientHeight || (isLetter ? 236 : 236);
+
+                let currentY = 0;
+                const currentTransform = strip.style.transform;
+                if (currentTransform) {
+                    const match = currentTransform.match(/translateY\(-?([\d.]+)px\)/);
+                    if (match) currentY = parseFloat(match[1]);
+                }
+
+                const contentCenter = targetItem.offsetTop + itemHeightActual / 2;
+                const targetOffset = contentCenter - windowHeightActual / 2;
+
+                const originalCount = parseInt(strip.dataset.itemCount) || (isLetter ? 33 : 126);
+                const cycleHeight = originalCount * itemHeightActual;
+
+                const fullRotations = isLetter ? 8 : 6;
+                const rotationDistance = fullRotations * cycleHeight;
+
+                const finalTranslate = targetOffset + rotationDistance;
+
+                items.forEach(item => item.classList.add('spinning'));
+
+                const animation = strip.animate(
+                    [
+                        { transform: `translateY(-${currentY}px)` },
+                        { transform: `translateY(-${finalTranslate}px)` }
+                    ],
+                    {
+                        duration: duration,
+                        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                        fill: 'forwards'
+                    }
+                );
+
+                animation.onfinish = () => {
+                    items.forEach(item => item.classList.remove('spinning'));
+
+                    const baseDuplicate = 2;
+                    const relativeIdx = safeIndex % originalCount;
+                    const baseItemIdx = relativeIdx + baseDuplicate * originalCount;
+                    const baseItem = items[baseItemIdx] || targetItem;
+
+                    const baseContentCenter = baseItem.offsetTop + baseItem.offsetHeight / 2;
+                    const snapY = baseContentCenter - windowHeightActual / 2;
+
+                    strip.style.transition = 'none';
+                    strip.style.transform = `translateY(-${snapY}px)`;
+
+                    void strip.offsetWidth;
+                    strip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
+
+                    items.forEach(item => item.classList.remove('reel-landed'));
+                    const landedItem = items[baseItemIdx] || baseItem;
+                    if (landedItem) {
+                        landedItem.classList.add('reel-landed');
+                        setTimeout(() => landedItem.classList.remove('reel-landed'), 850);
+                    }
+
+                    resolve();
+                };
+            });
+        }
+        
+                let audioCtx;
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioCtx;
+        }
+        
+        function playTick(volume = 0.08) {
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                const filter = ctx.createBiquadFilter();
+                
+                osc.type = 'square';
+                osc.frequency.value = 620 + Math.random() * 80;
+                
+                filter.type = 'lowpass';
+                filter.frequency.value = 1400;
+                
+                gain.gain.value = volume;
+                
+                const duration = 0.035;
+                
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.start();
+                
+                setTimeout(() => {
+                    gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + duration);
+                    setTimeout(() => osc.stop(), duration * 1000 + 10);
+                }, 4);
+            } catch (e) {}
+        }
+        
+        function playSpinSounds(totalDuration) {
+            const tickInterval = 38;
+            let elapsed = 0;
+            const interval = setInterval(() => {
+                if (!isSpinning || elapsed > totalDuration + 80) {
+                    clearInterval(interval);
+                    return;
+                }
+                                const progress = elapsed / totalDuration;
+                const vol = Math.max(0.015, 0.09 * (1 - progress * 0.7));
+                playTick(vol);
+                elapsed += tickInterval;
+            }, tickInterval);
+        }
+        
+        function playDing() {
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                const filter = ctx.createBiquadFilter();
+                
+                osc.type = 'sine';
+                osc.frequency.value = 780;
+                
+                filter.type = 'lowpass';
+                filter.frequency.value = 2200;
+                
+                gain.gain.value = 0.35;
+                
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.start();
+                
+                setTimeout(() => {
+                    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.65);
+                    setTimeout(() => osc.stop(), 700);
+                }, 90);
+            } catch (e) {}
+        }
+        
+        function launchConfetti(count = 40) {
+                        const canvas = document.createElement('canvas');
+            canvas.style.position = 'fixed';
+            canvas.style.left = '0';
+            canvas.style.top = '0';
+            canvas.style.pointerEvents = 'none';
+            canvas.style.zIndex = '99999';
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            document.body.appendChild(canvas);
+            
+            const ctx = canvas.getContext('2d');
+            const particles = [];
+            
+            const colors = ['#c23c2a', '#d4af37', '#f4f4f5', '#22c55e'];
+            
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height * 0.6 - 40,
+                    size: 4 + Math.random() * 7,
+                    speed: 2.5 + Math.random() * 3.5,
+                    angle: Math.random() * Math.PI * 2,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    rot: Math.random() * 6 - 3
+                });
+            }
+            
+            let frame = 0;
+            const maxFrames = 92;
+            
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                let alive = 0;
+                
+                particles.forEach(p => {
+                    p.y += p.speed;
+                    p.x += Math.sin(p.angle) * 1.6;
+                    p.angle += 0.08;
+                    p.rot += 0.1;
+                    
+                    if (p.y < canvas.height + 30) alive++;
+                    
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rot);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size * 0.6);
+                    ctx.restore();
+                });
+                
+                frame++;
+                if (frame < maxFrames && alive > 0) {
+                    requestAnimationFrame(draw);
+                } else {
+                    canvas.remove();
+                }
+            }
+            
+            draw();
+        }
+        
+        function showResult(result) {
+            const card = document.getElementById('result-card');
+            
+                        const img = document.getElementById('result-image');
+            img.src = result.image || `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png`;
+            img.onerror = () => {
+                img.style.display = 'none';
+            };
+            
+                        document.getElementById('result-hero').textContent = result.hero || result.hero_en;
+            
+                        document.getElementById('result-letter').textContent = result.letter;
+            
+            card.classList.remove('hidden');
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+                        window.lastResult = result;
+
+                        logSpin(result);
+        }
+        
+
+        
+        function logSpin(result) {
+            const heroName = result.hero || result.hero_en || result.hero_ru;
+            if (!heroName || !result.letter) return;
+
+            const entry = {
+                hero: heroName,
+                letter: result.letter,
+                text: '',
+                short: result.short || '',
+                attr: result.attr || '',
+                color: result.color || '',
+                image: result.image || '',
+                ts: Date.now()
+            };
+
+            let history = JSON.parse(localStorage.getItem('dota_bukva_history') || '[]');
+
+            if (history.length > 0 && history[0].hero === entry.hero && history[0].letter === entry.letter) {
+                return;
+            }
+
+            history.unshift(entry);
+            if (history.length > 30) history = history.slice(0, 30);
+            localStorage.setItem('dota_bukva_history', JSON.stringify(history));
+
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-list');
+            const empty = document.getElementById('history-empty');
+            
+            const history = JSON.parse(localStorage.getItem('dota_bukva_history') || '[]');
+            
+                        Array.from(container.children).forEach(child => {
+                if (child.id !== 'history-empty') child.remove();
+            });
+            
+            if (history.length === 0) {
+                empty.style.display = '';
+                return;
+            }
+            
+            empty.style.display = 'none';
+            
+            history.forEach((item, index) => {
+                const el = document.createElement('div');
+                el.className = `history-item px-5 py-[13px] flex items-start gap-3 text-sm cursor-pointer`;
+                
+                const date = new Date(item.ts);
+                const timeStr = date.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
+                
+                const textHtml = item.text ? `<div class="text-zinc-300 mt-0.5 line-clamp-2 pr-2">${item.text}</div>` : '';
+                
+                el.innerHTML = `
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-baseline gap-x-2">
+                            <span class="font-semibold text-white">${item.hero}</span>
+                            <span class="font-mono text-red-400 text-base leading-none pt-0.5">${item.letter}</span>
+                            <span class="text-[10px] text-zinc-500 ml-auto tabular-nums">${timeStr}</span>
+                        </div>
+                        ${textHtml}
+                    </div>
+                `;
+                
+                el.onclick = () => {
+                                        const fakeResult = {
+                        hero: item.hero,
+                        letter: item.letter,
+                        short: item.short || 'pudge',
+                        attr: item.attr || 'str',
+                        color: item.color || '#f97316',
+                        image: item.image || `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png`,
+                    };
+                    window.lastResult = fakeResult;
+                    showResult(fakeResult);
+                };
+                
+                container.appendChild(el);
+            });
+        }
+        
+        function clearHistory() {
+            if (!confirm('Очистить всю историю?')) return;
+            localStorage.removeItem('dota_bukva_history');
+            renderHistory();
+        }
+        
+        function showHowToPlay() {
+            document.getElementById('howto-modal').classList.remove('hidden');
+            document.getElementById('howto-modal').classList.add('flex');
+        }
+        
+        function hideHowToPlay() {
+            const modal = document.getElementById('howto-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        
+                function getFallbackHeroes() {
+            return [
+                {"en":"Pudge","ru":"Pudge","short":"pudge","attr":"str"},
+                {"en":"Invoker","ru":"Invoker","short":"invoker","attr":"int"},
+                {"en":"Anti-Mage","ru":"Anti-Mage","short":"antimage","attr":"agi"},
+                {"en":"Crystal Maiden","ru":"Crystal Maiden","short":"crystal_maiden","attr":"int"},
+                {"en":"Juggernaut","ru":"Juggernaut","short":"juggernaut","attr":"agi"}
+            ];
+        }
+        
+                function setupKeyboard() {
+            document.addEventListener('keydown', (e) => {
+                if (e.key === ' ' || e.key === 'Spacebar') {
+                    if (!isSpinning && document.activeElement.tagName === 'BODY') {
+                        e.preventDefault();
+                        spin();
+                    }
+                }
+                if (e.key.toLowerCase() === '?' && !isSpinning) {
+                    showHowToPlay();
+                }
+            });
+            
+                        ['hero-reel', 'letter-reel'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('click', () => {
+                        if (!isSpinning) spin();
+                    });
+                }
+            });
+        }
+        
+                async function initialize() {
+            initTailwind();
+            
+            await loadHeroesData();
+            
+                        if (!heroesData.length) {
+                heroesData = getFallbackHeroes().concat([
+                    {"en":"Axe","ru":"Axe","short":"axe","attr":"str"},
+                    {"en":"Shadow Fiend","ru":"Shadow Fiend","short":"nevermore","attr":"agi"},
+                    {"en":"Zeus","ru":"Zeus","short":"zuus","attr":"int"},
+                    {"en":"Luna","ru":"Luna","short":"luna","attr":"agi"},
+                    {"en":"Tinker","ru":"Tinker","short":"tinker","attr":"int"}
+                ]);
+            }
+            
+                        buildHeroStrip();
+            buildLetterStrip();
+            
+                        const heroStrip = document.getElementById('hero-strip');
+            const letterStrip = document.getElementById('letter-strip');
+            
+            heroStrip.style.transition = 'none';
+            letterStrip.style.transition = 'none';
+            
+                        const h = getItemHeight(false);
+            const l = getItemHeight(true);
+            
+            heroStrip.style.transform = `translateY(-${Math.floor(Math.random() * 9) * h + 30}px)`;
+            letterStrip.style.transform = `translateY(-${Math.floor(Math.random() * 11) * l + 40}px)`;
+            
+                        setTimeout(() => {
+                heroStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
+                letterStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
+            }, 60);
+            
+                        renderHistory();
+            
+                        setupKeyboard();
+            
+                        let keys = [];
+            document.addEventListener('keydown', function k(e) {
+                keys.push(e.key);
+                if (keys.length > 5) keys.shift();
+                if (keys.join(',').includes('ArrowUp,ArrowUp,ArrowDown')) {
+                    document.removeEventListener('keydown', k);
+                    const btn = document.getElementById('spin-btn');
+                    if (btn) btn.style.boxShadow = '0 0 0 6px rgb(163 163 172 / 0.2)';
+                    setTimeout(() => spin(), 180);
+                }
+            });
+            
+                        console.log('%c[DOTA-BUKVA] Готово. Можно жать КРУТИТЬ или пробел.', 'color:#3f3f46');
+            
+                                }
+        
+                window.addEventListener('load', initialize);
+        
+                window.dotaSpin = () => document.getElementById('spin-btn') && spin();
+    </script>
+</body>
+</html>
