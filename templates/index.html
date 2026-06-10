@@ -445,7 +445,7 @@
 
         <div class="max-w-md mx-auto space-y-4">
             <!-- Create Room -->
-            <div onclick="createRoom()" 
+            <div onclick="showHostingDonationPopup()" 
                  class="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
                 <div class="flex items-center gap-4">
                     <i class="fa-solid fa-plus text-3xl text-[#d4af37] group-hover:rotate-90 transition-transform"></i>
@@ -2294,6 +2294,52 @@
             }
         }
 
+        function showHostingDonationPopup() {
+            const modal = document.getElementById('confirm-modal');
+            if (!modal) {
+                alert('СОБИРАЮ ДОНАТЫ НА ХОСТ @mrmdkkkk');
+                return;
+            }
+
+            document.getElementById('confirm-title').textContent = 'Мультиплеер в разработке';
+            document.getElementById('confirm-message').innerHTML = `
+                СОБИРАЮ ДОНАТЫ НА ХОСТ @mrmdkkkk
+            `;
+
+            const cancelBtn = modal.querySelector('button[onclick*="hideConfirmModal(false)"]');
+            const confirmBtn = modal.querySelector('button[onclick*="hideConfirmModal(true)"]');
+
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            if (confirmBtn) {
+                const originalText = confirmBtn.textContent;
+                confirmBtn.textContent = 'Понятно';
+                const originalOnclick = confirmBtn.onclick;
+
+                confirmBtn.onclick = () => {
+                    hideConfirmModal(false);
+                    if (cancelBtn) cancelBtn.style.display = '';
+                    if (confirmBtn) {
+                        confirmBtn.textContent = originalText;
+                        confirmBtn.onclick = originalOnclick;
+                    }
+                };
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex', 'show');
+
+            const card = document.getElementById('confirm-modal-card');
+            if (card) {
+                card.style.transition = 'none';
+                card.classList.add('scale-95', 'opacity-0');
+                void card.offsetWidth;
+                card.style.transition = 'transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.2s ease';
+                requestAnimationFrame(() => {
+                    card.classList.remove('scale-95', 'opacity-0');
+                });
+            }
+        }
+
         function showErrorPopup(message) {
             // Reuse the animated confirm modal as an error popup with single OK button
             const modal = document.getElementById('confirm-modal');
@@ -2384,6 +2430,10 @@
         // ==================== WEBSOCKET ROOM SYNC ====================
 
         function connectToRoomWS(code, role = 'guesser', retryCount = 0) {
+            if (location.hostname.includes('vercel.app')) {
+                console.info('[Room WS] Disabled on Vercel static deploy (using demo/local mode). Real-time requires backend.');
+                return;
+            }
             if (roomSocket) {
                 try { roomSocket.close(); } catch (e) {}
             }
