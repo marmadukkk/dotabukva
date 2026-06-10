@@ -264,6 +264,15 @@
             color: #f0c060;
         }
 
+        /* Continuous spin visual while waiting for server result in room mode (leader) */
+        .reel-waiting-spin .slot-strip {
+            animation: reel-waiting-spin 650ms linear infinite;
+        }
+        @keyframes reel-waiting-spin {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-180px); }
+        }
+
         .dota-divider {
             background: linear-gradient(to right, transparent, #3f3f46, transparent);
             height: 1px;
@@ -358,6 +367,17 @@
             filter: grayscale(0.9) brightness(0.55);
         }
 
+        /* Read-only grid for leader viewing guessers' table */
+        .hero-cell.readonly {
+            cursor: default;
+        }
+        .hero-cell.readonly:hover {
+            transform: none;
+        }
+        .hero-cell.readonly img {
+            transition: none;
+        }
+
         .sort-btn {
             background: #111111;
             color: #c9b38a;
@@ -386,7 +406,7 @@
     <nav class="border-b-2 border-[#4a3728] bg-[#0a0a0a] sticky top-0 z-50 shadow-lg">
         <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
             <div class="flex items-center gap-x-3">
-                <div class="flex items-center gap-x-2.5">
+                <div onclick="showMainMenu()" class="flex items-center gap-x-2.5 cursor-pointer">
                     <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center shadow-inner">
                         <i class="fa-solid fa-dice text-white text-2xl"></i>
                     </div>
@@ -411,7 +431,99 @@
         </div>
     </nav>
 
-    <div id="role-menu" class="max-w-5xl mx-auto px-5 pt-8 pb-12">
+    <!-- Main Menu -->
+    <div id="main-menu" class="max-w-5xl mx-auto px-5 pt-12 pb-12">
+        <div class="text-center mb-10">
+            <div class="flex justify-center mb-4">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center shadow-inner">
+                    <i class="fa-solid fa-dice text-white text-5xl"></i>
+                </div>
+            </div>
+            <h1 class="font-display text-6xl sm:text-7xl font-bold tracking-tighter">DOTA-BUKVA</h1>
+            <p class="mt-2 text-zinc-400 text-lg">Крути. Описывай. Отгадывай.</p>
+        </div>
+
+        <div class="max-w-md mx-auto space-y-4">
+            <!-- Create Room -->
+            <div onclick="createRoom()" 
+                 class="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
+                <div class="flex items-center gap-4">
+                    <i class="fa-solid fa-plus text-3xl text-[#d4af37] group-hover:rotate-90 transition-transform"></i>
+                    <div>
+                        <div class="font-display text-2xl tracking-tight">Создать комнату</div>
+                        <div class="text-sm text-zinc-400 mt-0.5">Сгенерировать код и пригласить друзей</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Room List -->
+            <div onclick="showRoomList()" 
+                 class="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
+                <div class="flex items-center gap-4">
+                    <i class="fa-solid fa-list text-3xl text-[#d4af37]"></i>
+                    <div>
+                        <div class="font-display text-2xl tracking-tight">Список комнат</div>
+                        <div class="text-sm text-zinc-400 mt-0.5">Присоединиться к существующей комнате</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Normal Mode -->
+            <div onclick="startNormalMode()" 
+                 class="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
+                <div class="flex items-center gap-4">
+                    <i class="fa-solid fa-gamepad text-3xl text-[#d4af37]"></i>
+                    <div>
+                        <div class="font-display text-2xl tracking-tight">Обычный режим</div>
+                        <div class="text-sm text-zinc-400 mt-0.5">Играть без комнаты (классика)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="papich-phrase" class="text-center mt-8 text-[11px] text-zinc-500 tracking-wider cursor-pointer">
+            МУЛЬТИПЛЕЕР В РАЗРАБОТКЕ • КОМНАТЫ ДЛЯ ОБЩЕЙ ИГРЫ
+        </div>
+    </div>
+
+    <!-- Room Lobby -->
+    <div id="room-lobby" class="hidden max-w-3xl mx-auto px-5 pt-8 pb-12">
+        <div class="text-center mb-6">
+            <div class="text-[#d4af37] text-xs tracking-[3px] mb-1">КОМНАТА</div>
+            <div id="lobby-room-code" class="font-mono text-4xl text-[#f0c060] tracking-[4px]"></div>
+        </div>
+
+        <div class="dota-card rounded-2xl p-6 border-2 border-[#4a3728] max-w-md mx-auto">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <div class="text-sm text-zinc-400">Игроков подключено</div>
+                    <div id="lobby-player-count" class="text-2xl font-semibold text-white">1</div>
+                </div>
+                <div id="lobby-role-badge" 
+                     class="px-3 py-1 text-xs rounded-full border font-medium">
+                </div>
+            </div>
+
+            <div id="lobby-status" class="text-[#e0d2b0] text-sm mb-6 min-h-[40px]">
+            </div>
+
+            <button id="lobby-start-btn" onclick="startGameFromLobby()"
+                    class="hidden w-full h-11 bg-[#c23c2a] hover:bg-[#e04a38] text-white font-semibold rounded-xl border border-[#d4af37]">
+                НАЧАТЬ ИГРУ
+            </button>
+
+            <div id="lobby-waiting" class="hidden text-center text-xs text-zinc-500">
+                Ожидайте, пока ведущий начнёт игру...
+            </div>
+        </div>
+
+        <div class="text-center mt-4 text-[11px] text-zinc-500">
+            Когда игра начнётся, ведущий будет крутить, а отгадывающие будут вычёркивать героев в реальном времени.
+        </div>
+    </div>
+
+    <!-- Role selection menu -->
+    <div id="role-menu" class="max-w-5xl mx-auto px-5 pt-8 pb-12 hidden">
         <div class="text-center mb-8">
             <div class="inline-flex items-center gap-x-2 text-[#d4af37] text-xs tracking-[4px] font-semibold mb-3">
                 <i class="fa-solid fa-users"></i>
@@ -576,6 +688,22 @@
                 </div>
             </div>
         </div>
+
+            <!-- Leader view of guessers table (read-only) - only in room mode -->
+            <div id="leader-table-section" class="mt-8" style="display: none;">
+                <div class="flex items-center justify-between mb-2 px-1">
+                    <div class="section-title flex items-center gap-x-2">
+                        <i class="fa-solid fa-th-large"></i>
+                        <span>ТАБЛИЦА ОТГАДЫВАЮЩИХ (просмотр)</span>
+                    </div>
+                </div>
+                <div id="leader-guesser-grid" 
+                     class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
+                    <!-- populated read-only by JS -->
+                </div>
+            </div>
+
+        </div>
         </div> <!-- /max-w-[860] -->
     </div> <!-- /leader-view inner -->
     </div> <!-- /#leader-view -->
@@ -598,6 +726,16 @@
                     <i class="fa-solid fa-undo text-[10px]"></i>
                     <span>СБРОСИТЬ</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- Free elims and CD timer for room guessers (online only) -->
+        <div class="px-1 mb-1 flex gap-4 text-xs">
+            <div id="free-elims-container" class="text-emerald-400">
+                Бесплатных вычёркиваний: <span id="free-elims-count" class="font-bold">3</span>
+            </div>
+            <div id="elim-cd-container" class="hidden text-red-400">
+                <i class="fa-solid fa-clock mr-1"></i> КД до следующего: <span id="elim-cd-seconds" class="font-mono font-bold">25</span>с
             </div>
         </div>
 
@@ -764,7 +902,7 @@
             const strip = document.getElementById('letter-strip');
             strip.innerHTML = '';
             
-            const letters = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ".split('');
+            const letters = "АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЮЯ".split('');
             const duplicates = 20;
             
             for (let d = 0; d < duplicates; d++) {
@@ -784,9 +922,89 @@
         function getItemHeight(isLetter = false) {
             return isLetter ? 110 : 78;
         }
+
+        // Reusable function to run the nice reel animation + show result (used in normal mode and for leader in room)
+        async function landReelResult(result) {
+            const heroStrip = document.getElementById('hero-strip');
+            const letterStrip = document.getElementById('letter-strip');
+
+            const heroReel = document.getElementById('hero-reel');
+            const letterReel = document.getElementById('letter-reel');
+
+            // Remove any waiting spin visual
+            if (heroReel) heroReel.classList.remove('reel-waiting-spin');
+            if (letterReel) letterReel.classList.remove('reel-waiting-spin');
+
+            if (!heroStrip || !letterStrip) {
+                showResult(result);
+                isSpinning = false;
+                return;
+            }
+
+            const heroTargetIdx = findHeroIndexInStrip(heroStrip, result.hero || result.hero_en);
+            const letterTargetIdx = findLetterIndexInStrip(letterStrip, result.letter);
+
+            const heroDuration = 2650 + Math.random() * 400;
+            const letterDuration = 1950 + Math.random() * 300;
+
+            playSpinSounds(Math.max(heroDuration, letterDuration));
+
+            const heroPromise = animateReel(heroStrip, heroTargetIdx, heroDuration, false);
+            const letterPromise = animateReel(letterStrip, letterTargetIdx, letterDuration, true);
+
+            await Promise.all([heroPromise, letterPromise]);
+
+            await new Promise(r => setTimeout(r, 180));
+
+            showResult(result);
+
+            if (!currentRoom || isRoomLeader) {
+                logSpin(result);
+            }
+
+            const btn = document.getElementById('spin-btn');
+            const spinText = document.getElementById('spin-text');
+            const spinIcon = document.getElementById('spin-icon');
+
+            if (btn) btn.disabled = false;
+            if (spinText) spinText.textContent = 'КРУТИТЬ ЕЩЁ';
+            if (spinIcon) spinIcon.classList.remove('fa-spin');
+
+            if (Math.random() > 0.65) {
+                launchConfetti(28);
+            }
+
+            playDing();
+
+            isSpinning = false;
+        }
         
                 async function spin() {
             if (isSpinning) return;
+
+            if (currentRoom && roomSocket) {
+                // In room: leader triggers spin on server, result will come via WS
+                isSpinning = true;
+                const btn = document.getElementById('spin-btn');
+                const spinText = document.getElementById('spin-text');
+                const spinIcon = document.getElementById('spin-icon');
+                if (btn) btn.disabled = true;
+                if (spinText) spinText.textContent = 'КРУТИМ...';
+                if (spinIcon) spinIcon.classList.add('fa-spin');
+
+                sendRoomMessage({ type: 'spin' });
+
+                // Immediate continuous spin visual while waiting for server result (online leader)
+                const heroReel = document.getElementById('hero-reel');
+                const letterReel = document.getElementById('letter-reel');
+                if (heroReel) heroReel.classList.add('reel-waiting-spin');
+                if (letterReel) letterReel.classList.add('reel-waiting-spin');
+
+                // The real targeted animation + result will happen when spin_result arrives via WS
+                // (see landReelResult and handleRoomMessage)
+                return;
+            }
+
             isSpinning = true;
             
             const btn = document.getElementById('spin-btn');
@@ -807,7 +1025,7 @@
                                 console.warn('Backend spin failed, using client random');
                 const fallbackHeroes = heroesData.length ? heroesData : getFallbackHeroes();
                 const hero = fallbackHeroes[Math.floor(Math.random() * fallbackHeroes.length)];
-                const letters = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ".split('');
+                const letters = "АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЮЯ".split('');
                 result = {
                     hero: hero.en,
                     hero_ru: hero.ru,
@@ -1360,7 +1578,7 @@
             const l = getItemHeight(true);
             
             heroStrip.style.transform = `translateY(-${Math.floor(Math.random() * 9) * h + 30}px)`;
-            letterStrip.style.transform = `translateY(-${Math.floor(Math.random() * 11) * l + 40}px)`;
+            letterStrip.style.transform = `translateY(-${Math.floor(Math.random() * 9) * l + 40}px)`;
             
                         setTimeout(() => {
                 heroStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
@@ -1385,36 +1603,49 @@
             
                         console.log('%c[DOTA-BUKVA] Готово. Можно жать КРУТИТЬ или пробел.', 'color:#3f3f46');
 
-            const saved = localStorage.getItem('dota_bukva_role');
-            if (saved === 'leader') {
+            // Always start at the new main menu
+            document.getElementById('main-menu').classList.remove('hidden');
+            document.getElementById('role-menu').classList.add('hidden');
+            document.getElementById('leader-view').classList.add('hidden');
+            document.getElementById('guesser-view').classList.add('hidden');
+
+            // Check for room in URL (invite link support)
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomFromUrl = urlParams.get('room');
+            if (roomFromUrl) {
+                document.getElementById('main-menu').classList.add('hidden');
                 document.getElementById('role-menu').classList.add('hidden');
-                document.getElementById('guesser-view').classList.add('hidden');
-                document.getElementById('leader-view').classList.remove('hidden');
-                currentRole = 'leader';
-                updateNavRole();
-            } else if (saved === 'guesser') {
-                document.getElementById('role-menu').classList.add('hidden');
-                document.getElementById('leader-view').classList.add('hidden');
-                document.getElementById('guesser-view').classList.remove('hidden');
-                currentRole = 'guesser';
-                loadEliminated();
-                setTimeout(() => {
-                    renderGuesserGrid();
-                    updateGuesserStats();
-                    updateSortButtons();
-                }, 30);
-                updateNavRole();
-            } else {
-                document.getElementById('leader-view').classList.add('hidden');
-                document.getElementById('guesser-view').classList.add('hidden');
-                document.getElementById('role-menu').classList.remove('hidden');
+                currentRoom = roomFromUrl.toUpperCase();
+                let myRooms = JSON.parse(localStorage.getItem('dota_bukva_my_rooms') || '[]');
+                isRoomLeader = myRooms.includes(currentRoom);
+                if (!isRoomLeader) {
+                    myFreeElims = 3;
+                    myLastElim = 0;
+                }
+                updateFreeElimsDisplay();
+                stopElimCD();
+                showRoomLobby();
+                updateNavRoom();
+                const wsRole = isRoomLeader ? 'leader' : 'guesser';
+                connectToRoomWS(currentRoom, wsRole);
             }
+
+            updateNavRoom();
+
+            loadPapichPhrases().then(() => setRandomPapichPhrase());
                                 }
 
 
         let eliminatedHeroes = new Set();
         let guesserGridBuilt = false;
         let currentGuesserSort = 'az';
+        let currentRoom = null; // room code if in a multiplayer room
+        let roomSocket = null;
+        let isRoomLeader = false;
+        let myFreeElims = 3;
+        let myLastElim = 0; // timestamp seconds for CD
+
+        let papichPhrases = [];
 
         function updateNavRole() {
             const nav = document.getElementById('nav-role');
@@ -1460,7 +1691,7 @@
                 const letterStrip = document.getElementById('letter-strip');
                 letterStrip.style.transition = 'none';
                 heroStrip.style.transform = `translateY(-${Math.floor(Math.random() * 9) * h + 30}px)`;
-                letterStrip.style.transform = `translateY(-${Math.floor(Math.random() * 11) * l + 40}px)`;
+                letterStrip.style.transform = `translateY(-${Math.floor(Math.random() * 9) * l + 40}px)`;
                 setTimeout(() => {
                     heroStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
                     letterStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
@@ -1468,6 +1699,15 @@
             }
 
             updateNavRole();
+            updateNavRoom();
+
+            if (currentRoom) {
+                connectToRoomWS(currentRoom, 'leader');
+            }
+
+            // In normal mode, hide the guessers table preview (only shown in room for leader)
+            const tableSec = document.getElementById('leader-table-section');
+            if (tableSec) tableSec.style.display = 'none';
         }
 
         function enterGuesser() {
@@ -1485,6 +1725,19 @@
             updateGuesserStats();
             updateSortButtons();
             updateNavRole();
+            updateNavRoom();
+
+            if (currentRoom) {
+                connectToRoomWS(currentRoom, 'guesser');
+                // For guessers, eliminated comes from server
+                loadEliminated = () => {}; // disable local
+            } else {
+                // normal mode: hide CD/free UI (no cooldowns in normal)
+                const freeC = document.getElementById('free-elims-container');
+                const cdC = document.getElementById('elim-cd-container');
+                if (freeC) freeC.classList.add('hidden');
+                if (cdC) cdC.classList.add('hidden');
+            }
         }
 
         function loadEliminated() {
@@ -1504,8 +1757,8 @@
             return `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${short}_lg.png`;
         }
 
-        function renderGuesserGrid(filter = '') {
-            const container = document.getElementById('hero-grid');
+        function renderGuesserGrid(filter = '', targetId = 'hero-grid', isReadonly = false) {
+            const container = document.getElementById(targetId);
             if (!container) return;
             container.innerHTML = '';
             guesserGridBuilt = true;
@@ -1517,7 +1770,7 @@
                 const nameMatch = hero.ru.toLowerCase().includes(q) || hero.en.toLowerCase().includes(q);
 
                 const cell = document.createElement('div');
-                cell.className = `hero-cell`;
+                cell.className = `hero-cell ${isReadonly ? 'readonly' : ''}`;
                 cell.dataset.short = hero.short;
                 cell.dataset.ru = hero.ru;
                 cell.dataset.en = hero.en;
@@ -1539,7 +1792,9 @@
                     <div class="hero-label" title="${hero.ru}">${hero.en}</div>
                 `;
 
-                cell.onclick = () => toggleEliminatedHero(cell, hero.short);
+                if (!isReadonly) {
+                    cell.onclick = () => toggleEliminatedHero(cell, hero.short);
+                }
                 container.appendChild(cell);
             });
 
@@ -1554,6 +1809,39 @@
         }
 
         function toggleEliminatedHero(cellEl, short) {
+            if (currentRoom && roomSocket) {
+                // In room for guesser: check local CD / free, send to server
+                if (currentRole !== 'guesser') return; // leader can't
+
+                const now = Date.now() / 1000;
+                if (myFreeElims <= 0 && now - myLastElim < 25) {
+                    // on CD, ignore or show message (toast optional)
+                    return;
+                }
+
+                sendRoomMessage({ type: 'eliminate', short });
+
+                // optimistic gray + update personal CD
+                if (!eliminatedHeroes.has(short)) {
+                    eliminatedHeroes.add(short);
+                    cellEl.classList.add('eliminated');
+                    updateGuesserStats();
+                }
+
+                if (myFreeElims > 0) {
+                    myFreeElims--;
+                } else {
+                    myLastElim = now;
+                }
+                updateFreeElimsDisplay();
+                if (myFreeElims <= 0) {
+                    const now2 = Date.now() / 1000;
+                    const rem = Math.max(0, 25 - (now2 - myLastElim));
+                    if (rem > 0) startElimCD(rem);
+                }
+                return;
+            }
+
             if (eliminatedHeroes.has(short)) {
                 eliminatedHeroes.delete(short);
                 cellEl.classList.remove('eliminated');
@@ -1576,9 +1864,51 @@
             remainEl.textContent = Math.max(0, total - elim);
         }
 
+        let elimCDInterval = null;
+
+        function updateFreeElimsDisplay() {
+            const freeContainer = document.getElementById('free-elims-container');
+            const countEl = document.getElementById('free-elims-count');
+            if (countEl) countEl.textContent = myFreeElims;
+            if (freeContainer) {
+                freeContainer.classList.toggle('hidden', myFreeElims <= 0);
+            }
+        }
+
+        function startElimCD(seconds = 25) {
+            clearInterval(elimCDInterval);
+            const cdContainer = document.getElementById('elim-cd-container');
+            const secEl = document.getElementById('elim-cd-seconds');
+            if (!cdContainer || !secEl) return;
+            cdContainer.classList.remove('hidden');
+            let rem = Math.ceil(seconds);
+            secEl.textContent = rem;
+            elimCDInterval = setInterval(() => {
+                rem--;
+                if (rem <= 0) {
+                    clearInterval(elimCDInterval);
+                    cdContainer.classList.add('hidden');
+                } else {
+                    secEl.textContent = rem;
+                }
+            }, 1000);
+        }
+
+        function stopElimCD() {
+            clearInterval(elimCDInterval);
+            const cdContainer = document.getElementById('elim-cd-container');
+            if (cdContainer) cdContainer.classList.add('hidden');
+        }
+
         function resetEliminated() {
             showConfirmDialog('Сбросить все вычеркнутые герои?', 'Сброс вычеркнутых').then(confirmed => {
                 if (!confirmed) return;
+
+                if (currentRoom && roomSocket) {
+                    sendRoomMessage({ type: 'clear_eliminated' });
+                    return;
+                }
+
                 eliminatedHeroes.clear();
                 saveEliminated();
 
@@ -1625,6 +1955,686 @@
                 renderGuesserGrid(document.getElementById('guesser-search')?.value || '');
             }
         }
+
+        // ==================== MAIN MENU + ROOMS ====================
+
+        function showMainMenu() {
+            // Hide all main views
+            document.getElementById('main-menu').classList.remove('hidden');
+            document.getElementById('role-menu').classList.add('hidden');
+            document.getElementById('leader-view').classList.add('hidden');
+            document.getElementById('guesser-view').classList.add('hidden');
+
+            // Clear current room when going back to main menu
+            // (comment out if you want to keep room context)
+            // currentRoom = null;
+            updateNavRoom();
+
+            loadPapichPhrases().then(() => setRandomPapichPhrase());
+        }
+
+        function startNormalMode() {
+            currentRoom = null;
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('role-menu').classList.remove('hidden');
+            updateNavRoom();
+        }
+
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return code;
+        }
+
+        async function createRoom() {
+            let data;
+            try {
+                const res = await fetch('/api/rooms/create', { method: 'POST' });
+                if (!res.ok) {
+                    throw new Error('Server returned status ' + res.status);
+                }
+                data = await res.json();
+            } catch (e) {
+                showErrorPopup('Не удалось создать комнату. Попробуйте позже.');
+                console.error(e);
+                return;
+            }
+
+            if (!data || !data.code) {
+                showErrorPopup('Не удалось создать комнату. Попробуйте позже.');
+                return;
+            }
+
+            // Server creation succeeded
+            currentRoom = data.code;
+            isRoomLeader = true;
+
+            // Save as my room so re-joining via list or link in this browser keeps leader status
+            let myRooms = JSON.parse(localStorage.getItem('dota_bukva_my_rooms') || '[]');
+            if (!myRooms.includes(currentRoom)) myRooms.push(currentRoom);
+            localStorage.setItem('dota_bukva_my_rooms', JSON.stringify(myRooms));
+
+            updateNavRoom();
+            showRoomCreatedToast(currentRoom);
+
+            // Show nice popup with clickable link instead of native confirm
+            setTimeout(() => {
+                showRoomInvitePopup(currentRoom);
+            }, 600);
+
+            // UI switch: connect first so WS is ready, then show lobby
+            try {
+                document.getElementById('main-menu').classList.add('hidden');
+                connectToRoomWS(currentRoom, 'leader');
+                showRoomLobby();
+            } catch (uiErr) {
+                console.error('UI error after room creation succeeded:', uiErr);
+            }
+        }
+
+        async function showRoomList() {
+            let rooms = [];
+            try {
+                const res = await fetch('/api/rooms');
+                const data = await res.json();
+                rooms = data.rooms || [];
+            } catch (e) {
+                console.warn('Failed to load rooms from server, using local');
+            }
+
+            let modal = document.getElementById('room-list-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'room-list-modal';
+                modal.className = 'fixed inset-0 bg-black/90 backdrop-blur-sm z-[130] flex items-center justify-center p-5';
+                document.body.appendChild(modal);
+            }
+
+            let html = `
+                <div class="dota-card max-w-md w-full rounded-2xl p-6 border-2 border-[#4a3728]">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="font-display text-xl tracking-[2px] text-[#d4af37]">Список комнат</div>
+                        <button onclick="closeRoomListModal()" class="text-2xl leading-none text-[#d4af37] hover:text-white">×</button>
+                    </div>
+            `;
+
+            if (rooms.length === 0) {
+                html += `<div class="text-zinc-400 text-sm py-4">Публичных комнат пока нет. Создайте свою!</div>`;
+            } else {
+                html += `<div class="space-y-2 max-h-64 overflow-auto">`;
+                rooms.forEach(room => {
+                    const time = new Date(room.created * 1000).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
+                    html += `
+                        <div onclick="joinRoom('${room.code}'); closeRoomListModal();" 
+                             class="flex justify-between items-center p-3 rounded-xl border border-[#4a3728] hover:border-[#d4af37] cursor-pointer">
+                            <div>
+                                <span class="font-mono text-lg text-[#f0c060]">${room.code}</span>
+                                <span class="text-xs text-zinc-500 ml-2">${room.players || 0} игроков</span>
+                            </div>
+                            <div class="text-xs text-zinc-500">${time}</div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+
+            html += `
+                    <div class="mt-4 pt-4 border-t border-[#4a3728]">
+                        <div class="text-xs text-zinc-400 mb-2">Или введи код комнаты:</div>
+                        <div class="flex gap-2">
+                            <input id="join-code-input" type="text" maxlength="8" placeholder="ABCDEF" 
+                                   class="flex-1 bg-[#111] border border-[#4a3728] px-3 py-2 rounded text-center font-mono tracking-widest uppercase">
+                            <button onclick="joinByCodeFromInput(); closeRoomListModal();" 
+                                    class="px-4 bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] rounded text-sm">Войти</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.innerHTML = html;
+            modal.style.display = 'flex';
+            modal.onclick = (e) => { if (e.target === modal) closeRoomListModal(); };
+        }
+
+        function closeRoomListModal() {
+            const modal = document.getElementById('room-list-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function joinByCodeFromInput() {
+            const input = document.getElementById('join-code-input');
+            if (!input) return;
+            const code = input.value.trim().toUpperCase();
+            if (code.length >= 4) {
+                joinRoom(code);
+            }
+        }
+
+        function joinRoom(code) {
+            currentRoom = code.toUpperCase();
+
+            // Check if this is one of my created rooms (to join as leader)
+            let myRooms = JSON.parse(localStorage.getItem('dota_bukva_my_rooms') || '[]');
+            isRoomLeader = myRooms.includes(currentRoom);
+
+            if (!isRoomLeader) {
+                myFreeElims = 3;
+                myLastElim = 0;
+            }
+            updateFreeElimsDisplay();
+            stopElimCD();
+
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('role-menu').classList.add('hidden');
+            showRoomLobby();
+
+            updateNavRoom();
+
+            const wsRole = isRoomLeader ? 'leader' : 'guesser';
+            connectToRoomWS(currentRoom, wsRole);
+        }
+
+        function updateNavRoom() {
+            // We can enhance the nav with room info
+            // Target the RIGHT side nav container specifically (the one with .text-sm that holds #nav-role)
+            let navRight = document.querySelector('nav .flex.items-center.gap-x-3.text-sm');
+            if (!navRight) {
+                // Fallback to last matching flex container (right side usually)
+                navRight = document.querySelector('nav .flex.items-center.gap-x-3:last-of-type');
+            }
+            if (!navRight) return;
+
+            // Remove old room badge if exists
+            const oldBadge = document.getElementById('nav-room-badge');
+            if (oldBadge) oldBadge.remove();
+
+            if (currentRoom) {
+                const badge = document.createElement('div');
+                badge.id = 'nav-room-badge';
+                badge.className = 'flex items-center gap-x-2 px-3 py-1 text-xs rounded border border-[#d4af37]/60 bg-[#111]';
+                badge.style.cursor = 'pointer';
+                badge.innerHTML = `
+                    <span class="font-mono text-[#f0c060]">${currentRoom}</span>
+                    <button onclick="leaveRoom(); event.stopImmediatePropagation();" 
+                            class="text-[#d4af37] hover:text-white ml-1 text-[10px]">×</button>
+                `;
+                badge.onclick = (e) => {
+                    if (e.target.tagName === 'BUTTON') return;
+                    copyRoomLink();
+                };
+                badge.title = 'Кликните, чтобы скопировать ссылку на комнату';
+                // Prepend to the right nav container (room badge appears first among the right-side controls)
+                // This avoids any insertBefore issues if the DOM structure has the role badge in a different container
+                navRight.prepend(badge);
+            }
+        }
+
+        function leaveRoom() {
+            currentRoom = null;
+            updateNavRoom();
+            // Go back to main menu
+            showMainMenu();
+        }
+
+        function showRoomCreatedToast(code) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#111] border border-[#d4af37] text-sm px-4 py-2 rounded-xl flex items-center gap-2 z-[200]';
+            toast.innerHTML = `
+                <span>Комната создана:</span> 
+                <span class="font-mono text-[#f0c060] text-base">${code}</span>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.transition = 'all 0.3s';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 2200);
+        }
+
+        function getCurrentRoomLink() {
+            if (!currentRoom) return '';
+            return `${window.location.origin}/?room=${currentRoom}`;
+        }
+
+        function copyRoomLink() {
+            const link = getCurrentRoomLink();
+            if (!link) return;
+            navigator.clipboard.writeText(link).then(() => {
+                const toast = document.createElement('div');
+                toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#111] border border-[#d4af37] text-sm px-4 py-2 rounded-xl z-[200]';
+                toast.textContent = 'Ссылка на комнату скопирована';
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.transition = 'opacity 0.3s';
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 300);
+                }, 1600);
+            }).catch(() => {
+                // fallback
+                const input = prompt('Скопируйте ссылку на комнату:', link);
+                if (input) {
+                    // user copied manually
+                }
+            });
+        }
+
+        function showRoomInvitePopup(code) {
+            const link = getCurrentRoomLink();
+            const modal = document.getElementById('confirm-modal');
+            if (!modal) {
+                if (confirm(`Комната создана: ${code}\n\n${link}\n\nСкопировать ссылку?`)) {
+                    copyRoomLink();
+                }
+                return;
+            }
+
+            document.getElementById('confirm-title').textContent = 'Комната создана';
+            const msgEl = document.getElementById('confirm-message');
+            msgEl.innerHTML = `
+                <div style="margin-bottom: 12px;">
+                    Код: <span style="font-family: monospace; color: #f0c060; font-size: 1.1em;">${code}</span>
+                </div>
+                <div>
+                    Ссылка для приглашения:<br>
+                    <span id="invite-link-display" style="color: #d4af37; text-decoration: underline; cursor: pointer; word-break: break-all;">${link}</span>
+                </div>
+            `;
+
+            // Customize buttons
+            const cancelBtn = modal.querySelector('button[onclick*="hideConfirmModal(false)"]');
+            const confirmBtn = modal.querySelector('button[onclick*="hideConfirmModal(true)"]');
+
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            if (confirmBtn) {
+                const originalText = confirmBtn.textContent;
+                confirmBtn.textContent = 'Скопировать ссылку';
+                const originalOnclick = confirmBtn.onclick;
+                confirmBtn.onclick = () => {
+                    copyRoomLink();
+                    hideConfirmModal(false);
+                    if (cancelBtn) cancelBtn.style.display = '';
+                    if (confirmBtn) {
+                        confirmBtn.textContent = originalText;
+                        confirmBtn.onclick = originalOnclick;
+                    }
+                };
+            }
+
+            // Make the link text clickable too
+            setTimeout(() => {
+                const linkDisplay = document.getElementById('invite-link-display');
+                if (linkDisplay) {
+                    linkDisplay.onclick = () => {
+                        copyRoomLink();
+                        hideConfirmModal(false);
+                        if (cancelBtn) cancelBtn.style.display = '';
+                        if (confirmBtn) {
+                            confirmBtn.textContent = 'ДА';
+                            confirmBtn.onclick = originalOnclick;
+                        }
+                    };
+                }
+            }, 30);
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex', 'show');
+
+            const card = document.getElementById('confirm-modal-card');
+            if (card) {
+                card.style.transition = 'none';
+                card.classList.add('scale-95', 'opacity-0');
+                void card.offsetWidth;
+                card.style.transition = 'transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.2s ease';
+                requestAnimationFrame(() => {
+                    card.classList.remove('scale-95', 'opacity-0');
+                });
+            }
+        }
+
+        function showErrorPopup(message) {
+            // Reuse the animated confirm modal as an error popup with single OK button
+            const modal = document.getElementById('confirm-modal');
+            if (!modal) {
+                // fallback
+                const fb = document.createElement('div');
+                fb.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-red-900 border border-red-500 text-sm px-4 py-3 rounded-xl z-[200] max-w-xs text-center';
+                fb.textContent = message;
+                document.body.appendChild(fb);
+                setTimeout(() => fb.remove(), 3500);
+                return;
+            }
+
+            document.getElementById('confirm-title').textContent = 'Ошибка';
+            document.getElementById('confirm-message').textContent = message;
+
+            const cancelBtn = modal.querySelector('button[onclick*="hideConfirmModal(false)"]');
+            const confirmBtn = modal.querySelector('button[onclick*="hideConfirmModal(true)"]');
+
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            if (confirmBtn) {
+                const originalText = confirmBtn.textContent;
+                confirmBtn.textContent = 'OK';
+                const originalOnclick = confirmBtn.onclick;
+
+                confirmBtn.onclick = function() {
+                    const card = document.getElementById('confirm-modal-card');
+                    if (card) {
+                        card.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+                        card.classList.add('scale-95', 'opacity-0');
+                    }
+                    setTimeout(() => {
+                        modal.classList.remove('flex', 'show');
+                        modal.classList.add('hidden');
+                        if (card) {
+                            card.classList.remove('scale-95', 'opacity-0');
+                            card.style.transition = '';
+                        }
+                        // restore buttons
+                        if (cancelBtn) cancelBtn.style.display = '';
+                        if (confirmBtn) {
+                            confirmBtn.textContent = originalText;
+                            confirmBtn.onclick = originalOnclick;
+                        }
+                    }, 120);
+                };
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex', 'show');
+
+            // trigger in animation
+            const card = document.getElementById('confirm-modal-card');
+            if (card) {
+                card.style.transition = 'none';
+                card.classList.add('scale-95', 'opacity-0');
+                void card.offsetWidth;
+                card.style.transition = 'transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.2s ease';
+                requestAnimationFrame(() => {
+                    card.classList.remove('scale-95', 'opacity-0');
+                });
+            }
+        }
+
+        async function loadPapichPhrases() {
+            if (papichPhrases.length > 0) return;
+            try {
+                const res = await fetch('/data/papich_phrases.json');
+                const data = await res.json();
+                papichPhrases = data.phrases || [];
+            } catch (e) {
+                console.warn('Failed to load papich phrases, using fallback');
+                papichPhrases = ["Прочь, скверна!"];
+            }
+        }
+
+        function setRandomPapichPhrase() {
+            if (papichPhrases.length === 0) return;
+            const el = document.getElementById('papich-phrase');
+            if (el) {
+                const random = papichPhrases[Math.floor(Math.random() * papichPhrases.length)];
+                el.textContent = random;
+                // Make clickable to change phrase
+                el.onclick = setRandomPapichPhrase;
+            }
+        }
+
+        // ==================== WEBSOCKET ROOM SYNC ====================
+
+        function connectToRoomWS(code, role = 'guesser', retryCount = 0) {
+            if (roomSocket) {
+                try { roomSocket.close(); } catch (e) {}
+            }
+
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const url = `${protocol}//${location.host}/ws/room/${code}?role=${role}`;
+            console.log('[Room WS] Attempting connection to', url);
+            roomSocket = new WebSocket(url);
+
+            roomSocket.onopen = () => {
+                console.log('[Room WS] Connected to', code);
+                // Update lobby status if visible
+                const statusEl = document.getElementById('lobby-status');
+                const startBtn = document.getElementById('lobby-start-btn');
+                if (statusEl && document.getElementById('room-lobby') && !document.getElementById('room-lobby').classList.contains('hidden')) {
+                    if (isRoomLeader) {
+                        statusEl.textContent = 'Вы ведущий. Соединение установлено. Нажмите «Начать игру», когда все подключатся.';
+                        if (startBtn) {
+                            startBtn.disabled = false;
+                            startBtn.textContent = 'НАЧАТЬ ИГРУ';
+                        }
+                    } else {
+                        statusEl.textContent = 'Вы отгадывающий. Соединение установлено. Ожидайте, пока ведущий начнёт игру.';
+                    }
+                }
+            };
+
+            roomSocket.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    handleRoomMessage(msg);
+                } catch (e) {}
+            };
+
+            roomSocket.onclose = () => {
+                console.log('[Room WS] Disconnected');
+                roomSocket = null;
+                if (retryCount < 5) {
+                    console.log('[Room WS] Retrying connection in 1s... (attempt ' + (retryCount + 1) + ')');
+                    setTimeout(() => connectToRoomWS(code, role, retryCount + 1), 1000);
+                } else {
+                    const statusEl = document.getElementById('lobby-status');
+                    if (statusEl) {
+                        statusEl.textContent = 'Не удалось подключиться к комнате. Попробуйте перезагрузить страницу.';
+                    }
+                }
+            };
+
+            roomSocket.onerror = (e) => {
+                console.warn('[Room WS] Error', e);
+            };
+        }
+
+        function handleRoomMessage(msg) {
+            if (msg.type === 'spin_result') {
+                const result = msg.result;
+                if (result) {
+                    if (isRoomLeader || currentRole === 'leader') {
+                        // For leader in room: run the full reel animation (this is what was missing online)
+                        landReelResult(result);
+                    } else {
+                        showRoomSpinResult(result);
+                    }
+                }
+            } else if (msg.type === 'state' && msg.current_spin) {
+                const result = msg.current_spin;
+                if (result) {
+                    // For previous result on (re)connect, just show the card without re-animating reels
+                    if (isRoomLeader || currentRole === 'leader') {
+                        showResult(result);
+                    } else {
+                        showRoomSpinResult(result);
+                    }
+                }
+            }
+
+            if (msg.type === 'state' || msg.type === 'eliminated_update') {
+                if (msg.eliminated) {
+                    eliminatedHeroes = new Set(msg.eliminated);
+                    const searchVal = document.getElementById('guesser-search')?.value || '';
+                    if (currentRole === 'guesser' && !document.getElementById('guesser-view').classList.contains('hidden')) {
+                        renderGuesserGrid(searchVal);
+                    }
+                    if (isRoomLeader && !document.getElementById('leader-view').classList.contains('hidden')) {
+                        renderGuesserGrid('', 'leader-guesser-grid', true);
+                    }
+                }
+            }
+
+            if (msg.type === 'game_started') {
+                handleGameStarted();
+            }
+
+            // Handle late joiners: if game already started, switch out of lobby
+            if (msg.type === 'state' && msg.game_started) {
+                const lobby = document.getElementById('room-lobby');
+                if (lobby && !lobby.classList.contains('hidden')) {
+                    handleGameStarted();
+                }
+            }
+
+            // Personal CD state from server for this guesser
+            if (msg.type === 'elim_personal') {
+                myFreeElims = msg.free_elims || 0;
+                myLastElim = msg.last_elim_time || 0;
+                updateFreeElimsDisplay();
+                stopElimCD();
+                if (myFreeElims <= 0 && myLastElim > 0) {
+                    const now = Date.now() / 1000;
+                    const rem = Math.max(0, 25 - (now - myLastElim));
+                    if (rem > 0) startElimCD(rem);
+                }
+            }
+
+            // Update player count in lobby if present
+            if (msg.players !== undefined) {
+                const countEl = document.getElementById('lobby-player-count');
+                if (countEl) countEl.textContent = msg.players;
+            }
+        }
+
+        function showRoomSpinResult(result) {
+            const card = document.getElementById('result-card');
+            if (!card) return;
+
+            const img = document.getElementById('result-image');
+            if (img) {
+                img.src = result.image || `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png`;
+            }
+            const heroEl = document.getElementById('result-hero');
+            if (heroEl) heroEl.textContent = result.hero || result.hero_en || result.hero_ru;
+
+            const letterEl = document.getElementById('result-letter');
+            if (letterEl) letterEl.textContent = result.letter;
+
+            card.classList.remove('hidden');
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function sendRoomMessage(data) {
+            if (roomSocket && roomSocket.readyState === WebSocket.OPEN) {
+                roomSocket.send(JSON.stringify(data));
+            }
+        }
+
+        // ==================== ROOM LOBBY ====================
+
+        function showRoomLobby() {
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('role-menu').classList.add('hidden');
+            document.getElementById('leader-view').classList.add('hidden');
+            document.getElementById('guesser-view').classList.add('hidden');
+            document.getElementById('room-lobby').classList.remove('hidden');
+
+            const codeEl = document.getElementById('lobby-room-code');
+            if (codeEl) {
+                codeEl.textContent = currentRoom || '';
+                codeEl.style.cursor = 'pointer';
+                codeEl.onclick = copyRoomLink;
+                codeEl.title = 'Кликните, чтобы скопировать ссылку-приглашение на комнату';
+            }
+
+            const statusEl = document.getElementById('lobby-status');
+            if (statusEl) {
+                if (isRoomLeader) {
+                    statusEl.textContent = 'Вы ведущий. Подключаемся к комнате...';
+                } else {
+                    statusEl.textContent = 'Вы отгадывающий. Подключаемся к комнате...';
+                }
+            }
+
+            const startBtn = document.getElementById('lobby-start-btn');
+            if (startBtn && isRoomLeader) {
+                startBtn.disabled = true;
+                startBtn.textContent = 'ПОДКЛЮЧЕНИЕ...';
+            }
+
+            updateLobbyUI();  // will be overridden by onopen
+        }
+
+        function updateLobbyUI() {
+            const statusEl = document.getElementById('lobby-status');
+            const startBtn = document.getElementById('lobby-start-btn');
+            const waitingEl = document.getElementById('lobby-waiting');
+            const roleBadge = document.getElementById('lobby-role-badge');
+
+            if (!statusEl || !startBtn || !waitingEl || !roleBadge) return;
+
+            if (isRoomLeader) {
+                roleBadge.textContent = 'Ведущий';
+                roleBadge.className = 'px-3 py-1 text-xs rounded-full border border-[#c23c2a] text-[#f0c060] font-medium';
+                statusEl.textContent = 'Вы ведущий. Когда все игроки подключатся, нажмите «Начать игру».';
+                startBtn.classList.remove('hidden');
+                waitingEl.classList.add('hidden');
+            } else {
+                roleBadge.textContent = 'Отгадывающий';
+                roleBadge.className = 'px-3 py-1 text-xs rounded-full border border-emerald-400 text-emerald-400 font-medium';
+                statusEl.textContent = 'Вы отгадывающий. Ожидайте, пока ведущий начнёт игру.';
+                startBtn.classList.add('hidden');
+                waitingEl.classList.remove('hidden');
+            }
+        }
+
+        function startGameFromLobby() {
+            if (!isRoomLeader) {
+                showErrorPopup('Только ведущий может начать игру.');
+                return;
+            }
+            if (!roomSocket || roomSocket.readyState !== WebSocket.OPEN) {
+                showErrorPopup('Соединение с комнатой ещё не установлено. Подождите подключения (кнопка станет активной автоматически).');
+                return;
+            }
+            sendRoomMessage({ type: 'start_game' });
+            handleGameStarted();  // instant switch for the leader
+        }
+
+        function handleGameStarted() {
+            const lobby = document.getElementById('room-lobby');
+            if (lobby) lobby.classList.add('hidden');
+
+            if (isRoomLeader) {
+                currentRole = 'leader';
+                // Show leader view (WS already connected)
+                document.getElementById('leader-view').classList.remove('hidden');
+                // Make sure strips are ready
+                const heroStrip = document.getElementById('hero-strip');
+                if (heroStrip && heroStrip.children.length === 0) {
+                    buildHeroStrip();
+                    buildLetterStrip();
+                }
+                updateNavRole();
+                const tableSec = document.getElementById('leader-table-section');
+                if (tableSec) tableSec.style.display = '';
+                // Render read-only guesser table for leader
+                renderGuesserGrid('', 'leader-guesser-grid', true);
+            } else {
+                currentRole = 'guesser';
+                myFreeElims = 3;
+                myLastElim = 0;
+                updateFreeElimsDisplay();
+                stopElimCD();
+                document.getElementById('guesser-view').classList.remove('hidden');
+                renderGuesserGrid();
+                updateGuesserStats();
+                updateSortButtons();
+            }
+        }
+
+        // ==================== END ROOM LOBBY ====================
+
+        // ==================== END MAIN MENU + ROOMS ====================
 
         
                 window.addEventListener('load', initialize);
