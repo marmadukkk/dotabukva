@@ -610,6 +610,8 @@
                         class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">Ловкость</button>
                 <button onclick="setGuesserSort('int')" data-sort="int"
                         class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">Интеллект</button>
+                <button onclick="setGuesserSort('uni')" data-sort="uni"
+                        class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">Универсал</button>
             </div>
         </div>
 
@@ -1574,14 +1576,10 @@
                 list.sort((a, b) => a.en.localeCompare(b.en));
             } else if (currentGuesserSort === 'za') {
                 list.sort((a, b) => b.en.localeCompare(a.en));
-            } else if (currentGuesserSort === 'str' || currentGuesserSort === 'agi' || currentGuesserSort === 'int') {
-                const prio = currentGuesserSort;
-                list.sort((a, b) => {
-                    const aPrio = a.attr === prio ? 0 : 1;
-                    const bPrio = b.attr === prio ? 0 : 1;
-                    if (aPrio !== bPrio) return aPrio - bPrio;
-                    return a.en.localeCompare(b.en);
-                });
+            } else if (['str', 'agi', 'int', 'uni'].includes(currentGuesserSort)) {
+                // Filter: show only heroes of this attribute, hide all others
+                list = list.filter(h => h.attr === currentGuesserSort);
+                list.sort((a, b) => a.en.localeCompare(b.en));
             }
             return list;
         }
