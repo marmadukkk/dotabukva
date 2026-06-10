@@ -6,6 +6,7 @@
     <title>DOTA-BUKVA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&amp;family=Inter:wght@400;500;600&amp;display=swap');
         
@@ -448,7 +449,7 @@
 
         <div class="max-w-md mx-auto space-y-4">
             <!-- Create Room -->
-            <div onclick="createRoom()" 
+            <div onclick="showHostingDonationPopup()" 
                  class="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
                 <div class="flex items-center gap-4">
                     <i class="fa-solid fa-plus text-3xl text-[#d4af37] group-hover:rotate-90 transition-transform"></i>
@@ -1991,27 +1992,36 @@
 
         async function createRoom() {
             let data;
+            let backendAvailable = false;
             try {
                 const res = await fetch('/api/rooms/create', { method: 'POST' });
-                if (!res.ok) {
+                if (res.ok) {
+                    data = await res.json();
+                    backendAvailable = true;
+                } else {
                     throw new Error('Server error: ' + res.status);
                 }
-                data = await res.json();
             } catch (e) {
-                showErrorPopup('Не удалось создать комнату. Попробуйте позже.');
-                console.error(e);
-                return;
+                // Graceful fallback for Vercel static deploy (no persistent backend/WS)
+                console.warn('Rooms backend not available on this deployment. Using client-side demo mode. Real-time sync requires a self-hosted backend.');
+                data = { code: generateRoomCode() };
+
+                // Save to the shared rooms list so it shows up in "Список комнат"
+                let roomsList = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
+                roomsList = roomsList.filter(r => r.code !== data.code);
+                roomsList.unshift({ code: data.code, created: Date.now() });
+                localStorage.setItem('dota_bukva_rooms', JSON.stringify(roomsList));
             }
 
             if (!data || !data.code) {
-                showErrorPopup('Не удалось создать комнату. Попробуйте позже.');
+                showErrorPopup('Не удалось создать комнату.');
                 return;
             }
 
             currentRoom = data.code;
             isRoomLeader = true;
 
-            // Save as my room so re-joining via list or link in this browser keeps leader status
+            // Save as my room
             let myRooms = JSON.parse(localStorage.getItem('dota_bukva_my_rooms') || '[]');
             if (!myRooms.includes(currentRoom)) myRooms.push(currentRoom);
             localStorage.setItem('dota_bukva_my_rooms', JSON.stringify(myRooms));
@@ -2019,23 +2029,40 @@
             updateNavRoom();
             showRoomCreatedToast(currentRoom);
 
-            // Show nice popup with clickable link instead of native confirm
+            // Show invite popup
             setTimeout(() => {
                 showRoomInvitePopup(currentRoom);
             }, 600);
 
-            // UI switch: connect first so WS is ready, then show lobby
-            try {
-                document.getElementById('main-menu').classList.add('hidden');
-                connectToRoomWS(currentRoom, 'leader');
-                showRoomLobby();
-            } catch (uiErr) {
-                console.error('UI error after room creation succeeded:', uiErr);
+            // Try WS (will fail on static, handled in connectToRoomWS)
+            document.getElementById('main-menu').classList.add('hidden');
+            connectToRoomWS(currentRoom, 'leader');
+            showRoomLobby();
+
+            if (!backendAvailable) {
+                setTimeout(() => {
+                    const statusEl = document.getElementById('lobby-status');
+                    if (statusEl) {
+                        statusEl.innerHTML += '<br><span style="color:#f59e0b">(Демо на Vercel: без реального синхронизированного мультиплеера. Спин и таблица локальные. Для полной версии разверните бэкенд отдельно.)</span>';
+                    }
+                }, 300);
             }
         }
 
-        function showRoomList() {
-            const rooms = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
+        async function showRoomList() {
+            let rooms = [];
+            try {
+                const res = await fetch('/api/rooms');
+                if (res.ok) {
+                    const data = await res.json();
+                    rooms = data.rooms || [];
+                } else {
+                    throw new Error('backend not available');
+                }
+            } catch (e) {
+                // Fallback for Vercel static
+                rooms = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
+            }
 
             let modal = document.getElementById('room-list-modal');
             if (!modal) {
@@ -2054,11 +2081,11 @@
             `;
 
             if (rooms.length === 0) {
-                html += `<div class="text-zinc-400 text-sm py-4">Пока нет созданных комнат в этом браузере.</div>`;
+                html += `<div class="text-zinc-400 text-sm py-4">Пока нет комнат. Создайте свою или введите код.</div>`;
             } else {
                 html += `<div class="space-y-2 max-h-64 overflow-auto">`;
                 rooms.forEach(room => {
-                    const time = new Date(room.created).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
+                    const time = room.created ? new Date(room.created * 1000 || room.created).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'}) : '';
                     html += `
                         <div onclick="joinRoom('${room.code}'); closeRoomListModal();" 
                              class="flex justify-between items-center p-3 rounded-xl border border-[#4a3728] hover:border-[#d4af37] cursor-pointer">
@@ -2284,6 +2311,52 @@
             }
         }
 
+        function showHostingDonationPopup() {
+            const modal = document.getElementById('confirm-modal');
+            if (!modal) {
+                alert('СОБИРАЮ ДОНАТЫ НА ХОСТ @mrmdkkkk');
+                return;
+            }
+
+            document.getElementById('confirm-title').textContent = 'Мультиплеер в разработке';
+            document.getElementById('confirm-message').innerHTML = `
+                СОБИРАЮ ДОНАТЫ НА ХОСТ @mrmdkkkk
+            `;
+
+            const cancelBtn = modal.querySelector('button[onclick*="hideConfirmModal(false)"]');
+            const confirmBtn = modal.querySelector('button[onclick*="hideConfirmModal(true)"]');
+
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            if (confirmBtn) {
+                const originalText = confirmBtn.textContent;
+                confirmBtn.textContent = 'Понятно';
+                const originalOnclick = confirmBtn.onclick;
+
+                confirmBtn.onclick = () => {
+                    hideConfirmModal(false);
+                    if (cancelBtn) cancelBtn.style.display = '';
+                    if (confirmBtn) {
+                        confirmBtn.textContent = originalText;
+                        confirmBtn.onclick = originalOnclick;
+                    }
+                };
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex', 'show');
+
+            const card = document.getElementById('confirm-modal-card');
+            if (card) {
+                card.style.transition = 'none';
+                card.classList.add('scale-95', 'opacity-0');
+                void card.offsetWidth;
+                card.style.transition = 'transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.2s ease';
+                requestAnimationFrame(() => {
+                    card.classList.remove('scale-95', 'opacity-0');
+                });
+            }
+        }
+
         function showErrorPopup(message) {
             // Reuse the animated confirm modal as an error popup with single OK button
             const modal = document.getElementById('confirm-modal');
@@ -2351,7 +2424,9 @@
         async function loadPapichPhrases() {
             if (papichPhrases.length > 0) return;
             try {
-                const res = await fetch('/data/papich_phrases.json');
+                // Works on Vercel after copying to public/data/ and locally
+                let res = await fetch('/data/papich_phrases.json');
+                if (!res.ok) res = await fetch('/public/data/papich_phrases.json');
                 const data = await res.json();
                 papichPhrases = data.phrases || [];
             } catch (e) {
@@ -2381,6 +2456,10 @@
         let papichPhrases = [];
 
         function connectToRoomWS(code, role = 'guesser', retryCount = 0) {
+            if (location.hostname.includes('vercel.app')) {
+                console.info('[Room WS] Disabled on Vercel static deploy (using demo/local mode). Real-time requires backend.');
+                return;
+            }
             if (roomSocket) {
                 try { roomSocket.close(); } catch (e) {}
             }
