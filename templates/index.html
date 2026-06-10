@@ -272,6 +272,98 @@
         .stat {
             font-variant-numeric: tabular-nums;
         }
+
+        .hero-cell {
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s ease;
+        }
+        .hero-cell:hover {
+            transform: translateY(-1px);
+        }
+        .hero-cell:active {
+            transform: scale(0.96);
+        }
+        .hero-cell img {
+            transition: filter 120ms ease, opacity 120ms ease;
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        .hero-cell .img-wrap {
+            position: relative;
+            background: #0a0a0a;
+            border: 1px solid #3f3f46;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+        }
+        .hero-cell.eliminated {
+            opacity: 0.95;
+        }
+        .hero-cell.eliminated img {
+            filter: grayscale(0.95) brightness(0.52) contrast(0.95);
+        }
+        .hero-cell.eliminated .img-wrap::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.45) 100%);
+            pointer-events: none;
+        }
+        .hero-cell.eliminated .img-wrap::before {
+            content: '✕';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -52%);
+            font-size: 22px;
+            font-weight: 900;
+            color: #f4a261;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+            pointer-events: none;
+            z-index: 2;
+            opacity: 0.95;
+        }
+        .hero-cell .hero-label {
+            font-size: 9.5px;
+            line-height: 1.05;
+            color: #c9b38a;
+            text-align: center;
+            margin-top: 3px;
+            padding: 0 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .hero-cell.eliminated .hero-label {
+            color: #61533a;
+            text-decoration: line-through;
+            text-decoration-thickness: 1px;
+        }
+
+        .sort-btn {
+            background: #111111;
+            color: #c9b38a;
+            font-weight: 500;
+            transition: all 0.1s ease;
+        }
+        .sort-btn:hover {
+            color: #f0c060;
+            border-color: #d4af37;
+        }
+        .sort-btn.active {
+            background: #c23c2a;
+            color: white;
+            border-color: #d4af37;
+            box-shadow: 0 0 0 1px #d4af37;
+        }
+
+        #confirm-modal.show #confirm-modal-card {
+            transform: scale(1);
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="bg-zinc-950 text-zinc-200 dota-bg min-h-screen">
@@ -289,7 +381,12 @@
                 </div>
             </div>
             
-            <div class="flex items-center gap-x-4 text-sm">
+            <div class="flex items-center gap-x-3 text-sm">
+                <div id="nav-role" onclick="showRoleMenu()" 
+                     class="hidden items-center gap-x-2 px-3 py-1 rounded border border-[#4a3728] hover:border-[#d4af37] cursor-pointer transition-colors text-xs">
+                    <span id="nav-role-badge" class="font-medium"></span>
+                    <span class="text-[#d4af37] text-[10px]">СМЕНИТЬ</span>
+                </div>
                 <div onclick="showHowToPlay()" 
                      class="flex items-center gap-x-2 px-4 py-1 hover:bg-[#1a1a1a] rounded border border-[#4a3728] hover:border-[#d4af37] cursor-pointer transition-colors text-[#d4af37] hover:text-white text-xs tracking-widest">
                     <i class="fa-solid fa-question-circle"></i>
@@ -299,19 +396,60 @@
         </div>
     </nav>
 
-    <div class="max-w-5xl mx-auto px-5 pt-4 pb-4">
-        
-        
-        <div class="text-center flex-shrink-0 mb-2">
-            <h1 class="font-display text-5xl sm:text-6xl font-bold tracking-tighter mb-2">
-                Крути.<br>
-                Получай героя.<br>
-                <span class="text-[#d4af37]">Описывай на букву.</span>
-            </h1>
+    <div id="role-menu" class="max-w-5xl mx-auto px-5 pt-8 pb-12">
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center gap-x-2 text-[#d4af37] text-xs tracking-[4px] font-semibold mb-3">
+                <i class="fa-solid fa-users"></i>
+                <span>ИГРА В КОМПАНИИ</span>
+            </div>
+            <h1 class="font-display text-5xl sm:text-6xl font-bold tracking-tighter">Выбери роль</h1>
+            <p class="mt-2 text-zinc-400 text-[15px]">Один ведущий крутит и даёт подсказки. Остальные вычёркивают героев.</p>
         </div>
 
-        
-        <div class="max-w-[860px] mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
+            <!-- Leader -->
+            <div onclick="enterLeader()" 
+                 class="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <div class="text-xs tracking-[2.5px] text-[#c23c2a] font-bold">ДЛЯ ВЕДУЩЕГО</div>
+                        <div class="font-display text-4xl tracking-[-1.5px] mt-1 group-hover:text-[#f0c060] transition-colors">Ведущий</div>
+                    </div>
+                    <i class="fa-solid fa-dice text-4xl text-[#d4af37] group-hover:rotate-12 transition-transform"></i>
+                </div>
+                <div class="mt-5 text-[15px] text-zinc-300">
+                    Открывается барабан с героем и буквой.<br>
+                    Ты видишь комбинацию и даёшь описание остальным.
+                </div>
+                <div class="mt-5 inline-flex items-center text-xs font-semibold tracking-widest text-[#d4af37]">
+                    ОТКРЫТЬ БАРАБАН <i class="fa-solid fa-arrow-right ml-2"></i>
+                </div>
+            </div>
+
+            <div onclick="enterGuesser()" 
+                 class="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <div class="text-xs tracking-[2.5px] text-emerald-400 font-bold">ДЛЯ ОТГАДЫВАЮЩИХ</div>
+                        <div class="font-display text-4xl tracking-[-1.5px] mt-1 group-hover:text-[#f0c060] transition-colors">Отгадывающий</div>
+                    </div>
+                    <i class="fa-solid fa-th-large text-4xl text-[#d4af37] group-hover:scale-110 transition-transform"></i>
+                </div>
+                <div class="mt-5 text-[15px] text-zinc-300">
+                    Большая таблица всех героев Dota 2.<br>
+                    Кликай по иконкам — они становятся вычёркиваются.
+                </div>
+                <div class="mt-5 inline-flex items-center text-xs font-semibold tracking-widest text-[#d4af37]">
+                    ОТКРЫТЬ ТАБЛИЦУ <i class="fa-solid fa-arrow-right ml-2"></i>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="leader-view" class="hidden">
+        <div class="max-w-5xl mx-auto px-5 pt-4 pb-4">
+            <div class="max-w-[860px] mx-auto">
             
             
             <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
@@ -423,9 +561,64 @@
                 </div>
             </div>
         </div>
+        </div> <!-- /max-w-[860] -->
+    </div> <!-- /leader-view inner -->
+    </div> <!-- /#leader-view -->
+
+    <!-- GUESSER VIEW -->
+    <div id="guesser-view" class="hidden max-w-6xl mx-auto px-4 pt-3 pb-8">
+        <div class="flex items-center justify-between mb-3 px-1">
+            <div>
+                <div class="section-title flex items-center gap-x-2">
+                    <i class="fa-solid fa-th-large"></i>
+                    <span>ТАБЛИЦА ГЕРОЕВ — ВЫЧЁРКИВАЙ</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-x-3 text-sm">
+                <div class="text-xs px-3 py-1 rounded bg-[#111] border border-[#4a3728] tabular-nums">
+                    <span id="guesser-remain">0</span> / <span id="guesser-total">0</span>
+                </div>
+                <button onclick="resetEliminated()" 
+                        class="text-xs px-3 py-1 rounded border border-[#4a3728] hover:border-red-500/60 hover:text-red-400 flex items-center gap-x-1 transition-colors">
+                    <i class="fa-solid fa-undo text-[10px]"></i>
+                    <span>СБРОСИТЬ</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div class="mb-3 px-1">
+            <div class="relative max-w-md">
+                <i class="fa-solid fa-search absolute left-3 top-2.5 text-zinc-500"></i>
+                <input id="guesser-search" type="text" placeholder="Поиск героя (на русском или английском)..." 
+                       oninput="filterGuesserGrid()"
+                       class="w-full bg-[#111111] border border-[#4a3728] focus:border-[#d4af37] text-sm pl-9 pr-3 py-2 rounded outline-none placeholder:text-zinc-600">
+            </div>
+        </div>
+
+        <!-- Sort controls (сбоку/сноска) -->
+        <div class="mb-3 px-1 flex items-center gap-x-2 flex-wrap">
+            <span class="text-[#d4af37] text-xs font-semibold tracking-[1.5px] mr-1">СОРТИРОВКА:</span>
+            <div class="flex items-center gap-x-1 flex-wrap">
+                <button onclick="setGuesserSort('az')" data-sort="az"
+                        class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">А → Я</button>
+                <button onclick="setGuesserSort('za')" data-sort="za"
+                        class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">Я → А</button>
+                <button onclick="setGuesserSort('str')" data-sort="str"
+                        class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">Сила</button>
+                <button onclick="setGuesserSort('agi')" data-sort="agi"
+                        class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">Ловкость</button>
+                <button onclick="setGuesserSort('int')" data-sort="int"
+                        class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">Интеллект</button>
+            </div>
+        </div>
+
+        <div id="hero-grid" 
+             class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
+            <!-- populated by JS -->
+        </div>
+
     </div>
-
-
 
     
     <div id="howto-modal" onclick="if (event.target.id === 'howto-modal') hideHowToPlay()" 
@@ -440,24 +633,46 @@
             <div class="space-y-5 text-[15px] text-[#e0d2b0]">
                 <div class="flex gap-4">
                     <div class="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">1</div>
-                    <div>Нажимаешь большую красную кнопку <span class="font-medium text-[#d4af37]">«КРУТИТЬ»</span>.</div>
+                    <div>В начале игры каждый выбирает роль: <span class="font-medium text-[#d4af37]">Ведущий</span> или <span class="font-medium text-[#d4af37]">Отгадывающий</span>.</div>
                 </div>
                 <div class="flex gap-4">
                     <div class="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">2</div>
-                    <div>Красивая анимация прокрутки выдаёт случайного <span class="font-medium text-[#d4af37]">героя</span> и случайную <span class="font-medium text-[#d4af37]">букву</span> русского алфавита.</div>
+                    <div>Ведущий крутит барабан и получает <span class="font-medium text-[#d4af37]">героя + букву</span>. Даёт описание, начиная с этой буквы.</div>
                 </div>
                 <div class="flex gap-4">
                     <div class="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">3</div>
-                    <div>Один человек должен <span class="font-medium text-[#d4af37]">описать героя</span>, начиная описание с выпавшей буквы. Чем смешнее, точнее или креативнее — тем лучше.</div>
+                    <div>Отгадывающие в таблице кликают по иконкам героев — они становятся <span class="font-medium text-[#d4af37]">серыми</span> (вычеркиваются).</div>
                 </div>
             </div>
             
             <div class="mt-6 text-xs bg-[#1a1a1a] border border-[#4a3728] p-3 rounded text-[#d4af37]">
-                ИДЕАЛЬНО ДЛЯ ПАТИ В 5+ ЧЕЛОВЕК. МОЖНО ИГРАТЬ ПО КРУГУ: КАЖДЫЙ ПОЛУЧАЕТ СВОЕГО ГЕРОЯ И БУКВУ.
+                ИГРА ДЛЯ ПАТИ: ОДИН ВЕДУЩИЙ КРУТИТ, ОСТАЛЬНЫЕ ВЫЧЁРКИВАЮТ НА СВОИХ ТЕЛЕФОНАХ.
             </div>
             
             <button onclick="hideHowToPlay()" 
                     class="mt-6 w-full h-11 bg-[#c23c2a] hover:bg-[#e04a38] text-white font-semibold rounded border border-[#d4af37] tracking-widest">ПОНЯТНО, ПОГНАЛИ!</button>
+        </div>
+    </div>
+
+    <!-- Animated Confirm / Alert Popup -->
+    <div id="confirm-modal" onclick="if (event.target.id === 'confirm-modal') hideConfirmModal(false)" 
+         class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm z-[120] flex items-center justify-center p-5">
+        <div onclick="event.stopImmediatePropagation()" 
+             class="dota-card max-w-sm w-full rounded-2xl p-6 border-2 border-[#4a3728] transition-all duration-200 scale-95 opacity-0"
+             id="confirm-modal-card">
+            <div class="font-display text-xl tracking-[2px] text-[#d4af37] mb-3" id="confirm-title"></div>
+            <div class="text-[#e0d2b0] text-[15px] mb-6 leading-snug" id="confirm-message"></div>
+            
+            <div class="flex gap-3">
+                <button onclick="hideConfirmModal(false)" 
+                        class="flex-1 h-10 text-sm font-medium rounded-xl border border-[#4a3728] hover:bg-[#1a1a1a] active:bg-black/40 transition-colors">
+                    ОТМЕНА
+                </button>
+                <button onclick="hideConfirmModal(true)" 
+                        class="flex-1 h-10 text-sm font-semibold rounded-xl bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] active:brightness-110 transition-colors">
+                    ДА
+                </button>
+            </div>
         </div>
     </div>
 
@@ -470,6 +685,7 @@
         // Data
         let heroesData = [];
         let isSpinning = false;
+        let currentRole = null; // 'leader' | 'guesser' | null
         
         // Load heroes data from backend (for consistency)
         async function loadHeroesData() {
@@ -989,9 +1205,11 @@
         }
         
         function clearHistory() {
-            if (!confirm('Очистить всю историю?')) return;
-            localStorage.removeItem('dota_bukva_history');
-            renderHistory();
+            showConfirmDialog('Очистить всю историю?', 'Очистить историю').then(confirmed => {
+                if (!confirmed) return;
+                localStorage.removeItem('dota_bukva_history');
+                renderHistory();
+            });
         }
         
         function showHowToPlay() {
@@ -1003,6 +1221,65 @@
             const modal = document.getElementById('howto-modal');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
+        }
+
+        let currentConfirmResolve = null;
+
+        function showConfirmDialog(message, title = 'Подтверждение') {
+            return new Promise((resolve) => {
+                currentConfirmResolve = resolve;
+
+                const modal = document.getElementById('confirm-modal');
+                const card = document.getElementById('confirm-modal-card');
+
+                document.getElementById('confirm-title').textContent = title;
+                document.getElementById('confirm-message').textContent = message;
+
+                card.style.transition = 'none';
+                card.classList.add('scale-95', 'opacity-0');
+                void card.offsetWidth;
+                card.style.transition = 'transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.2s ease';
+
+                modal.classList.remove('hidden');
+                modal.classList.add('flex', 'show');
+
+                requestAnimationFrame(() => {
+                    card.classList.remove('scale-95', 'opacity-0');
+                });
+
+                const keyHandler = (e) => {
+                    if (e.key === 'Escape') {
+                        document.removeEventListener('keydown', keyHandler);
+                        hideConfirmModal(false);
+                    }
+                    if (e.key === 'Enter') {
+                        document.removeEventListener('keydown', keyHandler);
+                        hideConfirmModal(true);
+                    }
+                };
+                document.addEventListener('keydown', keyHandler, { once: true });
+            });
+        }
+
+        function hideConfirmModal(confirmed) {
+            const modal = document.getElementById('confirm-modal');
+            const card = document.getElementById('confirm-modal-card');
+
+            // Animate out
+            card.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+            card.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                modal.classList.remove('flex', 'show');
+                modal.classList.add('hidden');
+                card.classList.remove('scale-95', 'opacity-0');
+                card.style.transition = '';
+
+                if (currentConfirmResolve) {
+                    currentConfirmResolve(!!confirmed);
+                    currentConfirmResolve = null;
+                }
+            }, 120);
         }
         
                 function getFallbackHeroes() {
@@ -1018,7 +1295,7 @@
                 function setupKeyboard() {
             document.addEventListener('keydown', (e) => {
                 if (e.key === ' ' || e.key === 'Spacebar') {
-                    if (!isSpinning && document.activeElement.tagName === 'BODY') {
+                    if (!isSpinning && currentRole === 'leader' && document.activeElement.tagName === 'BODY') {
                         e.preventDefault();
                         spin();
                     }
@@ -1090,8 +1367,248 @@
             });
             
                         console.log('%c[DOTA-BUKVA] Готово. Можно жать КРУТИТЬ или пробел.', 'color:#3f3f46');
-            
+
+            const saved = localStorage.getItem('dota_bukva_role');
+            if (saved === 'leader') {
+                document.getElementById('role-menu').classList.add('hidden');
+                document.getElementById('guesser-view').classList.add('hidden');
+                document.getElementById('leader-view').classList.remove('hidden');
+                currentRole = 'leader';
+                updateNavRole();
+            } else if (saved === 'guesser') {
+                document.getElementById('role-menu').classList.add('hidden');
+                document.getElementById('leader-view').classList.add('hidden');
+                document.getElementById('guesser-view').classList.remove('hidden');
+                currentRole = 'guesser';
+                loadEliminated();
+                setTimeout(() => {
+                    renderGuesserGrid();
+                    updateGuesserStats();
+                    updateSortButtons();
+                }, 30);
+                updateNavRole();
+            } else {
+                document.getElementById('leader-view').classList.add('hidden');
+                document.getElementById('guesser-view').classList.add('hidden');
+                document.getElementById('role-menu').classList.remove('hidden');
+            }
                                 }
+
+
+        let eliminatedHeroes = new Set();
+        let guesserGridBuilt = false;
+        let currentGuesserSort = 'az';
+
+        function updateNavRole() {
+            const nav = document.getElementById('nav-role');
+            const badge = document.getElementById('nav-role-badge');
+            if (!nav || !badge) return;
+            if (currentRole) {
+                const label = currentRole === 'leader' ? 'Ведущий' : 'Отгадывающий';
+                badge.textContent = label;
+                nav.classList.remove('hidden');
+                nav.classList.add('flex');
+            } else {
+                nav.classList.remove('flex');
+                nav.classList.add('hidden');
+            }
+        }
+
+        function showRoleMenu() {
+            document.getElementById('leader-view').classList.add('hidden');
+            document.getElementById('guesser-view').classList.add('hidden');
+            document.getElementById('role-menu').classList.remove('hidden');
+            currentRole = null;
+            updateNavRole();
+            const s = document.getElementById('guesser-search');
+            if (s) s.value = '';
+        }
+
+        function enterLeader() {
+            currentRole = 'leader';
+            localStorage.setItem('dota_bukva_role', 'leader');
+
+            document.getElementById('role-menu').classList.add('hidden');
+            document.getElementById('guesser-view').classList.add('hidden');
+            const lv = document.getElementById('leader-view');
+            lv.classList.remove('hidden');
+
+            const heroStrip = document.getElementById('hero-strip');
+            if (heroStrip && heroStrip.children.length === 0) {
+                buildHeroStrip();
+                buildLetterStrip();
+                const h = getItemHeight(false);
+                const l = getItemHeight(true);
+                heroStrip.style.transition = 'none';
+                const letterStrip = document.getElementById('letter-strip');
+                letterStrip.style.transition = 'none';
+                heroStrip.style.transform = `translateY(-${Math.floor(Math.random() * 9) * h + 30}px)`;
+                letterStrip.style.transform = `translateY(-${Math.floor(Math.random() * 11) * l + 40}px)`;
+                setTimeout(() => {
+                    heroStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
+                    letterStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
+                }, 40);
+            }
+
+            updateNavRole();
+        }
+
+        function enterGuesser() {
+            currentRole = 'guesser';
+            localStorage.setItem('dota_bukva_role', 'guesser');
+
+            document.getElementById('role-menu').classList.add('hidden');
+            document.getElementById('leader-view').classList.add('hidden');
+            const gv = document.getElementById('guesser-view');
+            gv.classList.remove('hidden');
+
+            loadEliminated();
+
+            renderGuesserGrid();
+            updateGuesserStats();
+            updateSortButtons();
+            updateNavRole();
+        }
+
+        function loadEliminated() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('dota_bukva_eliminated') || '[]');
+                eliminatedHeroes = new Set(saved);
+            } catch (e) {
+                eliminatedHeroes = new Set();
+            }
+        }
+
+        function saveEliminated() {
+            localStorage.setItem('dota_bukva_eliminated', JSON.stringify(Array.from(eliminatedHeroes)));
+        }
+
+        function getHeroImage(short) {
+            return `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${short}_lg.png`;
+        }
+
+        function renderGuesserGrid(filter = '') {
+            const container = document.getElementById('hero-grid');
+            if (!container) return;
+            container.innerHTML = '';
+            guesserGridBuilt = true;
+
+            const q = (filter || '').trim().toLowerCase();
+            const sorted = getSortedHeroes();
+
+            sorted.forEach(hero => {
+                const nameMatch = hero.ru.toLowerCase().includes(q) || hero.en.toLowerCase().includes(q);
+                if (q && !nameMatch) return;
+
+                const cell = document.createElement('div');
+                cell.className = `hero-cell`;
+                cell.dataset.short = hero.short;
+                cell.dataset.ru = hero.ru;
+                cell.dataset.en = hero.en;
+
+                if (eliminatedHeroes.has(hero.short)) {
+                    cell.classList.add('eliminated');
+                }
+
+                cell.innerHTML = `
+                    <div class="img-wrap">
+                        <img src="${getHeroImage(hero.short)}" alt="${hero.en}" loading="lazy"
+                             onerror="this.src='https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png'">
+                    </div>
+                    <div class="hero-label" title="${hero.ru}">${hero.en}</div>
+                `;
+
+                cell.onclick = () => toggleEliminatedHero(cell, hero.short);
+                container.appendChild(cell);
+            });
+
+            updateGuesserStats();
+            updateSortButtons();
+        }
+
+        function filterGuesserGrid() {
+            const input = document.getElementById('guesser-search');
+            if (!input) return;
+            renderGuesserGrid(input.value);
+        }
+
+        function toggleEliminatedHero(cellEl, short) {
+            if (eliminatedHeroes.has(short)) {
+                eliminatedHeroes.delete(short);
+                cellEl.classList.remove('eliminated');
+            } else {
+                eliminatedHeroes.add(short);
+                cellEl.classList.add('eliminated');
+            }
+            saveEliminated();
+            updateGuesserStats();
+        }
+
+        function updateGuesserStats() {
+            const totalEl = document.getElementById('guesser-total');
+            const remainEl = document.getElementById('guesser-remain');
+            if (!totalEl || !remainEl) return;
+
+            const total = heroesData.length || 121;
+            const elim = eliminatedHeroes.size;
+            totalEl.textContent = total;
+            remainEl.textContent = Math.max(0, total - elim);
+        }
+
+        function resetEliminated() {
+            showConfirmDialog('Сбросить все вычеркнутые герои?', 'Сброс вычеркнутых').then(confirmed => {
+                if (!confirmed) return;
+                eliminatedHeroes.clear();
+                saveEliminated();
+
+                // update DOM quickly
+                document.querySelectorAll('#hero-grid .hero-cell').forEach(c => c.classList.remove('eliminated'));
+                updateGuesserStats();
+            });
+        }
+
+        function getSortedHeroes() {
+            let list = [...heroesData];
+
+            if (currentGuesserSort === 'az') {
+                list.sort((a, b) => a.en.localeCompare(b.en));
+            } else if (currentGuesserSort === 'za') {
+                list.sort((a, b) => b.en.localeCompare(a.en));
+            } else if (currentGuesserSort === 'str' || currentGuesserSort === 'agi' || currentGuesserSort === 'int') {
+                const prio = currentGuesserSort;
+                list.sort((a, b) => {
+                    const aPrio = a.attr === prio ? 0 : 1;
+                    const bPrio = b.attr === prio ? 0 : 1;
+                    if (aPrio !== bPrio) return aPrio - bPrio;
+                    return a.en.localeCompare(b.en);
+                });
+            }
+            return list;
+        }
+
+        function updateSortButtons() {
+            document.querySelectorAll('#guesser-view .sort-btn').forEach(btn => {
+                if (btn.dataset.sort === currentGuesserSort) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function setGuesserSort(mode) {
+            currentGuesserSort = mode;
+            updateSortButtons();
+            const searchVal = document.getElementById('guesser-search')?.value || '';
+            renderGuesserGrid(searchVal);
+        }
+
+        function ensureGuesserGrid() {
+            if (currentRole === 'guesser' && document.getElementById('guesser-view') && !document.getElementById('guesser-view').classList.contains('hidden')) {
+                renderGuesserGrid(document.getElementById('guesser-search')?.value || '');
+            }
+        }
+
         
                 window.addEventListener('load', initialize);
         
