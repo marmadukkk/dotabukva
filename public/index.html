@@ -344,6 +344,21 @@
             text-decoration-thickness: 1px;
         }
 
+        /* Dota-like search dimming: non-matching heroes are darkened but still visible and clickable */
+        .hero-cell.search-dimmed {
+            opacity: 0.32;
+            filter: grayscale(0.75) brightness(0.6);
+            transition: filter 80ms ease, opacity 80ms ease;
+        }
+        .hero-cell.search-dimmed:hover {
+            opacity: 0.45;
+        }
+        /* When a hero is both eliminated and search-dimmed, keep the eliminated X visible */
+        .hero-cell.search-dimmed.eliminated {
+            opacity: 0.55;
+            filter: grayscale(0.9) brightness(0.55);
+        }
+
         .sort-btn {
             background: #111111;
             color: #c9b38a;
@@ -1521,7 +1536,6 @@
 
             sorted.forEach(hero => {
                 const nameMatch = hero.ru.toLowerCase().includes(q) || hero.en.toLowerCase().includes(q);
-                if (q && !nameMatch) return;
 
                 const cell = document.createElement('div');
                 cell.className = `hero-cell`;
@@ -1531,6 +1545,11 @@
 
                 if (eliminatedHeroes.has(hero.short)) {
                     cell.classList.add('eliminated');
+                }
+
+                // Dota-style: dim non-matching heroes instead of hiding them
+                if (q && !nameMatch) {
+                    cell.classList.add('search-dimmed');
                 }
 
                 cell.innerHTML = `
