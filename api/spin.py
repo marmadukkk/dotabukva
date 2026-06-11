@@ -1,82 +1,22 @@
-import json
-import random
-import os
-import urllib.request
-import urllib.error
-from http.server import BaseHTTPRequestHandler
+import sys
 from pathlib import Path
+from http.server import BaseHTTPRequestHandler
 
+# Make dota_data importable when this file is executed by Vercel (or locally as a script)
 HERE = Path(__file__).resolve().parent
 PROJECT_ROOT = HERE.parent
-DATA_PATH = PROJECT_ROOT / "data" / "heroes.json"
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-with open(DATA_PATH, encoding="utf-8") as f:
-    _DATA = json.load(f)
+import dota_data
 
-LETTERS = _DATA.get("letters", [])
-ATTR_LABEL = _DATA.get("attr_labels", {})
-ATTR_COLORS = _DATA.get("attr_colors", {})
-
-_RU_NAME_MAP = {}
-for h in _DATA.get("heroes", []):
-    short = h.get("short")
-    if short:
-        _RU_NAME_MAP[short] = h.get("ru") or h.get("en") or short
-
-def _fetch_heroes_from_opendota():
-    url = "https://api.opendota.com/api/heroes"
-    req = urllib.request.Request(
-        url,
-        headers={"User-Agent": "DotaBukva/1.0 (vercel)"}
-    )
-    with urllib.request.urlopen(req, timeout=6) as resp:
-        raw = json.loads(resp.read().decode("utf-8"))
-
-    heroes = []
-    for h in raw:
-        internal = h.get("name", "")
-        if not internal.startswith("npc_dota_hero_"):
-            continue
-        short = internal.replace("npc_dota_hero_", "")
-        en = h.get("localized_name") or short.replace("_", " ").title()
-        ru = _RU_NAME_MAP.get(short, en)
-        attr = h.get("primary_attr", "str")
-        if attr == "all":
-            attr = "uni"
-        heroes.append({"en": en, "ru": ru, "short": short, "attr": attr})
-    heroes.sort(key=lambda x: x["en"])
-    return heroes
-
-def _get_heroes():
-    try:
-        live = _fetch_heroes_from_opendota()
-        if live:
-            return live
-    except Exception:
-        pass
-    return _DATA.get("heroes", [])
-
-HEROES = _get_heroes()
-
-
-def get_hero_image(short: str) -> str:
-    return f"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/{short}_lg.png"
+# Shared cached data + helpers (no more duplication of fetch logic)
+HEROES = dota_data.get_heroes()
 
 
 def get_random_spin():
-    hero = random.choice(HEROES)
-    letter = random.choice(LETTERS)
-    return {
-        "hero": hero["en"],
-        "hero_ru": hero["ru"],
-        "hero_en": hero["en"],
-        "short": hero["short"],
-        "attr": hero["attr"],
-        "attr_label": ATTR_LABEL.get(hero["attr"], hero["attr"].upper()),
-        "color": ATTR_COLORS.get(hero["attr"], "#71717a"),
-        "image": get_hero_image(hero["short"]),
-        "letter": letter,
-    }
+    # Delegate to the shared implementation (same shape as before)
+    return dota_data.get_random_spin()
 
 
 class handler(BaseHTTPRequestHandler):
