@@ -2424,9 +2424,18 @@
         async function loadPapichPhrases() {
             if (papichPhrases.length > 0) return;
             try {
-                // Works on Vercel after copying to public/data/ and locally
+                // Primary path: /data/papich_phrases.json
+                // - FastAPI: served via StaticFiles mount from canonical data/
+                // - Vercel: rewrite + symlink public/data/papich_phrases.json → ../../data/...
+                // The old /public/data/ fallback is kept for extra robustness during transition.
                 let res = await fetch('/data/papich_phrases.json');
-                if (!res.ok) res = await fetch('/public/data/papich_phrases.json');
+                if (!res.ok) {
+                    res = await fetch('/public/data/papich_phrases.json');
+                }
+                if (!res.ok) {
+                    // Last resort: some static hosts may expose it at root
+                    res = await fetch('/papich_phrases.json');
+                }
                 const data = await res.json();
                 papichPhrases = data.phrases || [];
             } catch (e) {

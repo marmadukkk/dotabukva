@@ -1,83 +1,115 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
+import asyncio
 import random
 from pathlib import Path
-import json
-import urllib.request
-import urllib.error
 import time
 import string
 from typing import Dict, Set, Optional
 from collections import defaultdict
 
+import dota_data
+
+# ==================== BACKGROUND TASKS (rooms TTL + hero cache) ====================
+
+# Tunables for room cleanup (easy to adjust)
+ROOM_ABSOLUTE_TTL = 4 * 3600          # 4 hours
+ROOM_IDLE_NO_CONNECTIONS_TTL = 30 * 60  # 30 minutes with 0 players
+CLEANUP_CHECK_INTERVAL = 5 * 60       # check every 5 minutes
+
+
+async def _cleanup_rooms_loop():
+    """Background task: periodically remove stale rooms.
+
+    Rules:
+    - Hard TTL: rooms older than ROOM_ABSOLUTE_TTL are removed.
+    - Idle TTL: rooms with zero WebSocket connections for > ROOM_IDLE_NO_CONNECTIONS_TTL are removed.
+    """
+    cycle = 0
+    print(f"[DotaBukva] Room cleanup task running: absolute={ROOM_ABSOLUTE_TTL}s, idle={ROOM_IDLE_NO_CONNECTIONS_TTL}s, interval={CLEANUP_CHECK_INTERVAL}s")
+
+    while True:
+        try:
+            await asyncio.sleep(CLEANUP_CHECK_INTERVAL)
+            cycle += 1
+            now = time.time()
+
+            expired: list[str] = []
+            active_count = 0
+
+            for code, room in list(rooms.items()):
+                age = now - room.get("created", now)
+                active = len(room_connections.get(code, set()))
+                if active > 0:
+                    active_count += 1
+                if age > ROOM_ABSOLUTE_TTL or (active == 0 and age > ROOM_IDLE_NO_CONNECTIONS_TTL):
+                    expired.append(code)
+
+            for code in expired:
+                rooms.pop(code, None)
+                room_connections.pop(code, None)
+                print(f"[DotaBukva] Cleaned up expired room {code}")
+
+            # Light periodic status (every ~3 cycles = ~15 min)
+            if cycle % 3 == 0:
+                total_rooms = len(rooms)
+                print(f"[DotaBukva] Rooms status: {total_rooms} total, {active_count} with active players")
+
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[DotaBukva] Room cleanup error (cycle {cycle}): {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    cleanup_task = asyncio.create_task(_cleanup_rooms_loop())
+    print("[DotaBukva] Room cleanup background task started (4h absolute / 30m idle TTL)")
+    try:
+        yield
+    finally:
+        # Shutdown
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
+
+
 app = FastAPI(
     title="Герой на букву",
     description="Крути рулетку — получай героя Dota 2 и букву. Опиши героя на эту букву!",
+    lifespan=lifespan,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
 
+
 def _get_index_html():
-    return (BASE_DIR / "templates" / "index.html").read_text(encoding="utf-8")
+    # Unified frontend: serve the single source of truth from public/.
+    # This way both the full FastAPI deploy and the Vercel static deploy
+    # use exactly the same index.html (no more drift between templates/ and public/).
+    # /data/* is mounted below so that papich phrases (and future data) work
+    # the same in FastAPI deploys as they do via Vercel's rewrites.
+    return (BASE_DIR / "public" / "index.html").read_text(encoding="utf-8")
 
-with open(BASE_DIR / "data" / "heroes.json", encoding="utf-8") as f:
-    _DATA = json.load(f)
 
-LETTERS = _DATA["letters"]
-ATTR_LABEL = _DATA["attr_labels"]
-ATTR_COLORS = _DATA["attr_colors"]
+# Shared cached heroes (TTL + fallback handled in dota_data).
+# This replaces the previous duplicated fetch logic that lived in three files.
+HEROES = dota_data.get_heroes()
+LETTERS = dota_data.get_letters()
+ATTR_LABEL = dota_data.ATTR_LABEL
+ATTR_COLORS = dota_data.ATTR_COLORS
 
-_RU_NAME_MAP = {}
-for h in _DATA.get("heroes", []):
-    short = h.get("short")
-    if short:
-        _RU_NAME_MAP[short] = h.get("ru") or h.get("en") or short
-
-def _fetch_heroes_from_opendota():
-    url = "https://api.opendota.com/api/heroes"
-    req = urllib.request.Request(
-        url,
-        headers={"User-Agent": "DotaBukva/1.0 (https://github.com)"}
-    )
-    with urllib.request.urlopen(req, timeout=7) as resp:
-        raw = json.loads(resp.read().decode("utf-8"))
-
-    heroes = []
-    for h in raw:
-        internal_name = h.get("name", "")
-        if not internal_name.startswith("npc_dota_hero_"):
-            continue
-        short = internal_name.replace("npc_dota_hero_", "")
-        en = h.get("localized_name") or short.replace("_", " ").title()
-        ru = _RU_NAME_MAP.get(short, en)
-        attr = h.get("primary_attr", "str")
-        if attr == "all":
-            attr = "uni"
-        heroes.append({
-            "en": en,
-            "ru": ru,
-            "short": short,
-            "attr": attr
-        })
-
-    heroes.sort(key=lambda x: (x["attr"], x["en"]))
-    return heroes
-
-def _load_heroes():
-    try:
-        live = _fetch_heroes_from_opendota()
-        if live:
-            print(f"[DotaBukva] Загружено {len(live)} героев из OpenDota API")
-            return live
-    except Exception as e:
-        print(f"[DotaBukva] Не удалось получить героев из OpenDota ({e}), используем локальный heroes.json")
-    return _DATA.get("heroes", [])
-
-HEROES = _load_heroes()
-
-# ==================== ROOM SYSTEM ====================
+# Room state (in-memory). Declared early so background cleanup task can see the names
+# at runtime (the task is started via lifespan after the whole module loads).
 rooms: Dict[str, dict] = {}
 room_connections: Dict[str, Set[WebSocket]] = defaultdict(set)
+
+# ==================== ROOM SYSTEM (helpers) ====================
 
 def generate_room_code() -> str:
     chars = string.ascii_uppercase + string.digits
@@ -112,37 +144,46 @@ async def broadcast_to_room(code: str, message: dict):
         room_connections[code].discard(ws)
 
 
-
-def get_hero_image(short: str) -> str:
-    return f"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/{short}_lg.png"
-
-
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    html = _get_index_html().replace("__TOTAL_HEROES__", str(len(HEROES)))
+    # The __TOTAL_HEROES__ placeholder was no longer present in the HTML
+    # (count is provided dynamically via /api/heroes + JS). Keep the call simple.
+    html = _get_index_html()
     return HTMLResponse(html)
+
+
+# Serve canonical data files (papich phrases etc.) under /data so the unified
+# public/index.html works identically under FastAPI and under Vercel rewrites.
+# Vercel will continue to work via its own public/data/ + rewrites.
+app.mount("/data", StaticFiles(directory=BASE_DIR / "data"), name="data")
 
 
 @app.get("/api/spin")
 async def api_spin():
-    hero = random.choice(HEROES)
-    letter = random.choice(LETTERS)
-    return {
-        "hero": hero["en"],
-        "hero_ru": hero["ru"],
-        "hero_en": hero["en"],
-        "short": hero["short"],
-        "attr": hero["attr"],
-        "attr_label": ATTR_LABEL[hero["attr"]],
-        "color": ATTR_COLORS[hero["attr"]],
-        "image": get_hero_image(hero["short"]),
-        "letter": letter,
-    }
+    # Use the shared implementation (same shape, benefits from the central cache)
+    return dota_data.get_random_spin()
 
 
 @app.get("/api/heroes")
 async def api_heroes():
     return {"heroes": HEROES, "count": len(HEROES)}
+
+
+@app.post("/api/heroes/refresh")
+@app.get("/api/heroes/refresh")  # convenient for manual browser/curl trigger
+async def api_refresh_heroes():
+    """Force refresh of the heroes cache from OpenDota (falls back to local JSON).
+
+    Useful for:
+    - Picking up newly released heroes without restarting the server.
+    - Debugging the cache / OpenDota connectivity.
+    """
+    fresh = dota_data.refresh_heroes()
+    return {
+        "count": len(fresh),
+        "ttl_seconds": dota_data.CACHE_TTL_SECONDS,
+        "message": "Heroes cache refreshed (will be used until next TTL expiry or manual refresh)",
+    }
 
 
 # ==================== ROOM API ====================
