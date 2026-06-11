@@ -825,121 +825,178 @@
 
         /* ===== FULLY WOODEN CARVED ROUNDELS — header ends round inward like tavern beam carving ===== */
         .header-roundel {
-            position: absolute;
-            width: 130px;
-            height: 130px;
-            border-radius: 9999px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 4;
-            background-color: #3a2a22;
-            pointer-events: none;
-
-            /* Wood grain — pure horizontal boards to match the header */
-            background-image:
-                /* base wood + slight bevel */
-                linear-gradient(to bottom,
-                    rgba(255,255,255,0.045) 0%,
-                    rgba(0,0,0,0.06) 22%,
-                    transparent 38%,
-                    transparent 62%,
-                    rgba(0,0,0,0.18) 78%,
-                    rgba(0,0,0,0.35) 100%),
-                /* strong horizontal wood grain (long fibers) */
-                repeating-linear-gradient(
-                    to right,
-                    transparent 0px,
-                    transparent 3px,
-                    rgba(0,0,0,0.26) 3.5px,
-                    rgba(0,0,0,0.08) 5px,
-                    transparent 6px,
-                    transparent 18px
-                ),
-                /* longer horizontal grain lines */
-                repeating-linear-gradient(
-                    to right,
-                    transparent 0px,
-                    transparent 22px,
-                    rgba(0,0,0,0.15) 23px,
-                    rgba(255,255,255,0.03) 24.5px,
-                    transparent 26px
-                );
-
-            /* Carved wooden rings + depth (многослойная резьба по дереву) */
-            box-shadow:
-                /* outer soft edge of the carving */
-                0 3px 7px rgba(0,0,0,0.45),
-                /* top highlight (raised edge) */
-                inset 0 8px 10px rgba(255,255,255,0.12),
-                /* bottom shadow for roundness */
-                inset 0 -9px 11px rgba(0,0,0,0.45),
-                /* first carved groove (dark ring) */
-                inset 0 0 0 8px #2c2118,
-                inset 0 0 0 10px rgba(0,0,0,0.35),
-                /* raised wooden ring */
-                inset 0 0 0 16px #46362a,
-                /* second deeper groove */
-                inset 0 0 0 21px #2c2118,
-                inset 0 0 0 23px rgba(0,0,0,0.4),
-                /* inner raised area */
-                inset 0 0 0 29px #46362a,
-                /* center depression */
-                inset 0 0 0 35px #2c2118,
-                inset 0 3px 8px rgba(0,0,0,0.3);
+            display: none;
         }
 
-        .header-roundel-left {
-            left: -18px;
-        }
-        .header-roundel-right {
-            right: -18px;
+        @media (min-width: 1024px) {
+            .header-roundel {
+                position: absolute;
+                width: 130px;
+                height: 130px;
+                border-radius: 9999px;
+                top: 50%;
+                transform: translateY(-50%);
+                z-index: 4;
+                background-color: #3a2a22;
+                pointer-events: none;
+
+                /* Wood grain — pure horizontal boards to match the header */
+                background-image:
+                    /* base wood + slight bevel */
+                    linear-gradient(to bottom,
+                        rgba(255,255,255,0.045) 0%,
+                        rgba(0,0,0,0.06) 22%,
+                        transparent 38%,
+                        transparent 62%,
+                        rgba(0,0,0,0.18) 78%,
+                        rgba(0,0,0,0.35) 100%),
+                    /* strong horizontal wood grain (long fibers) */
+                    repeating-linear-gradient(
+                        to right,
+                        transparent 0px,
+                        transparent 3px,
+                        rgba(0,0,0,0.26) 3.5px,
+                        rgba(0,0,0,0.08) 5px,
+                        transparent 6px,
+                        transparent 18px
+                    ),
+                    /* longer horizontal grain lines */
+                    repeating-linear-gradient(
+                        to right,
+                        transparent 0px,
+                        transparent 22px,
+                        rgba(0,0,0,0.15) 23px,
+                        rgba(255,255,255,0.03) 24.5px,
+                        transparent 26px
+                    );
+
+                /* Carved wooden rings + depth (многослойная резьба по дереву) */
+                box-shadow:
+                    /* outer soft edge of the carving */
+                    0 3px 7px rgba(0,0,0,0.45),
+                    /* top highlight (raised edge) */
+                    inset 0 8px 10px rgba(255,255,255,0.12),
+                    /* bottom shadow for roundness */
+                    inset 0 -9px 11px rgba(0,0,0,0.45),
+                    /* first carved groove (dark ring) */
+                    inset 0 0 0 8px #2c2118,
+                    inset 0 0 0 10px rgba(0,0,0,0.35),
+                    /* raised wooden ring */
+                    inset 0 0 0 16px #46362a,
+                    /* second deeper groove */
+                    inset 0 0 0 21px #2c2118,
+                    inset 0 0 0 23px rgba(0,0,0,0.4),
+                    /* inner raised area */
+                    inset 0 0 0 29px #46362a,
+                    /* center depression */
+                    inset 0 0 0 35px #2c2118,
+                    inset 0 3px 8px rgba(0,0,0,0.3);
+            }
+
+            .header-roundel-left {
+                left: -18px;
+            }
+            .header-roundel-right {
+                right: -18px;
+            }
+
+            /* Additional carved wooden rings + subtle inner pattern (узор) */
+            .header-roundel::before {
+                content: '';
+                position: absolute;
+                inset: 12px;
+                border-radius: 9999px;
+                background:
+                    /* very subtle radial wooden texture / shallow rays */
+                    repeating-conic-gradient(
+                        from 0deg at 50% 50%,
+                        transparent 0deg 6deg,
+                        rgba(0,0,0,0.07) 6deg 12deg,
+                        transparent 12deg 42deg
+                    ),
+                    /* inner wood field */
+                    #3a2a22;
+                box-shadow:
+                    /* more carved concentric grooves */
+                    inset 0 0 0 5px #2c2118,
+                    inset 0 0 0 7px rgba(0,0,0,0.25),
+                    inset 0 0 0 13px #46362a,
+                    inset 0 0 0 15px #2c2118,
+                    /* center small raised boss */
+                    inset 0 0 0 23px #46362a;
+            }
+
+            /* Small central wooden turned boss (самый центр с резьбой) */
+            .header-roundel::after {
+                content: '';
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                width: 24px;
+                height: 24px;
+                transform: translate(-50%, -50%);
+                border-radius: 9999px;
+                background-color: #46362a;
+                box-shadow:
+                    /* raised center */
+                    inset 0 3px 4px rgba(255,255,255,0.15),
+                    inset 0 -3px 4px rgba(0,0,0,0.35),
+                    /* tiny carved ring around center */
+                    inset 0 0 0 3px #2c2118,
+                    /* outer groove */
+                    0 0 0 3.5px #2c2118;
+            }
         }
 
-        /* Additional carved wooden rings + subtle inner pattern (узор) */
-        .header-roundel::before {
-            content: '';
-            position: absolute;
-            inset: 12px;
-            border-radius: 9999px;
-            background:
-                /* very subtle radial wooden texture / shallow rays */
-                repeating-conic-gradient(
-                    from 0deg at 50% 50%,
-                    transparent 0deg 6deg,
-                    rgba(0,0,0,0.07) 6deg 12deg,
-                    transparent 12deg 42deg
-                ),
-                /* inner wood field */
-                #3a2a22;
-            box-shadow:
-                /* more carved concentric grooves */
-                inset 0 0 0 5px #2c2118,
-                inset 0 0 0 7px rgba(0,0,0,0.25),
-                inset 0 0 0 13px #46362a,
-                inset 0 0 0 15px #2c2118,
-                /* center small raised boss */
-                inset 0 0 0 23px #46362a;
+        /* ===== RESPONSIVE / ADAPTIVE FOR TAVERN DESIGN ELEMENTS ===== */
+        @media (max-width: 1023px) {
+            /* Hide decorative roundels on header on tablets and below (they only make sense on wide screens) */
+            .header-roundel {
+                display: none !important;
+            }
+
+            /* Smaller wooden frame for hero grid */
+            #hero-grid,
+            #leader-guesser-grid {
+                padding: 4px;
+                border-width: 2px;
+                border-radius: 6px;
+            }
+
+            /* Slightly narrower side cylinders on reels */
+            .reel-cylinder {
+                width: 10px;
+            }
         }
 
-        /* Small central wooden turned boss (самый центр с резьбой) */
-        .header-roundel::after {
-            content: '';
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            width: 24px;
-            height: 24px;
-            transform: translate(-50%, -50%);
-            border-radius: 9999px;
-            background-color: #46362a;
-            box-shadow:
-                /* raised center */
-                inset 0 3px 4px rgba(255,255,255,0.15),
-                inset 0 -3px 4px rgba(0,0,0,0.35),
-                /* tiny carved ring around center */
-                inset 0 0 0 3px #2c2118,
-                /* outer groove */
-                0 0 0 3.5px #2c2118;
+        @media (max-width: 640px) {
+            /* Compact hero grid frame on mobile */
+            #hero-grid,
+            #leader-guesser-grid {
+                padding: 3px;
+                border-width: 2px;
+                border-radius: 4px;
+            }
+
+            /* Narrow cylinders on very small screens */
+            .reel-cylinder {
+                width: 8px;
+            }
+
+            /* Thinner lens border on mobile */
+            .reel-lens {
+                border-width: 1.5px;
+            }
+
+            /* Move header rivets inward on phones to avoid logo overlap */
+            .header-rivet {
+                width: 6px;
+                height: 6px;
+            }
+            .header-rivet[style*="left: 28px"] { left: 16px !important; }
+            .header-rivet[style*="left: 64px"] { left: 38px !important; }
+            .header-rivet[style*="right: 28px"] { right: 16px !important; }
+            .header-rivet[style*="right: 64px"] { right: 38px !important; }
         }
     </style>
 </head>
@@ -965,9 +1022,9 @@
         <div class="header-rivet" style="right: 28px; top: 26px;"></div>
         <div class="header-rivet" style="right: 64px; top: 26px;"></div>
 
-        <!-- Large decorative roundels with pattern on header sides -->
-        <div class="header-roundel header-roundel-left" aria-hidden="true"></div>
-        <div class="header-roundel header-roundel-right" aria-hidden="true"></div>
+        <!-- Large decorative roundels with pattern on header sides (hidden on smaller screens for responsive) -->
+        <div class="header-roundel header-roundel-left hidden lg:block" aria-hidden="true"></div>
+        <div class="header-roundel header-roundel-right hidden lg:block" aria-hidden="true"></div>
 
         <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
             <div class="flex items-center gap-x-3">
