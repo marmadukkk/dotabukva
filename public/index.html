@@ -1474,6 +1474,39 @@
         // Load heroes data from backend (for consistency)
         let currentMode = 'heroes';
 
+        // ==================== SPA NAVIGATION WITH BROWSER BACK BUTTON ====================
+        function switchToScreen(screenId, pushHistory = true) {
+            const screens = ['main-menu', 'role-menu', 'room-lobby', 'leader-view', 'guesser-view'];
+            screens.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            const target = document.getElementById(screenId);
+            if (target) target.classList.remove('hidden');
+
+            if (pushHistory) {
+                try {
+                    history.pushState({ screen: screenId }, '', window.location.pathname);
+                } catch (e) {}
+            }
+        }
+
+        window.addEventListener('popstate', function (event) {
+            if (event.state && event.state.screen) {
+                switchToScreen(event.state.screen, false);
+            } else {
+                // Fallback to main menu on initial back
+                switchToScreen('main-menu', false);
+            }
+        });
+
+        // Set initial history state so first back doesn't leave the page
+        if (typeof history !== 'undefined' && history.replaceState) {
+            try {
+                history.replaceState({ screen: 'main-menu' }, '', window.location.pathname);
+            } catch (e) {}
+        }
+
         async function loadData(mode = 'heroes') {
             currentMode = mode;
             const endpoint = mode === 'items' ? '/api/items' : '/api/heroes';
@@ -2324,17 +2357,12 @@
                         console.log('%c[DOTA-BUKVA] Готово. Можно жать КРУТИТЬ или пробел.', 'color:#3f3f46');
 
             // Always start at the new main menu
-            document.getElementById('main-menu').classList.remove('hidden');
-            document.getElementById('role-menu').classList.add('hidden');
-            document.getElementById('leader-view').classList.add('hidden');
-            document.getElementById('guesser-view').classList.add('hidden');
+            switchToScreen('main-menu', false);
 
             // Check for room in URL (invite link support)
             const urlParams = new URLSearchParams(window.location.search);
             const roomFromUrl = urlParams.get('room');
             if (roomFromUrl) {
-                document.getElementById('main-menu').classList.add('hidden');
-                document.getElementById('role-menu').classList.add('hidden');
                 currentRoom = roomFromUrl.toUpperCase();
                 let myRooms = JSON.parse(localStorage.getItem('dota_bukva_my_rooms') || '[]');
                 isRoomLeader = myRooms.includes(currentRoom);
@@ -2379,10 +2407,7 @@
         }
 
         function showRoleMenu() {
-            // Hide both views
-            document.getElementById('leader-view').classList.add('hidden');
-            document.getElementById('guesser-view').classList.add('hidden');
-            document.getElementById('role-menu').classList.remove('hidden');
+            switchToScreen('role-menu');
             currentRole = null;
             if (!currentMode) currentMode = 'heroes';
             setCurrentMode(currentMode);
@@ -2410,10 +2435,7 @@
             currentRole = 'leader';
             localStorage.setItem('dota_bukva_role', 'leader');
 
-            document.getElementById('role-menu').classList.add('hidden');
-            document.getElementById('guesser-view').classList.add('hidden');
-            const lv = document.getElementById('leader-view');
-            lv.classList.remove('hidden');
+            switchToScreen('leader-view');
 
             // load data for mode then build
             loadData(currentMode).then(() => {
@@ -2452,10 +2474,7 @@
             currentRole = 'guesser';
             localStorage.setItem('dota_bukva_role', 'guesser');
 
-            document.getElementById('role-menu').classList.add('hidden');
-            document.getElementById('leader-view').classList.add('hidden');
-            const gv = document.getElementById('guesser-view');
-            gv.classList.remove('hidden');
+            switchToScreen('guesser-view');
 
             // load eliminated from storage
             loadEliminated();
@@ -2803,10 +2822,7 @@
         // ==================== MAIN MENU + ROOMS ====================
 
         function showMainMenu() {
-            document.getElementById('main-menu').classList.remove('hidden');
-            document.getElementById('role-menu').classList.add('hidden');
-            document.getElementById('leader-view').classList.add('hidden');
-            document.getElementById('guesser-view').classList.add('hidden');
+            switchToScreen('main-menu');
 
             updateNavRoom();
 
@@ -2815,8 +2831,7 @@
 
         function startNormalMode() {
             currentRoom = null;
-            document.getElementById('main-menu').classList.add('hidden');
-            document.getElementById('role-menu').classList.remove('hidden');
+            switchToScreen('role-menu');
             updateNavRoom();
         }
 
@@ -2874,7 +2889,6 @@
             }, 600);
 
             // Try WS (will fail on static, handled in connectToRoomWS)
-            document.getElementById('main-menu').classList.add('hidden');
             connectToRoomWS(currentRoom, 'leader');
             showRoomLobby();
 
@@ -2984,8 +2998,6 @@
             updateFreeElimsDisplay();
             stopElimCD();
 
-            document.getElementById('main-menu').classList.add('hidden');
-            document.getElementById('role-menu').classList.add('hidden');
             showRoomLobby();
 
             updateNavRoom();
@@ -3453,11 +3465,7 @@
         // ==================== ROOM LOBBY ====================
 
         function showRoomLobby() {
-            document.getElementById('main-menu').classList.add('hidden');
-            document.getElementById('role-menu').classList.add('hidden');
-            document.getElementById('leader-view').classList.add('hidden');
-            document.getElementById('guesser-view').classList.add('hidden');
-            document.getElementById('room-lobby').classList.remove('hidden');
+            switchToScreen('room-lobby');
 
             const codeEl = document.getElementById('lobby-room-code');
             if (codeEl) {
@@ -3527,7 +3535,7 @@
 
             if (isRoomLeader) {
                 currentRole = 'leader';
-                document.getElementById('leader-view').classList.remove('hidden');
+                switchToScreen('leader-view', false);
                 const heroStrip = document.getElementById('hero-strip');
                 if (heroStrip && heroStrip.children.length === 0) {
                     buildHeroStrip();
@@ -3544,7 +3552,7 @@
                 myLastElim = 0;
                 updateFreeElimsDisplay();
                 stopElimCD();
-                document.getElementById('guesser-view').classList.remove('hidden');
+                switchToScreen('guesser-view', false);
                 renderGuesserGrid();
                 updateGuesserStats();
                 updateSortButtons();
