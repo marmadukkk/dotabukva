@@ -122,6 +122,8 @@ def get_attr_label(attr: str) -> str:
 
 
 def get_attr_color(attr: str) -> str:
+    if attr == "ability":
+        return "#67e8f9"  # cyan for abilities
     return ATTR_COLORS.get(attr, "#71717a")
 
 
@@ -269,6 +271,132 @@ def get_item_image(short: str) -> str:
     return f"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/{short}_lg.png"
 
 
+# ==================== ABILITIES (Способности) ====================
+
+_ABILITIES_CACHE: Optional[List[Dict[str, Any]]] = None
+_ABILITIES_CACHE_TS: float = 0.0
+
+
+def _fetch_abilities_from_opendota() -> List[Dict[str, Any]]:
+    """Fetch and filter hero abilities from OpenDota constants."""
+    url = "https://api.opendota.com/api/constants/abilities"
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "DotaBukva/1.0 (https://github.com)"}
+    )
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        raw = json.loads(resp.read().decode("utf-8"))
+
+    # Filters to keep mostly real hero abilities (exclude talents, generics, creeps, couriers etc.)
+    exclude_in_key = [
+        "special_bonus", "dota_", "generic", "backdoor", "necronomicon", "courier",
+        "roshan", "greevil", "seasonal", "plus", "workshop", "fountain", "building",
+        "neutral_", "creep", "warlock_golem", "spirit_bear", "forged_spirit", "eidolon",
+        "beastmaster_boar", "lycan_wolf", "brewmaster", "visage_familiar", "shadow_demon_shadow",
+        "enigma_eidolon", "ability_", "twin_gate", "capture", "lamp_use", "lotus_pool"
+    ]
+    bad_dname_substrings = [
+        "backdoor", "true sight", "auto deliver", "return to base", "go to secret",
+        "transfer item", "retrieve item", "speed burst", "empty", "placeholder",
+        "aegis", "cheese"
+    ]
+
+    # User-requested blacklist of abilities to remove from reel and grid
+    bad_ability_dnames = [
+        "abyssal horde", "accumulation", "apex predator", "armor power", "attribure bonus", "attribute bonus",
+        "black grimoire", "bladeform", "alleviation", "application da", "archer aura",
+        "arm of the deep", "am of the deep", "bear down", "bear necessities", "big game hunter", "blinding sun",
+        "blood magic", "blubber", "bondage", "bone and arrow", "boomstik", "boomstick", "brawler's grit",
+        "break", "break of dawn", "buckshot", "bullbelly blitz", "chop shop", "chronoptic nou",
+        "clairvoyant cure", "colossal", "cold snap (ad)", "chaos meteor(ad)", "congregations",
+        "cutpurse", "critical strike", "dark carnival b", "dark unity", "dauntless",
+        "death throe", "defilement", "destroy ofrenda", "devil's bargain", "devoured ability",
+        "detonate m.a.d", "distortion field", "double trouble", "dragon sight", "duelist",
+        "e.m.p. (ad)", "easy breezy", "eelskin", "eldrich summon", "eldritch summoning", "eldwurm scholar",
+        "eldwurm studies", "encore", "end sharpshooter", "end meditation", "end protection",
+        "end roll up", "essence of the bl", "eureka!", "event horizon", "exposure therapy",
+        "fling", "fling release", "flow", "forge spirit (ad)", "fortification",
+        "focus fire cancel", "fundamental fo", "galvanized", "geomancy", "gift bearer",
+        "ghost walk (ad)", "gravity well", "gris-gris", "heal amplification", "healing hammer",
+        "heart of battle", "heart of darkness", "herd mentality", "hidden gates", "horsepower",
+        "hurricane", "hotfeet hustle", "ice wall (ad)", "icefire bomb", "immolation",
+        "immovable", "intimidate", "intrinsic edge", "invading force", "invoked spell",
+        "island elixir", "keen scope", "jetpack toggle", "last will", "launch snowball",
+        "lurker", "magic aplification", "magic amplification", "mana break", "masochist", "mastermind", "maul",
+        "mental fortitude", "might and magus", "mistwoods wayfarer", "momentum",
+        "mourning ritual", "nature's profit", "nothl boon", "nyxth sense", "oblivion savant",
+        "ogre smash!", "ominous discern", "one man army", "pack rat", "persecutor",
+        "phantasmagoria", "pixie dust", "predator", "prickly", "prognosticate",
+        "prospecting aura", "puckish", "quick wit", "rabble-rouser", "rally", "rawhide",
+        "recall familliar", "recall familiar", "reflect", "m.a.d", "reins of chaos", "rewoven",
+        "riverborn aura", "rugged", "ruin and restore", "ruin and restoration", "seaborn sentinel", "seed shot",
+        "selemene's faithe", "selemene's faithful", "septic shock", "slithereen cutla", "slow burn", "slugger",
+        "smoldering resin", "souvenir slot", "soul strike", "special reserve", "spectral",
+        "spirit cairn", "spirit collector", "splitting image", "spoon's stash", "spring early",
+        "squee's scope", "stollen spell", "steal weapon", "sticky fingers",
+        "stop take aim", "stop sun ray", "stop rolling", "stop icarus dive", "stop freezing field",
+        "succubus", "suffer in silence", "sun strike (ad)", "symmetry", "take off",
+        "telekinesis land", "tendrils of the", "the shining", "third eye", "threads of fate",
+        "time warp aura", "tip the scales", "to hell and back", "tomo'kan tracker",
+        "tornado (ad)", "twisted chakram", "undulation", "unyielding shield", "vanquisher",
+        "water bubble", "weakening aura", "wellspring",
+        "attribute bonus", "boomstick", "chaos meteor (ad)", "clairvoyant curse",
+        "deafening blast (ad)", "magic amplification", "recall familiar",
+        "return chakram", "return chackram", "selemene's faithful", "savage roar", "stone form",
+        "arm of the deep", "eldritch summoning", "ruin and restoration"
+    ]
+
+    abilities: List[Dict[str, Any]] = []
+    for key, ab in raw.items():
+        dname = (ab.get("dname") or "").strip()
+        if not dname or len(dname) < 4:
+            continue
+        kl = key.lower()
+        if any(x in kl for x in exclude_in_key):
+            continue
+        dnl = dname.lower()
+        if any(x in dnl for x in bad_dname_substrings):
+            continue
+        if "_" not in kl:
+            continue
+        if any(bad in dnl for bad in bad_ability_dnames):
+            continue
+
+        abilities.append({
+            "en": dname,
+            "ru": dname,  # no separate localized from this API; same as items
+            "short": key,
+            "attr": "ability"
+        })
+
+    abilities.sort(key=lambda x: x["en"])
+    return abilities
+
+
+def _load_abilities_fresh() -> List[Dict[str, Any]]:
+    try:
+        live = _fetch_abilities_from_opendota()
+        if live:
+            print(f"[DotaBukva] Загружено {len(live)} способностей из OpenDota API")
+            return live
+    except Exception as e:
+        print(f"[DotaBukva] Не удалось получить способности из OpenDota ({e}), используем пустой список")
+    return []
+
+
+def get_abilities() -> List[Dict[str, Any]]:
+    global _ABILITIES_CACHE, _ABILITIES_CACHE_TS
+    now = time.time()
+    if _ABILITIES_CACHE is None or (now - _ABILITIES_CACHE_TS) > CACHE_TTL_SECONDS:
+        _ABILITIES_CACHE = _load_abilities_fresh()
+        _ABILITIES_CACHE_TS = now
+    return _ABILITIES_CACHE
+
+
+def get_ability_image(short: str) -> str:
+    return f"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/abilities/{short}.png"
+
+
 def get_random_spin(mode: str = "heroes") -> Dict[str, Any]:
     """Convenience used by both the main app and the /api/spin handler."""
     if mode == "items":
@@ -286,6 +414,23 @@ def get_random_spin(mode: str = "heroes") -> Dict[str, Any]:
             "attr_label": get_attr_label(item["attr"]),
             "color": get_attr_color(item["attr"]),
             "image": get_item_image(item["short"]),
+            "letter": letter,
+        }
+    elif mode == "abilities":
+        abils = get_abilities()
+        if not abils:
+            abils = [{"en": "Meat Hook", "ru": "Meat Hook", "short": "pudge_meat_hook", "attr": "ability"}]
+        ab = random.choice(abils)
+        letter = random.choice(get_letters())
+        return {
+            "hero": ab["en"],
+            "hero_ru": ab["ru"],
+            "hero_en": ab["en"],
+            "short": ab["short"],
+            "attr": ab["attr"],
+            "attr_label": "СПОСОБНОСТЬ",
+            "color": get_attr_color(ab["attr"]),
+            "image": get_ability_image(ab["short"]),
             "letter": letter,
         }
     else:

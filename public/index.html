@@ -1130,6 +1130,21 @@
             <div id="lobby-status" class="text-[#e0d2b0] text-sm mb-6 min-h-[40px]">
             </div>
 
+            <!-- Mode selector in lobby (leader only, before start) -->
+            <div id="lobby-mode-switch" class="hidden mb-4">
+                <div class="text-[10px] text-zinc-500 tracking-[1.5px] mb-1 text-center">РЕЖИМ КОМНАТЫ</div>
+                <div class="flex justify-center">
+                    <div class="inline-flex rounded-2xl border border-[#4a3728] overflow-hidden text-xs">
+                        <button onclick="setLobbyMode('heroes')" id="lobby-mode-heroes"
+                                class="px-3 py-1 font-medium bg-[#1f1f1f]">Герои</button>
+                        <button onclick="setLobbyMode('items')" id="lobby-mode-items"
+                                class="px-3 py-1 font-medium border-l border-[#4a3728]">Предметы</button>
+                        <button onclick="setLobbyMode('abilities')" id="lobby-mode-abilities"
+                                class="px-3 py-1 font-medium border-l border-[#4a3728]">Способности</button>
+                    </div>
+                </div>
+            </div>
+
             <button id="lobby-start-btn" onclick="startGameFromLobby()"
                     class="hidden w-full h-11 bg-[#c23c2a] hover:bg-[#e04a38] text-white font-semibold rounded-xl border border-[#d4af37]">
                 НАЧАТЬ ИГРУ
@@ -1160,9 +1175,11 @@
                 <div class="text-[10px] text-zinc-500 tracking-[1.5px] mb-1">РЕЖИМ</div>
                 <div class="inline-flex rounded-2xl border border-[#4a3728] overflow-hidden text-sm">
                     <button onclick="setCurrentMode('heroes')" id="role-mode-heroes"
-                            class="px-5 py-1.5 font-medium bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors">Герои</button>
+                            class="px-4 py-1.5 font-medium bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors">Герои</button>
                     <button onclick="setCurrentMode('items')" id="role-mode-items"
-                            class="px-5 py-1.5 font-medium hover:bg-[#2a2a2a] transition-colors border-l border-[#4a3728]">Предметы</button>
+                            class="px-4 py-1.5 font-medium hover:bg-[#2a2a2a] transition-colors border-l border-[#4a3728]">Предметы</button>
+                    <button onclick="setCurrentMode('abilities')" id="role-mode-abilities"
+                            class="px-4 py-1.5 font-medium hover:bg-[#2a2a2a] transition-colors border-l border-[#4a3728]">Способности</button>
                 </div>
             </div>
         </div>
@@ -1509,12 +1526,21 @@
 
         async function loadData(mode = 'heroes') {
             currentMode = mode;
-            const endpoint = mode === 'items' ? '/api/items' : '/api/heroes';
-            const key = mode === 'items' ? 'items' : 'heroes';
+            let endpoint, key;
+            if (mode === 'items') {
+                endpoint = '/api/items';
+                key = 'items';
+            } else if (mode === 'abilities') {
+                endpoint = '/api/abilities';
+                key = 'abilities';
+            } else {
+                endpoint = '/api/heroes';
+                key = 'heroes';
+            }
             try {
                 const res = await fetch(endpoint);
                 const data = await res.json();
-                heroesData = data[key] || data.heroes || data.items || [];
+                heroesData = data[key] || data.heroes || data.items || data.abilities || [];
             } catch (e) {
                 console.warn('Не удалось загрузить данные с сервера, используем дефолт');
                 heroesData = [];
@@ -1523,19 +1549,15 @@
 
         function setCurrentMode(mode) {
             currentMode = mode;
-            // update button styles in role menu
+            // update button styles in role menu (3 modes)
             const hBtn = document.getElementById('role-mode-heroes');
             const iBtn = document.getElementById('role-mode-items');
-            if (hBtn && iBtn) {
-                if (mode === 'heroes') {
-                    hBtn.classList.add('bg-[#1f1f1f]');
-                    iBtn.classList.remove('bg-[#1f1f1f]');
-                } else {
-                    iBtn.classList.add('bg-[#1f1f1f]');
-                    hBtn.classList.remove('bg-[#1f1f1f]');
-                }
-            }
-            if (mode === 'items') {
+            const aBtn = document.getElementById('role-mode-abilities');
+            if (hBtn) hBtn.classList.toggle('bg-[#1f1f1f]', mode === 'heroes');
+            if (iBtn) iBtn.classList.toggle('bg-[#1f1f1f]', mode === 'items');
+            if (aBtn) aBtn.classList.toggle('bg-[#1f1f1f]', mode === 'abilities');
+
+            if (mode === 'items' || mode === 'abilities') {
                 currentGuesserSort = 'az';
             } else if (['str','agi','int','uni'].includes(currentGuesserSort)) {
                 currentGuesserSort = 'az';
@@ -1546,26 +1568,51 @@
             }
         }
 
+        function setLobbyMode(mode) {
+            currentMode = mode;
+            updateLobbyModeButtons();
+            // also sync role buttons if visible
+            const h = document.getElementById('role-mode-heroes');
+            const i = document.getElementById('role-mode-items');
+            const a = document.getElementById('role-mode-abilities');
+            if (h) h.classList.toggle('bg-[#1f1f1f]', mode==='heroes');
+            if (i) i.classList.toggle('bg-[#1f1f1f]', mode==='items');
+            if (a) a.classList.toggle('bg-[#1f1f1f]', mode==='abilities');
+        }
+
+        function updateLobbyModeButtons() {
+            const h = document.getElementById('lobby-mode-heroes');
+            const i = document.getElementById('lobby-mode-items');
+            const a = document.getElementById('lobby-mode-abilities');
+            if (h) h.classList.toggle('bg-[#1f1f1f]', currentMode === 'heroes');
+            if (i) i.classList.toggle('bg-[#1f1f1f]', currentMode === 'items');
+            if (a) a.classList.toggle('bg-[#1f1f1f]', currentMode === 'abilities');
+        }
+
         function updateRoleDescriptions() {
             const desc = document.getElementById('role-desc');
             const tableLabel = document.getElementById('table-label');
             const drumLabel = document.getElementById('drum-label');
+            const isItems = currentMode === 'items';
+            const isAbil = currentMode === 'abilities';
             if (desc) {
-                if (currentMode === 'items') {
+                if (isItems) {
                     desc.textContent = 'Один ведущий крутит и даёт подсказки. Остальные вычёркивают предметы.';
+                } else if (isAbil) {
+                    desc.textContent = 'Один ведущий крутит и даёт подсказки. Остальные вычёркивают способности.';
                 } else {
                     desc.textContent = 'Один ведущий крутит и даёт подсказки. Остальные вычёркивают героев.';
                 }
             }
             if (tableLabel) {
-                tableLabel.textContent = currentMode === 'items' ? 'предметов' : 'героев';
+                tableLabel.textContent = isItems ? 'предметов' : (isAbil ? 'способностей' : 'героев');
             }
             if (drumLabel) {
-                drumLabel.textContent = currentMode === 'items' ? 'предметом' : 'героем';
+                drumLabel.textContent = isItems ? 'предметом' : (isAbil ? 'способностью' : 'героем');
             }
             const reelTitleEl = document.getElementById('reel-title');
             if (reelTitleEl) {
-                reelTitleEl.textContent = currentMode === 'items' ? 'ПРЕДМЕТ' : 'ГЕРОЙ';
+                reelTitleEl.textContent = isItems ? 'ПРЕДМЕТ' : (isAbil ? 'СПОСОБНОСТЬ' : 'ГЕРОЙ');
             }
         }
 
@@ -1573,9 +1620,9 @@
             currentMode = mode;
             loadData(mode).then(() => {
                 const title = document.getElementById('grid-title');
-                if (title) title.textContent = mode === 'items' ? 'ПРЕДМЕТЫ' : 'ГЕРОЙ';
+                if (title) title.textContent = (mode === 'items' ? 'ПРЕДМЕТЫ' : (mode === 'abilities' ? 'СПОСОБНОСТИ' : 'ГЕРОИ'));
                 const reelTitle = document.getElementById('reel-title');
-                if (reelTitle) reelTitle.textContent = mode === 'items' ? 'ПРЕДМЕТ' : 'ГЕРОЙ';
+                if (reelTitle) reelTitle.textContent = (mode === 'items' ? 'ПРЕДМЕТ' : (mode === 'abilities' ? 'СПОСОБНОСТЬ' : 'ГЕРОЙ'));
                 // rebuild strips with new data
                 const heroStrip = document.getElementById('hero-strip');
                 if (heroStrip) {
@@ -1627,7 +1674,8 @@
                 'int': '#a855f7',
                 'uni': '#eab308',
                 'item': '#60a5fa',
-                'neutral': '#a78bfa'
+                'neutral': '#a78bfa',
+                'ability': '#67e8f9'
             };
             return colors[attr] || '#71717a';
         }
@@ -1725,7 +1773,7 @@
                 if (spinText) spinText.textContent = 'КРУТИМ...';
                 if (spinIcon) spinIcon.classList.add('fa-spin');
 
-                sendRoomMessage({ type: 'spin' });
+                sendRoomMessage({ type: 'spin', mode: currentMode || 'heroes' });
 
                 // Immediate continuous spin visual while waiting for server result (online leader)
                 const heroReel = document.getElementById('hero-reel');
@@ -1760,15 +1808,20 @@
                 const fallbackData = heroesData.length ? heroesData : getFallbackHeroes();
                 const entry = fallbackData[Math.floor(Math.random() * fallbackData.length)];
                 const letters = "АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЮЯ".split('');
+                const fm = (currentMode || 'heroes');
+                const fimg = (fm === 'items')
+                    ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${entry.short}_lg.png`
+                    : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${entry.short}_lg.png`;
+                const fattrLabel = (fm === 'items' ? 'ПРЕДМЕТ' : (fm === 'abilities' ? 'СПОСОБНОСТЬ' : (entry.attr === 'str' ? 'СИЛА' : entry.attr === 'agi' ? 'ЛОВКОСТЬ' : entry.attr === 'int' ? 'ИНТЕЛЛЕКТ' : entry.attr === 'neutral' ? 'НЕЙТРАЛ' : 'ГЕРОЙ')));
                 result = {
                     hero: entry.en || entry.name,
                     hero_ru: entry.ru || entry.en || entry.name,
                     hero_en: entry.en || entry.name,
                     short: entry.short,
-                    attr: entry.attr || 'item',
-                    attr_label: (entry.attr === 'str' ? 'СИЛА' : entry.attr === 'agi' ? 'ЛОВКОСТЬ' : entry.attr === 'int' ? 'ИНТЕЛЛЕКТ' : entry.attr === 'neutral' ? 'НЕЙТРАЛ' : 'ПРЕДМЕТ'),
-                    color: getAttrColor(entry.attr || 'item'),
-                    image: (currentMode === 'items' ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${entry.short}_lg.png` : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${entry.short}_lg.png`),
+                    attr: entry.attr || (fm === 'abilities' ? 'ability' : 'item'),
+                    attr_label: fattrLabel,
+                    color: getAttrColor(entry.attr || (fm === 'abilities' ? 'ability' : 'item')),
+                    image: fimg,
                     letter: letters[Math.floor(Math.random() * letters.length)]
                 };
             }
@@ -2085,8 +2138,12 @@
         function showResult(result) {
             const card = document.getElementById('result-card');
             
-                        const img = document.getElementById('result-image');
-            img.src = result.image || ( (currentMode || 'heroes') === 'items' ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/blink_lg.png` : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png` );
+                        const m = (currentMode || 'heroes');
+            const fallback = (m === 'items')
+                ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/blink_lg.png`
+                : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png`;
+            const img = document.getElementById('result-image');
+            img.src = result.image || fallback;
             img.onerror = () => {
                 img.style.display = 'none';
             };
@@ -2177,7 +2234,7 @@
                         short: item.short || 'pudge',
                         attr: item.attr || 'str',
                         color: item.color || '#f97316',
-                        image: item.image || ( (currentMode || 'heroes') === 'items' ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${item.short || 'blink'}_lg.png` : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png` ),
+                        image: item.image || getEntryImage(item.short || ( (currentMode||'heroes')==='items' ? 'blink' : 'pudge' )),
                     };
                     window.lastResult = fakeResult;
                     showResult(fakeResult);
@@ -2417,15 +2474,10 @@
             // ensure mode buttons reflect current
             const hBtn = document.getElementById('role-mode-heroes');
             const iBtn = document.getElementById('role-mode-items');
-            if (hBtn && iBtn) {
-                if (currentMode === 'items') {
-                    iBtn.classList.add('bg-[#1f1f1f]');
-                    hBtn.classList.remove('bg-[#1f1f1f]');
-                } else {
-                    hBtn.classList.add('bg-[#1f1f1f]');
-                    iBtn.classList.remove('bg-[#1f1f1f]');
-                }
-            }
+            const aBtn = document.getElementById('role-mode-abilities');
+            if (hBtn) hBtn.classList.toggle('bg-[#1f1f1f]', currentMode === 'heroes');
+            if (iBtn) iBtn.classList.toggle('bg-[#1f1f1f]', currentMode === 'items');
+            if (aBtn) aBtn.classList.toggle('bg-[#1f1f1f]', currentMode === 'abilities');
             updateRoleDescriptions();
         }
 
@@ -2454,6 +2506,11 @@
                         heroStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
                         letterStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
                     }, 40);
+                }
+                const reelTitleEl = document.getElementById('reel-title');
+                if (reelTitleEl) {
+                    const m = currentMode || 'heroes';
+                    reelTitleEl.textContent = (m === 'items' ? 'ПРЕДМЕТ' : (m === 'abilities' ? 'СПОСОБНОСТЬ' : 'ГЕРОЙ'));
                 }
             });
 
@@ -2513,12 +2570,20 @@
             localStorage.setItem('dota_bukva_eliminated', JSON.stringify(Array.from(eliminatedHeroes)));
         }
 
-        function getHeroImage(short) {
+        function getEntryImage(short) {
             const mode = currentMode || 'heroes';
             if (mode === 'items') {
                 return `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${short}_lg.png`;
             }
+            if (mode === 'abilities') {
+                return `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/abilities/${short}.png`;
+            }
             return `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${short}_lg.png`;
+        }
+
+        // legacy alias
+        function getHeroImage(short) {
+            return getEntryImage(short);
         }
 
         function renderGuesserGrid(filter = '', targetId = 'hero-grid', isReadonly = false) {
@@ -2529,10 +2594,12 @@
 
             const q = (filter || '').trim().toLowerCase();
 
-            const isItems = (currentMode || 'heroes') === 'items';
+            const mode = (currentMode || 'heroes');
+            const isItems = mode === 'items';
+            const isAbil = mode === 'abilities';
             const searchInput = document.getElementById('guesser-search');
             if (searchInput) {
-                searchInput.placeholder = isItems ? 'Поиск предмета...' : 'Поиск героя (на русском или английском)...';
+                searchInput.placeholder = isItems ? 'Поиск предмета...' : (isAbil ? 'Поиск способности...' : 'Поиск героя (на русском или английском)...');
             }
 
             const sorted = getSortedHeroes();
@@ -2557,7 +2624,7 @@
 
                 cell.innerHTML = `
                     <div class="img-wrap">
-                        <img src="${getHeroImage(hero.short)}" alt="${hero.en}" loading="lazy"
+                        <img src="${getEntryImage(hero.short)}" alt="${hero.en}" loading="lazy"
                              onerror="this.src='https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png'">
                     </div>
                     <div class="hero-label" title="${hero.ru}">${hero.en}</div>
@@ -2573,14 +2640,16 @@
             populateSortButtons();
             updateSortButtons();
 
-            const isItemsMode = (currentMode || 'heroes') === 'items';
+            const m = (currentMode || 'heroes');
+            const isItemsMode = m === 'items';
+            const isAbilMode = m === 'abilities';
 
             const gridTitle = document.getElementById('grid-title');
-            if (gridTitle) gridTitle.textContent = isItemsMode ? 'ПРЕДМЕТЫ' : 'ГЕРОИ';
+            if (gridTitle) gridTitle.textContent = isItemsMode ? 'ПРЕДМЕТЫ' : (isAbilMode ? 'СПОСОБНОСТИ' : 'ГЕРОИ');
 
             const tableTitle = document.getElementById('guesser-table-title');
             if (tableTitle) {
-                tableTitle.textContent = isItemsMode ? 'ТАБЛИЦА ПРЕДМЕТОВ — ВЫЧЁРКИВАЙ' : 'ТАБЛИЦА ГЕРОЕВ — ВЫЧЁРКИВАЙ';
+                tableTitle.textContent = isItemsMode ? 'ТАБЛИЦА ПРЕДМЕТОВ — ВЫЧЁРКИВАЙ' : (isAbilMode ? 'ТАБЛИЦА СПОСОБНОСТЕЙ — ВЫЧЁРКИВАЙ' : 'ТАБЛИЦА ГЕРОЕВ — ВЫЧЁРКИВАЙ');
             }
         }
 
@@ -2684,8 +2753,13 @@
         }
 
         function resetEliminated() {
-            const isItems = (currentMode || 'heroes') === 'items';
-            const confirmMsg = isItems ? 'Сбросить все вычеркнутые предметы?' : 'Сбросить все вычеркнутые герои?';
+            const m = (currentMode || 'heroes');
+            const isItems = m === 'items';
+            const isAbil = m === 'abilities';
+            let confirmMsg;
+            if (isItems) confirmMsg = 'Сбросить все вычеркнутые предметы?';
+            else if (isAbil) confirmMsg = 'Сбросить все вычеркнутые способности?';
+            else confirmMsg = 'Сбросить все вычеркнутые герои?';
             showConfirmDialog(confirmMsg, 'Сброс вычеркнутых').then(confirmed => {
                 if (!confirmed) return;
                 eliminatedHeroes.clear();
@@ -2705,8 +2779,8 @@
                 list.sort((a, b) => a.en.localeCompare(b.en));
             } else if (currentGuesserSort === 'za') {
                 list.sort((a, b) => b.en.localeCompare(a.en));
-            } else if (['str', 'agi', 'int', 'uni'].includes(currentGuesserSort) && (currentMode || 'heroes') !== 'items') {
-                // Filter: show only heroes of this attribute (not for items mode)
+            } else if (['str', 'agi', 'int', 'uni'].includes(currentGuesserSort) && (currentMode || 'heroes') !== 'items' && (currentMode || 'heroes') !== 'abilities') {
+                // Filter: show only heroes of this attribute (not for items/abilities mode)
                 list = list.filter(h => h.attr === currentGuesserSort);
                 list.sort((a, b) => a.en.localeCompare(b.en));
             }
@@ -2728,9 +2802,10 @@
             if (!container) return;
             container.innerHTML = '';
 
-            const isItems = (currentMode || 'heroes') === 'items';
+            const m = (currentMode || 'heroes');
+            const isItemsOrAbil = (m === 'items' || m === 'abilities');
 
-            if (!isItems) {
+            if (!isItemsOrAbil) {
                 // heroes sorts
                 const sorts = [
                     {key: 'az', label: 'А → Я'},
@@ -2749,7 +2824,7 @@
                     container.appendChild(btn);
                 });
             } else {
-                // items: only alphabetical sorts
+                // items + abilities: only alphabetical sorts
                 const sorts = [
                     {key: 'az', label: 'А → Я'},
                     {key: 'za', label: 'Я → А'}
@@ -3407,7 +3482,9 @@
             if (!card) return;
 
             const img = document.getElementById('result-image');
-            if (img) img.src = result.image || ( (currentMode || 'heroes') === 'items' ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/blink_lg.png` : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png` );
+            const fm2 = (currentMode || 'heroes');
+            const fb2 = (fm2 === 'items') ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/blink_lg.png` : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png`;
+            if (img) img.src = result.image || fb2;
             const heroEl = document.getElementById('result-hero');
             if (heroEl) heroEl.textContent = result.hero || result.hero_en || result.hero_ru;
             const letterEl = document.getElementById('result-letter');
@@ -3468,12 +3545,20 @@
                 statusEl.textContent = 'Вы ведущий. Когда все игроки подключатся, нажмите «Начать игру».';
                 startBtn.classList.remove('hidden');
                 waitingEl.classList.add('hidden');
+
+                // show mode switch for leader
+                const modeSwitch = document.getElementById('lobby-mode-switch');
+                if (modeSwitch) modeSwitch.classList.remove('hidden');
+                updateLobbyModeButtons();
             } else {
                 roleBadge.textContent = 'Отгадывающий';
                 roleBadge.className = 'px-3 py-1 text-xs rounded-full border border-emerald-400 text-emerald-400 font-medium';
                 statusEl.textContent = 'Вы отгадывающий. Ожидайте, пока ведущий начнёт игру.';
                 startBtn.classList.add('hidden');
                 waitingEl.classList.remove('hidden');
+
+                const modeSwitch = document.getElementById('lobby-mode-switch');
+                if (modeSwitch) modeSwitch.classList.add('hidden');
             }
         }
 
@@ -3497,11 +3582,19 @@
             if (isRoomLeader) {
                 currentRole = 'leader';
                 switchToScreen('leader-view', false);
-                const heroStrip = document.getElementById('hero-strip');
-                if (heroStrip && heroStrip.children.length === 0) {
-                    buildHeroStrip();
-                    buildLetterStrip();
-                }
+                loadData(currentMode).then(() => {
+                    const heroStrip = document.getElementById('hero-strip');
+                    if (heroStrip) {
+                        buildHeroStrip();
+                        buildLetterStrip();
+                    }
+                    updateRoleDescriptions();
+                    const reelTitleEl = document.getElementById('reel-title');
+                    if (reelTitleEl) {
+                        const m = currentMode || 'heroes';
+                        reelTitleEl.textContent = (m === 'items' ? 'ПРЕДМЕТ' : (m === 'abilities' ? 'СПОСОБНОСТЬ' : 'ГЕРОЙ'));
+                    }
+                });
                 updateNavRole();
                 const tableSec = document.getElementById('leader-table-section');
                 if (tableSec) tableSec.style.display = '';
@@ -3514,9 +3607,12 @@
                 updateFreeElimsDisplay();
                 stopElimCD();
                 switchToScreen('guesser-view', false);
-                renderGuesserGrid();
-                updateGuesserStats();
-                updateSortButtons();
+                loadData(currentMode).then(() => {
+                    renderGuesserGrid();
+                    updateGuesserStats();
+                    updateSortButtons();
+                    updateRoleDescriptions();
+                });
             }
         }
 
