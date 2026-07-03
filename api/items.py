@@ -1,62 +1,12 @@
 import json
-import random
 import urllib.request
 import urllib.error
-import urllib.parse
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 PROJECT_ROOT = HERE.parent
-DATA_PATH = PROJECT_ROOT / "data" / "heroes.json"
-
-with open(DATA_PATH, encoding="utf-8") as f:
-    _DATA = json.load(f)
-
-LETTERS = _DATA.get("letters", [])
-ATTR_LABEL = _DATA.get("attr_labels", {})
-ATTR_COLORS = _DATA.get("attr_colors", {})
-
-_RU_NAME_MAP = {}
-for h in _DATA.get("heroes", []):
-    short = h.get("short")
-    if short:
-        _RU_NAME_MAP[short] = h.get("ru") or h.get("en") or short
-
-def _fetch_heroes_from_opendota():
-    url = "https://api.opendota.com/api/heroes"
-    req = urllib.request.Request(
-        url,
-        headers={"User-Agent": "DotaBukva/1.0 (vercel)"}
-    )
-    with urllib.request.urlopen(req, timeout=6) as resp:
-        raw = json.loads(resp.read().decode("utf-8"))
-
-    heroes = []
-    for h in raw:
-        internal = h.get("name", "")
-        if not internal.startswith("npc_dota_hero_"):
-            continue
-        short = internal.replace("npc_dota_hero_", "")
-        en = h.get("localized_name") or short.replace("_", " ").title()
-        ru = _RU_NAME_MAP.get(short, en)
-        attr = h.get("primary_attr", "str")
-        if attr == "all":
-            attr = "uni"
-        heroes.append({"en": en, "ru": ru, "short": short, "attr": attr})
-    heroes.sort(key=lambda x: x["en"])
-    return heroes
-
-def _get_heroes():
-    try:
-        live = _fetch_heroes_from_opendota()
-        if live:
-            return live
-    except Exception:
-        pass
-    return _DATA.get("heroes", [])
-
-HEROES = _get_heroes()
+DATA_PATH = PROJECT_ROOT / "data" / "heroes.json"  # not used for items
 
 def get_item_category(dname, qual, secret_shop, components, cost):
     d = dname.lower()
@@ -180,54 +130,12 @@ def _get_items():
 
 ITEMS = _get_items()
 
-def get_hero_image(short: str) -> str:
-    return f"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/{short}_lg.png"
-
-def get_item_image(short: str) -> str:
-    return f"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/{short}_lg.png"
-
-
-def get_random_spin(mode: str = "heroes"):
-    if mode == "items":
-        pool = ITEMS or [{"en": "Blink Dagger", "ru": "Blink Dagger", "short": "blink", "attr": "item"}]
-        obj = random.choice(pool)
-        letter = random.choice(LETTERS)
-        return {
-            "hero": obj["en"],
-            "hero_ru": obj["ru"],
-            "hero_en": obj["en"],
-            "short": obj["short"],
-            "attr": obj["attr"],
-            "attr_label": ATTR_LABEL.get(obj["attr"], obj["attr"].upper()),
-            "color": ATTR_COLORS.get(obj["attr"], "#71717a"),
-            "image": get_item_image(obj["short"]),
-            "letter": letter,
-        }
-    else:
-        hero = random.choice(HEROES)
-        letter = random.choice(LETTERS)
-        return {
-            "hero": hero["en"],
-            "hero_ru": hero["ru"],
-            "hero_en": hero["en"],
-            "short": hero["short"],
-            "attr": hero["attr"],
-            "attr_label": ATTR_LABEL.get(hero["attr"], hero["attr"].upper()),
-            "color": ATTR_COLORS.get(hero["attr"], "#71717a"),
-            "image": get_hero_image(hero["short"]),
-            "letter": letter,
-        }
-
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
-            # Parse query for mode=items
-            query = urllib.parse.urlparse(self.path).query
-            params = urllib.parse.parse_qs(query)
-            mode = params.get("mode", ["heroes"])[0]
-            result = get_random_spin(mode)
-            body = json.dumps(result, ensure_ascii=False).encode("utf-8")
+            payload = {"items": ITEMS, "count": len(ITEMS)}
+            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")

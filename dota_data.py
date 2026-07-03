@@ -129,22 +129,180 @@ def get_hero_image(short: str) -> str:
     return f"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/{short}_lg.png"
 
 
-def get_random_spin() -> Dict[str, Any]:
+def get_item_category(dname, qual, secret_shop, components, cost):
+    d = dname.lower()
+    if secret_shop:
+        return "Тайная Лавка"
+    if qual == "consumable" or any(x in d for x in ["tango", "clarity", "salve", "faerie fire", "smoke", "dust", "gem", "ward", "bottle", "healing lotus", "tome", "dust of appearance", "town portal", "observer", "sentry"]):
+        return "Расходники"
+    if qual == "component":
+        if any(x in d for x in ["gauntlets", "slippers", "mantle", "circlet", "branches", "crown", "belt", "band", "robe", "staff", "quarterstaff", "sobi mask", "ring of regen", "magic stick", "magic wand"]):
+            return "Атрибуты"
+        return "Снаряжение"
+    # Upgraded items
+    if components and len(components or []) > 0:
+        if any(x in d for x in ["mekansm", "pipe", "crimson", "lotus", "glimmer", "force", "ghost", "eul", "cyclone", "solar", "guardian", "veil", "orchid", "bloodthorn", "diffusal", "heavens", "mjollnir", "butterfly", "skadi", "satanic", "abyssal", "basher", "echo", "harpoon", "manta", "refresher", "octarine", "linken", "black king", "shiva", "assault", "dragon lance", "hurricane", "pike", "sange", "yasha", "kaya", "snk", "sny"]):
+            if any(x in d for x in ["mek", "pipe", "crimson", "lotus", "glimmer", "force", "ghost", "eul", "solar", "guardian"]):
+                return "Поддержка"
+            if any(x in d for x in ["dagon", "veil", "orchid", "bloodthorn", "rod", "sheep", "hex", "scythe", "necro"]):
+                return "Магия"
+            if any(x in d for x in ["armlet", "blade mail", "pipe", "shiva", "assault", "crimson", "solar", "lotus"]):
+                return "Броня"
+            if any(x in d for x in ["desolator", "mjollnir", "maelstrom", "butterfly", "daedalus", "divine", "monkey", "skadi", "satanic", "abyssal", "basher", "echo", "harpoon", "battle fury", "manta"]):
+                return "Оружие"
+            return "Артефакты"
+        if any(x in d for x in ["aghanim", "refresher", "octarine", "linken", "black king", "shiva", "assault"]):
+            return "Аксессуары"
+        return "Разное"
+    if any(x in d for x in ["aegis", "cheese", "rapier", "divine"]):
+        return "Артефакты"
+    return "Разное"
+
+
+def get_item_upgrade(dname, components, cost):
+    d = dname.lower()
+    if components and len(components or []) > 0:
+        return "Улучшения"
+    if "recipe" in d:
+        return "Улучшения"
+    if cost and cost > 2000:
+        return "Улучшения"
+    return "Базовые"
+
+
+def _fetch_items_from_opendota() -> List[Dict[str, Any]]:
+    url = "https://api.opendota.com/api/constants/items"
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "DotaBukva/1.0 (https://github.com)"}
+    )
+    with urllib.request.urlopen(req, timeout=7) as resp:
+        raw = json.loads(resp.read().decode("utf-8"))
+
+    items = []
+    forbidden_substrings = [
+        "river vial", "pocket roshan", "pocket tower", "scrying shovel",
+        "mercy & grace", "forebearer", "beloved memory", "bag of gold", "tombstone",
+        "enchantment", "enchanted", "enchanter",
+        "tier 1 token", "tier 2 token", "tier 3 token", "tier 4 token", "tier 5 token",
+        "alert", "audacious", "boundless", "brawny", "crude", "dominant", "evolved",
+        "eye of the vizier", "feverish", "fierce", "fleetfooted", "flying courier",
+        "greedy", "greater healing lotus", "great healing lotus", "greater faerie fire",
+        "hulking", "keen-eyed", "manic", "mystical", "necronomicon", "nimble",
+        "observer and sentry wards", "quickened", "restorative", "tango (shared)",
+        "thick", "timeless", "titanic", "tough", "unleashed", "vampiric", "vast",
+        "vital", "wise"
+    ]
+    for key, item in raw.items():
+        dname = item.get("dname") or ""
+        if key.startswith("item_recipe_") or key.startswith("recipe_") or not dname:
+            continue
+        dname_lower = dname.lower()
+        if any(sub in dname_lower for sub in forbidden_substrings):
+            continue
+        if "tier" in dname_lower and "token" in dname_lower:
+            continue
+        short = key.replace("item_", "")
+        if dname_lower == "dagon" and short != "dagon_4":
+            continue
+
+        # Special handling for Aghanim items
+        if dname == "Aghanim's Blessing":
+            continue
+        if dname == "Aghanim's Blessing - Roshan":
+            dname = "Aghanim's Blessing"
+        if dname == "Aghanim's Shard - Consumable":
+            continue
+
+        if "diffusal blade" in dname_lower and short != "diffusal_blade":
+            continue
+
+        is_neutral = bool(item.get("neutral")) or item.get("neutral_tier") is not None
+        qual = item.get("qual")
+        secret_shop = item.get("secret_shop") or 0
+        components = item.get("components") or []
+        cost = item.get("cost") or 0
+
+        category = get_item_category(dname, qual, secret_shop, components, cost)
+        if is_neutral:
+            category = "Нейтралки"
+
+        upgrade = get_item_upgrade(dname, components, cost)
+
+        items.append({
+            "en": dname,
+            "ru": dname,
+            "short": short,
+            "attr": "neutral" if is_neutral else "item",
+            "category": category,
+            "upgrade": upgrade
+        })
+
+    items.sort(key=lambda x: (x["category"], x["en"]))
+    return items
+
+
+_ITEMS_CACHE: Optional[List[Dict[str, Any]]] = None
+_ITEMS_CACHE_TS: float = 0.0
+
+def _load_items_fresh() -> List[Dict[str, Any]]:
+    try:
+        live = _fetch_items_from_opendota()
+        if live:
+            print(f"[DotaBukva] Загружено {len(live)} предметов из OpenDota API")
+            return live
+    except Exception as e:
+        print(f"[DotaBukva] Не удалось получить предметы из OpenDota ({e}), используем пустой список")
+    return []
+
+
+def get_items() -> List[Dict[str, Any]]:
+    global _ITEMS_CACHE, _ITEMS_CACHE_TS
+    now = time.time()
+    if _ITEMS_CACHE is None or (now - _ITEMS_CACHE_TS) > CACHE_TTL_SECONDS:
+        _ITEMS_CACHE = _load_items_fresh()
+        _ITEMS_CACHE_TS = now
+    return _ITEMS_CACHE
+
+
+def get_item_image(short: str) -> str:
+    return f"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/{short}_lg.png"
+
+
+def get_random_spin(mode: str = "heroes") -> Dict[str, Any]:
     """Convenience used by both the main app and the /api/spin handler."""
-    heroes = get_heroes()
-    hero = random.choice(heroes)
-    letter = random.choice(get_letters())
-    return {
-        "hero": hero["en"],
-        "hero_ru": hero["ru"],
-        "hero_en": hero["en"],
-        "short": hero["short"],
-        "attr": hero["attr"],
-        "attr_label": get_attr_label(hero["attr"]),
-        "color": get_attr_color(hero["attr"]),
-        "image": get_hero_image(hero["short"]),
-        "letter": letter,
-    }
+    if mode == "items":
+        items = get_items()
+        if not items:
+            items = [{"en": "Blink Dagger", "ru": "Миг", "short": "blink", "attr": "item"}]
+        item = random.choice(items)
+        letter = random.choice(get_letters())
+        return {
+            "hero": item["en"],  # keep key for compatibility in spin result
+            "hero_ru": item["ru"],
+            "hero_en": item["en"],
+            "short": item["short"],
+            "attr": item["attr"],
+            "attr_label": get_attr_label(item["attr"]),
+            "color": get_attr_color(item["attr"]),
+            "image": get_item_image(item["short"]),
+            "letter": letter,
+        }
+    else:
+        heroes = get_heroes()
+        hero = random.choice(heroes)
+        letter = random.choice(get_letters())
+        return {
+            "hero": hero["en"],
+            "hero_ru": hero["ru"],
+            "hero_en": hero["en"],
+            "short": hero["short"],
+            "attr": hero["attr"],
+            "attr_label": get_attr_label(hero["attr"]),
+            "color": get_attr_color(hero["attr"]),
+            "image": get_hero_image(hero["short"]),
+            "letter": letter,
+        }
 
 
 # Snapshot at import time for modules that do "HEROES = ..." at module level.
