@@ -1067,6 +1067,18 @@
         </div>
 
         <div class="max-w-md mx-auto space-y-4">
+            <!-- Normal Mode -->
+            <div onclick="startNormalMode()" 
+                 class="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
+                <div class="flex items-center gap-4">
+                    <i class="fa-solid fa-gamepad text-3xl text-[#d4af37]"></i>
+                    <div>
+                        <div class="font-display text-2xl tracking-tight">Обычный режим</div>
+                        <div class="text-sm text-zinc-400 mt-0.5">Играть без комнаты (классика)</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Create Room -->
             <div onclick="showHostingDonationPopup()" 
                  class="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
@@ -1087,18 +1099,6 @@
                     <div>
                         <div class="font-display text-2xl tracking-tight">Список комнат</div>
                         <div class="text-sm text-zinc-400 mt-0.5">Присоединиться к существующей комнате</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Normal Mode -->
-            <div onclick="startNormalMode()" 
-                 class="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
-                <div class="flex items-center gap-4">
-                    <i class="fa-solid fa-gamepad text-3xl text-[#d4af37]"></i>
-                    <div>
-                        <div class="font-display text-2xl tracking-tight">Обычный режим</div>
-                        <div class="text-sm text-zinc-400 mt-0.5">Играть без комнаты (классика)</div>
                     </div>
                 </div>
             </div>
