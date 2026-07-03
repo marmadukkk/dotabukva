@@ -1153,7 +1153,18 @@
                 <span>ИГРА В КОМПАНИИ</span>
             </div>
             <h1 class="font-display text-5xl sm:text-6xl font-bold tracking-tighter">Выбери роль</h1>
-            <p class="mt-2 text-zinc-400 text-[15px]">Один ведущий крутит и даёт подсказки. Остальные вычёркивают героев.</p>
+            <p id="role-desc" class="mt-2 text-zinc-400 text-[15px]">Один ведущий крутит и даёт подсказки. Остальные вычёркивают героев.</p>
+
+            <!-- Mode switch at role choice -->
+            <div class="mt-4 mb-2">
+                <div class="text-[10px] text-zinc-500 tracking-[1.5px] mb-1">РЕЖИМ</div>
+                <div class="inline-flex rounded-2xl border border-[#4a3728] overflow-hidden text-sm">
+                    <button onclick="setCurrentMode('heroes')" id="role-mode-heroes"
+                            class="px-5 py-1.5 font-medium bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors">Герои</button>
+                    <button onclick="setCurrentMode('items')" id="role-mode-items"
+                            class="px-5 py-1.5 font-medium hover:bg-[#2a2a2a] transition-colors border-l border-[#4a3728]">Предметы</button>
+                </div>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
@@ -1168,7 +1179,7 @@
                     <i class="fa-solid fa-dice text-4xl text-[#d4af37] group-hover:rotate-12 transition-transform"></i>
                 </div>
                 <div class="mt-5 text-[15px] text-zinc-300">
-                    Открывается барабан с героем и буквой.<br>
+                    Открывается барабан с <span id="drum-label">героем</span> и буквой.<br>
                     Ты видишь комбинацию и даёшь описание остальным.
                 </div>
                 <div class="mt-5 inline-flex items-center text-xs font-semibold tracking-widest text-[#d4af37]">
@@ -1187,7 +1198,7 @@
                     <i class="fa-solid fa-th-large text-4xl text-[#d4af37] group-hover:scale-110 transition-transform"></i>
                 </div>
                 <div class="mt-5 text-[15px] text-zinc-300">
-                    Большая таблица всех героев Dota 2.<br>
+                    Большая таблица всех <span id="table-label">героев</span> Dota 2.<br>
                     Кликай по иконкам — они становятся серыми (вычеркнуты).
                 </div>
                 <div class="mt-5 inline-flex items-center text-xs font-semibold tracking-widest text-[#d4af37]">
@@ -1211,7 +1222,7 @@
                     <div class="flex items-center mb-2 px-1">
                         <div class="section-title flex items-center gap-x-2">
                             <i class="fa-solid fa-user-ninja"></i>
-                            <span>ГЕРОЙ</span>
+                            <span id="reel-title">ГЕРОЙ</span>
                         </div>
                     </div>
                     
@@ -1343,7 +1354,7 @@
             <div>
                 <div class="section-title flex items-center gap-x-2">
                     <i class="fa-solid fa-th-large"></i>
-                    <span>ТАБЛИЦА ГЕРОЕВ — ВЫЧЁРКИВАЙ</span>
+                    <span id="guesser-table-title">ТАБЛИЦА ГЕРОЕВ — ВЫЧЁРКИВАЙ</span>
                 </div>
             </div>
             <div class="flex items-center gap-x-3 text-sm">
@@ -1372,7 +1383,7 @@
         <div class="mb-3 px-1">
             <div class="relative max-w-md">
                 <i class="fa-solid fa-search absolute left-3 top-2.5 text-zinc-500"></i>
-                <input id="guesser-search" type="text" placeholder="Поиск героя (на русском или английском)..." 
+                <input id="guesser-search" type="text" placeholder="Поиск..." 
                        oninput="filterGuesserGrid()"
                        class="w-full bg-[#111111] border border-[#4a3728] focus:border-[#d4af37] text-sm pl-9 pr-3 py-2 rounded outline-none placeholder:text-zinc-600">
             </div>
@@ -1381,19 +1392,8 @@
         <!-- Sort controls (сбоку/сноска) -->
         <div class="mb-3 px-1 flex items-center gap-x-2 flex-wrap">
             <span class="text-[#d4af37] text-xs font-semibold tracking-[1.5px] mr-1">СОРТИРОВКА:</span>
-            <div class="flex items-center gap-x-1 flex-wrap">
-                <button onclick="setGuesserSort('az')" data-sort="az"
-                        class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">А → Я</button>
-                <button onclick="setGuesserSort('za')" data-sort="za"
-                        class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">Я → А</button>
-                <button onclick="setGuesserSort('str')" data-sort="str"
-                        class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">Сила</button>
-                <button onclick="setGuesserSort('agi')" data-sort="agi"
-                        class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">Ловкость</button>
-                <button onclick="setGuesserSort('int')" data-sort="int"
-                        class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">Интеллект</button>
-                <button onclick="setGuesserSort('uni')" data-sort="uni"
-                        class="sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors">Универсал</button>
+            <div id="sort-buttons" class="flex items-center gap-x-1 flex-wrap">
+                <!-- populated dynamically based on mode -->
             </div>
         </div>
 
@@ -1425,7 +1425,7 @@
                 </div>
                 <div class="flex gap-4">
                     <div class="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">3</div>
-                    <div>Отгадывающие в таблице кликают по иконкам героев — они становятся <span class="font-medium text-[#d4af37]">серыми</span> (вычеркиваются).</div>
+                    <div>Отгадывающие в таблице кликают по иконкам <span class="hero-or-item">героев</span> — они становятся <span class="font-medium text-[#d4af37]">серыми</span> (вычеркиваются).</div>
                 </div>
             </div>
             
@@ -1472,15 +1472,86 @@
         let currentRole = null; // 'leader' | 'guesser' | null
         
         // Load heroes data from backend (for consistency)
-        async function loadHeroesData() {
+        let currentMode = 'heroes';
+
+        async function loadData(mode = 'heroes') {
+            currentMode = mode;
+            const endpoint = mode === 'items' ? '/api/items' : '/api/heroes';
+            const key = mode === 'items' ? 'items' : 'heroes';
             try {
-                const res = await fetch('/api/heroes');
+                const res = await fetch(endpoint);
                 const data = await res.json();
-                heroesData = data.heroes || [];
+                heroesData = data[key] || data.heroes || data.items || [];
             } catch (e) {
-                console.warn('Не удалось загрузить героев с сервера, используем дефолт');
-                // Fallback will be populated from backend anyway via spin
+                console.warn('Не удалось загрузить данные с сервера, используем дефолт');
+                heroesData = [];
             }
+        }
+
+        function setCurrentMode(mode) {
+            currentMode = mode;
+            // update button styles in role menu
+            const hBtn = document.getElementById('role-mode-heroes');
+            const iBtn = document.getElementById('role-mode-items');
+            if (hBtn && iBtn) {
+                if (mode === 'heroes') {
+                    hBtn.classList.add('bg-[#1f1f1f]');
+                    iBtn.classList.remove('bg-[#1f1f1f]');
+                } else {
+                    iBtn.classList.add('bg-[#1f1f1f]');
+                    hBtn.classList.remove('bg-[#1f1f1f]');
+                }
+            }
+            if (mode === 'items') {
+                currentItemCategory = null;
+                currentGuesserSort = 'az';
+            } else if (['str','agi','int','uni'].includes(currentGuesserSort)) {
+                currentGuesserSort = 'az';
+            }
+            updateRoleDescriptions();
+            if (currentRole === 'guesser' && document.getElementById('guesser-view') && !document.getElementById('guesser-view').classList.contains('hidden')) {
+                renderGuesserGrid(document.getElementById('guesser-search')?.value || '');
+            }
+        }
+
+        function updateRoleDescriptions() {
+            const desc = document.getElementById('role-desc');
+            const tableLabel = document.getElementById('table-label');
+            const drumLabel = document.getElementById('drum-label');
+            if (desc) {
+                if (currentMode === 'items') {
+                    desc.textContent = 'Один ведущий крутит и даёт подсказки. Остальные вычёркивают предметы.';
+                } else {
+                    desc.textContent = 'Один ведущий крутит и даёт подсказки. Остальные вычёркивают героев.';
+                }
+            }
+            if (tableLabel) {
+                tableLabel.textContent = currentMode === 'items' ? 'предметов' : 'героев';
+            }
+            if (drumLabel) {
+                drumLabel.textContent = currentMode === 'items' ? 'предметом' : 'героем';
+            }
+            const reelTitleEl = document.getElementById('reel-title');
+            if (reelTitleEl) {
+                reelTitleEl.textContent = currentMode === 'items' ? 'ПРЕДМЕТ' : 'ГЕРОЙ';
+            }
+        }
+
+        function startWithMode(mode) {
+            currentMode = mode;
+            loadData(mode).then(() => {
+                const title = document.getElementById('grid-title');
+                if (title) title.textContent = mode === 'items' ? 'ПРЕДМЕТЫ' : 'ГЕРОЙ';
+                const reelTitle = document.getElementById('reel-title');
+                if (reelTitle) reelTitle.textContent = mode === 'items' ? 'ПРЕДМЕТ' : 'ГЕРОЙ';
+                // rebuild strips with new data
+                const heroStrip = document.getElementById('hero-strip');
+                if (heroStrip) {
+                    buildHeroStrip();
+                    buildLetterStrip();
+                }
+                startNormalMode();
+            });
         }
         
         // Build hero reel items (duplicated many times for long spins)
@@ -1522,7 +1593,9 @@
                 'str': '#f97316',
                 'agi': '#22c55e',
                 'int': '#a855f7',
-                'uni': '#eab308'
+                'uni': '#eab308',
+                'item': '#60a5fa',
+                'neutral': '#a78bfa'
             };
             return colors[attr] || '#71717a';
         }
@@ -1647,22 +1720,23 @@
             
                         let result;
             try {
-                const res = await fetch('/api/spin');
+                const spinMode = currentMode || 'heroes';
+                const res = await fetch(`/api/spin?mode=${encodeURIComponent(spinMode)}`);
                 result = await res.json();
             } catch (err) {
                                 console.warn('Backend spin failed, using client random');
-                const fallbackHeroes = heroesData.length ? heroesData : getFallbackHeroes();
-                const hero = fallbackHeroes[Math.floor(Math.random() * fallbackHeroes.length)];
+                const fallbackData = heroesData.length ? heroesData : getFallbackHeroes();
+                const entry = fallbackData[Math.floor(Math.random() * fallbackData.length)];
                 const letters = "АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЮЯ".split('');
                 result = {
-                    hero: hero.en,
-                    hero_ru: hero.ru,
-                    hero_en: hero.en,
-                    short: hero.short,
-                    attr: hero.attr,
-                    attr_label: hero.attr === 'str' ? 'СИЛА' : hero.attr === 'agi' ? 'ЛОВКОСТЬ' : hero.attr === 'int' ? 'ИНТЕЛЛЕКТ' : 'УНИВЕРСАЛ',
-                    color: getAttrColor(hero.attr),
-                    image: `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${hero.short}_lg.png`,
+                    hero: entry.en || entry.name,
+                    hero_ru: entry.ru || entry.en || entry.name,
+                    hero_en: entry.en || entry.name,
+                    short: entry.short,
+                    attr: entry.attr || 'item',
+                    attr_label: (entry.attr === 'str' ? 'СИЛА' : entry.attr === 'agi' ? 'ЛОВКОСТЬ' : entry.attr === 'int' ? 'ИНТЕЛЛЕКТ' : entry.attr === 'neutral' ? 'НЕЙТРАЛ' : 'ПРЕДМЕТ'),
+                    color: getAttrColor(entry.attr || 'item'),
+                    image: (currentMode === 'items' ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${entry.short}_lg.png` : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${entry.short}_lg.png`),
                     letter: letters[Math.floor(Math.random() * letters.length)]
                 };
             }
@@ -1980,7 +2054,7 @@
             const card = document.getElementById('result-card');
             
                         const img = document.getElementById('result-image');
-            img.src = result.image || `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png`;
+            img.src = result.image || ( (currentMode || 'heroes') === 'items' ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/blink_lg.png` : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png` );
             img.onerror = () => {
                 img.style.display = 'none';
             };
@@ -2071,7 +2145,7 @@
                         short: item.short || 'pudge',
                         attr: item.attr || 'str',
                         color: item.color || '#f97316',
-                        image: item.image || `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png`,
+                        image: item.image || ( (currentMode || 'heroes') === 'items' ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${item.short || 'blink'}_lg.png` : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png` ),
                     };
                     window.lastResult = fakeResult;
                     showResult(fakeResult);
@@ -2199,7 +2273,7 @@
                 async function initialize() {
             initTailwind();
             
-            await loadHeroesData();
+            await loadData(currentMode);
             
                         if (!heroesData.length) {
                 heroesData = getFallbackHeroes().concat([
@@ -2287,6 +2361,7 @@
         let guesserGridBuilt = false;
         let currentGuesserSort = 'az'; // 'az' | 'za' | 'str' | 'agi' | 'int'
         let currentRoom = null; // room code if in a multiplayer room
+        let currentItemCategory = null; // for items: 'all' | 'neutral' | 'regular' (null = all)
 
         function updateNavRole() {
             const nav = document.getElementById('nav-role');
@@ -2309,10 +2384,26 @@
             document.getElementById('guesser-view').classList.add('hidden');
             document.getElementById('role-menu').classList.remove('hidden');
             currentRole = null;
+            if (!currentMode) currentMode = 'heroes';
+            setCurrentMode(currentMode);
             updateNavRole();
             // clear search if any
             const s = document.getElementById('guesser-search');
             if (s) s.value = '';
+
+            // ensure mode buttons reflect current
+            const hBtn = document.getElementById('role-mode-heroes');
+            const iBtn = document.getElementById('role-mode-items');
+            if (hBtn && iBtn) {
+                if (currentMode === 'items') {
+                    iBtn.classList.add('bg-[#1f1f1f]');
+                    hBtn.classList.remove('bg-[#1f1f1f]');
+                } else {
+                    hBtn.classList.add('bg-[#1f1f1f]');
+                    iBtn.classList.remove('bg-[#1f1f1f]');
+                }
+            }
+            updateRoleDescriptions();
         }
 
         function enterLeader() {
@@ -2324,24 +2415,27 @@
             const lv = document.getElementById('leader-view');
             lv.classList.remove('hidden');
 
-            // Make sure strips exist (first time or after long hide)
-            const heroStrip = document.getElementById('hero-strip');
-            if (heroStrip && heroStrip.children.length === 0) {
-                buildHeroStrip();
-                buildLetterStrip();
-                // give them a random resting position similar to initialize
-                const h = getItemHeight(false);
-                const l = getItemHeight(true);
-                heroStrip.style.transition = 'none';
-                const letterStrip = document.getElementById('letter-strip');
-                letterStrip.style.transition = 'none';
-                heroStrip.style.transform = `translateY(-${Math.floor(Math.random() * 9) * h + 30}px)`;
-                letterStrip.style.transform = `translateY(-${Math.floor(Math.random() * 9) * l + 40}px)`;
-                setTimeout(() => {
-                    heroStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
-                    letterStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
-                }, 40);
-            }
+            // load data for mode then build
+            loadData(currentMode).then(() => {
+                updateRoleDescriptions();
+                const heroStrip = document.getElementById('hero-strip');
+                if (heroStrip) {
+                    buildHeroStrip();
+                    buildLetterStrip();
+                    // random position
+                    const h = getItemHeight(false);
+                    const l = getItemHeight(true);
+                    heroStrip.style.transition = 'none';
+                    const letterStrip = document.getElementById('letter-strip');
+                    letterStrip.style.transition = 'none';
+                    heroStrip.style.transform = `translateY(-${Math.floor(Math.random() * 9) * h + 30}px)`;
+                    letterStrip.style.transform = `translateY(-${Math.floor(Math.random() * 9) * l + 40}px)`;
+                    setTimeout(() => {
+                        heroStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
+                        letterStrip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
+                    }, 40);
+                }
+            });
 
             updateNavRole();
             updateNavRoom();
@@ -2350,7 +2444,6 @@
                 connectToRoomWS(currentRoom, 'leader');
             }
 
-            // In normal mode, hide the guessers table preview (only shown in room for leader)
             const tableSec = document.getElementById('leader-table-section');
             if (tableSec) tableSec.style.display = 'none';
         }
@@ -2367,9 +2460,14 @@
             // load eliminated from storage
             loadEliminated();
 
-            renderGuesserGrid();
-            updateGuesserStats();
-            updateSortButtons();
+            // load data for mode then render grid
+            loadData(currentMode).then(() => {
+                updateRoleDescriptions();
+                renderGuesserGrid();
+                updateGuesserStats();
+                updateSortButtons();
+            });
+
             updateNavRole();
             updateNavRoom();
 
@@ -2399,6 +2497,10 @@
         }
 
         function getHeroImage(short) {
+            const mode = currentMode || 'heroes';
+            if (mode === 'items') {
+                return `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${short}_lg.png`;
+            }
             return `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${short}_lg.png`;
         }
 
@@ -2409,6 +2511,12 @@
             guesserGridBuilt = true;
 
             const q = (filter || '').trim().toLowerCase();
+
+            const isItems = (currentMode || 'heroes') === 'items';
+            const searchInput = document.getElementById('guesser-search');
+            if (searchInput) {
+                searchInput.placeholder = isItems ? 'Поиск предмета...' : 'Поиск героя (на русском или английском)...';
+            }
 
             const sorted = getSortedHeroes();
 
@@ -2445,7 +2553,18 @@
             });
 
             updateGuesserStats();
+            populateSortButtons();
             updateSortButtons();
+
+            const isItemsMode = (currentMode || 'heroes') === 'items';
+
+            const gridTitle = document.getElementById('grid-title');
+            if (gridTitle) gridTitle.textContent = isItemsMode ? 'ПРЕДМЕТЫ' : 'ГЕРОИ';
+
+            const tableTitle = document.getElementById('guesser-table-title');
+            if (tableTitle) {
+                tableTitle.textContent = isItemsMode ? 'ТАБЛИЦА ПРЕДМЕТОВ — ВЫЧЁРКИВАЙ' : 'ТАБЛИЦА ГЕРОЕВ — ВЫЧЁРКИВАЙ';
+            }
         }
 
         function filterGuesserGrid() {
@@ -2548,13 +2667,16 @@
         }
 
         function resetEliminated() {
-            showConfirmDialog('Сбросить все вычеркнутые герои?', 'Сброс вычеркнутых').then(confirmed => {
+            const isItems = (currentMode || 'heroes') === 'items';
+            const confirmMsg = isItems ? 'Сбросить все вычеркнутые предметы?' : 'Сбросить все вычеркнутые герои?';
+            showConfirmDialog(confirmMsg, 'Сброс вычеркнутых').then(confirmed => {
                 if (!confirmed) return;
                 eliminatedHeroes.clear();
                 saveEliminated();
 
                 // update DOM quickly
-                document.querySelectorAll('#hero-grid .hero-cell').forEach(c => c.classList.remove('eliminated'));
+                const cells = document.querySelectorAll('#hero-grid .hero-cell');
+                cells.forEach(c => c.classList.remove('eliminated'));
                 updateGuesserStats();
             });
         }
@@ -2562,12 +2684,27 @@
         function getSortedHeroes() {
             let list = [...heroesData];
 
+            const isItems = (currentMode || 'heroes') === 'items';
+
+            if (isItems) {
+                // simple filter: all, neutral, regular
+                const filter = currentItemCategory || 'all';
+                if (filter === 'neutral') {
+                    list = list.filter(h => h.attr === 'neutral');
+                } else if (filter === 'regular') {
+                    list = list.filter(h => h.attr !== 'neutral');
+                }
+                // default sort by name
+                list.sort((a, b) => a.en.localeCompare(b.en));
+                return list;
+            }
+
             if (currentGuesserSort === 'az') {
                 list.sort((a, b) => a.en.localeCompare(b.en));
             } else if (currentGuesserSort === 'za') {
                 list.sort((a, b) => b.en.localeCompare(a.en));
-            } else if (['str', 'agi', 'int', 'uni'].includes(currentGuesserSort)) {
-                // Filter: show only heroes of this attribute, hide all others
+            } else if (['str', 'agi', 'int', 'uni'].includes(currentGuesserSort) && (currentMode || 'heroes') !== 'items') {
+                // Filter: show only heroes of this attribute (not for items mode)
                 list = list.filter(h => h.attr === currentGuesserSort);
                 list.sort((a, b) => a.en.localeCompare(b.en));
             }
@@ -2575,8 +2712,18 @@
         }
 
         function updateSortButtons() {
+            const isItems = (currentMode || 'heroes') === 'items';
             document.querySelectorAll('#guesser-view .sort-btn').forEach(btn => {
-                if (btn.dataset.sort === currentGuesserSort) {
+                const sort = btn.dataset.sort;
+                const filt = btn.dataset.filter;
+                let active = false;
+                if (isItems) {
+                    const currentFilter = currentItemCategory || 'all';
+                    if (filt === currentFilter) active = true;
+                } else {
+                    if (sort === currentGuesserSort) active = true;
+                }
+                if (active) {
                     btn.classList.add('active');
                 } else {
                     btn.classList.remove('active');
@@ -2584,7 +2731,62 @@
             });
         }
 
+        function populateSortButtons() {
+            const container = document.getElementById('sort-buttons');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const isItems = (currentMode || 'heroes') === 'items';
+
+            if (!isItems) {
+                // heroes sorts
+                const sorts = [
+                    {key: 'az', label: 'А → Я'},
+                    {key: 'za', label: 'Я → А'},
+                    {key: 'str', label: 'Сила'},
+                    {key: 'agi', label: 'Ловкость'},
+                    {key: 'int', label: 'Интеллект'},
+                    {key: 'uni', label: 'Универсал'}
+                ];
+                sorts.forEach(s => {
+                    const btn = document.createElement('button');
+                    btn.className = 'sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors';
+                    btn.textContent = s.label;
+                    btn.dataset.sort = s.key;
+                    btn.onclick = () => setGuesserSort(s.key);
+                    container.appendChild(btn);
+                });
+            } else {
+                // simple items filters
+                const filters = [
+                    {key: 'all', label: 'Все'},
+                    {key: 'neutral', label: 'Нейтральные'},
+                    {key: 'regular', label: 'Обычные'}
+                ];
+                filters.forEach(f => {
+                    const btn = document.createElement('button');
+                    btn.className = 'sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors';
+                    btn.textContent = f.label;
+                    btn.dataset.filter = f.key;
+                    btn.onclick = () => setItemFilter(f.key);
+                    container.appendChild(btn);
+                });
+            }
+            updateSortButtons();
+        }
+
+        function setItemFilter(filter) {
+            currentItemCategory = (filter === 'all') ? null : filter;
+            currentGuesserSort = 'az';  // always name sort for items
+            const searchVal = document.getElementById('guesser-search')?.value || '';
+            renderGuesserGrid(searchVal);
+        }
+
         function setGuesserSort(mode) {
+            const isItems = (currentMode || 'heroes') === 'items';
+            if (isItems && ['str', 'agi', 'int', 'uni'].includes(mode)) {
+                mode = 'az'; // force az for items
+            }
             currentGuesserSort = mode;
             updateSortButtons();
             const searchVal = document.getElementById('guesser-search')?.value || '';
@@ -3232,7 +3434,7 @@
             if (!card) return;
 
             const img = document.getElementById('result-image');
-            if (img) img.src = result.image || `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png`;
+            if (img) img.src = result.image || ( (currentMode || 'heroes') === 'items' ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/blink_lg.png` : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png` );
             const heroEl = document.getElementById('result-hero');
             if (heroEl) heroEl.textContent = result.hero || result.hero_en || result.hero_ru;
             const letterEl = document.getElementById('result-letter');

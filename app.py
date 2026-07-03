@@ -159,14 +159,20 @@ app.mount("/data", StaticFiles(directory=BASE_DIR / "data"), name="data")
 
 
 @app.get("/api/spin")
-async def api_spin():
+async def api_spin(mode: str = "heroes"):
     # Use the shared implementation (same shape, benefits from the central cache)
-    return dota_data.get_random_spin()
+    return dota_data.get_random_spin(mode)
 
 
 @app.get("/api/heroes")
 async def api_heroes():
     return {"heroes": HEROES, "count": len(HEROES)}
+
+
+@app.get("/api/items")
+async def api_items():
+    items = dota_data.get_items()
+    return {"items": items, "count": len(items)}
 
 
 @app.post("/api/heroes/refresh")
