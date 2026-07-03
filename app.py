@@ -175,6 +175,12 @@ async def api_items():
     return {"items": items, "count": len(items)}
 
 
+@app.get("/api/abilities")
+async def api_abilities():
+    abils = dota_data.get_abilities()
+    return {"abilities": abils, "count": len(abils)}
+
+
 @app.post("/api/heroes/refresh")
 @app.get("/api/heroes/refresh")  # convenient for manual browser/curl trigger
 async def api_refresh_heroes():
@@ -266,7 +272,8 @@ async def ws_room(websocket: WebSocket, code: str, role: str = "guesser"):
 
             if msg_type == "spin":
                 # Generate new spin (anyone in leader role can trigger for now)
-                spin_result = await api_spin()
+                mode = data.get("mode", "heroes")
+                spin_result = dota_data.get_random_spin(mode)
                 room["current_spin"] = spin_result
                 await broadcast_to_room(code, {
                     "type": "spin_result",
