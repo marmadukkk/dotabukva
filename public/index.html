@@ -1536,7 +1536,6 @@
                 }
             }
             if (mode === 'items') {
-                currentItemCategory = null;
                 currentGuesserSort = 'az';
             } else if (['str','agi','int','uni'].includes(currentGuesserSort)) {
                 currentGuesserSort = 'az';
@@ -2389,7 +2388,6 @@
         let guesserGridBuilt = false;
         let currentGuesserSort = 'az'; // 'az' | 'za' | 'str' | 'agi' | 'int'
         let currentRoom = null; // room code if in a multiplayer room
-        let currentItemCategory = null; // for items: 'all' | 'neutral' | 'regular' (null = all)
 
         function updateNavRole() {
             const nav = document.getElementById('nav-role');
@@ -2703,21 +2701,6 @@
         function getSortedHeroes() {
             let list = [...heroesData];
 
-            const isItems = (currentMode || 'heroes') === 'items';
-
-            if (isItems) {
-                // simple filter: all, neutral, regular
-                const filter = currentItemCategory || 'all';
-                if (filter === 'neutral') {
-                    list = list.filter(h => h.attr === 'neutral');
-                } else if (filter === 'regular') {
-                    list = list.filter(h => h.attr !== 'neutral');
-                }
-                // default sort by name
-                list.sort((a, b) => a.en.localeCompare(b.en));
-                return list;
-            }
-
             if (currentGuesserSort === 'az') {
                 list.sort((a, b) => a.en.localeCompare(b.en));
             } else if (currentGuesserSort === 'za') {
@@ -2731,18 +2714,8 @@
         }
 
         function updateSortButtons() {
-            const isItems = (currentMode || 'heroes') === 'items';
             document.querySelectorAll('#guesser-view .sort-btn').forEach(btn => {
-                const sort = btn.dataset.sort;
-                const filt = btn.dataset.filter;
-                let active = false;
-                if (isItems) {
-                    const currentFilter = currentItemCategory || 'all';
-                    if (filt === currentFilter) active = true;
-                } else {
-                    if (sort === currentGuesserSort) active = true;
-                }
-                if (active) {
+                if (btn.dataset.sort === currentGuesserSort) {
                     btn.classList.add('active');
                 } else {
                     btn.classList.remove('active');
@@ -2776,36 +2749,24 @@
                     container.appendChild(btn);
                 });
             } else {
-                // simple items filters
-                const filters = [
-                    {key: 'all', label: 'Все'},
-                    {key: 'neutral', label: 'Нейтральные'},
-                    {key: 'regular', label: 'Обычные'}
+                // items: only alphabetical sorts
+                const sorts = [
+                    {key: 'az', label: 'А → Я'},
+                    {key: 'za', label: 'Я → А'}
                 ];
-                filters.forEach(f => {
+                sorts.forEach(s => {
                     const btn = document.createElement('button');
                     btn.className = 'sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded hover:border-[#d4af37] transition-colors';
-                    btn.textContent = f.label;
-                    btn.dataset.filter = f.key;
-                    btn.onclick = () => setItemFilter(f.key);
+                    btn.textContent = s.label;
+                    btn.dataset.sort = s.key;
+                    btn.onclick = () => setGuesserSort(s.key);
                     container.appendChild(btn);
                 });
             }
             updateSortButtons();
         }
 
-        function setItemFilter(filter) {
-            currentItemCategory = (filter === 'all') ? null : filter;
-            currentGuesserSort = 'az';  // always name sort for items
-            const searchVal = document.getElementById('guesser-search')?.value || '';
-            renderGuesserGrid(searchVal);
-        }
-
         function setGuesserSort(mode) {
-            const isItems = (currentMode || 'heroes') === 'items';
-            if (isItems && ['str', 'agi', 'int', 'uni'].includes(mode)) {
-                mode = 'az'; // force az for items
-            }
             currentGuesserSort = mode;
             updateSortButtons();
             const searchVal = document.getElementById('guesser-search')?.value || '';
