@@ -1090,33 +1090,54 @@ const App: React.FC = () => {
         <div className="header-rivet" style={{left:'64px',top:'26px'}}></div>
         <div className="header-rivet" style={{right:'28px',top:'26px'}}></div>
         <div className="header-rivet" style={{right:'64px',top:'26px'}}></div>
-        <div className="header-roundel header-roundel-left hidden lg:block" aria-hidden="true"></div>
-        <div className="header-roundel header-roundel-right hidden lg:block" aria-hidden="true"></div>
-
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-x-3">
-            <div onClick={() => { setScreen('main-menu'); }} className="flex items-center gap-x-2.5 cursor-pointer">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center shadow-inner">
-                <i className="fa-solid fa-dice text-white text-2xl"></i>
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+          {/* Left logo area - Dota style frame with orange accent */}
+          <div className="flex items-center">
+            <div 
+              onClick={() => { setScreen('main-menu'); }} 
+              className="logo-frame flex items-center gap-x-2.5 cursor-pointer px-3 py-1.5 rounded-sm"
+            >
+              <div className="w-8 h-8 rounded bg-gradient-to-br from-[#c23c2a] to-orange-600 flex items-center justify-center shadow-[0_0_8px_rgba(194,60,42,0.6)] border border-[#8b2a1f]">
+                <i className="fa-solid fa-dice text-white text-xl"></i>
               </div>
-              <span className="font-display text-2xl font-semibold tracking-tighter text-white">DOTA-BUKVA</span>
+              <span className="font-display text-xl font-semibold tracking-tighter text-[#f0c060]">DOTA-BUKVA</span>
             </div>
           </div>
-          <div className="flex items-center gap-x-3 text-sm">
+
+          {/* Right side controls in Dota-like frame */}
+          <div className="controls-frame flex items-center gap-x-1 px-2 py-1 rounded-sm text-sm">
             {currentRole && (
-              <div id="nav-role" onClick={showRoleMenu} className="flex items-center gap-x-2 px-3 py-1 rounded border border-[#4a3728] hover:border-[#d4af37] cursor-pointer text-xs">
-                <span className="font-medium">{currentRole === 'leader' ? 'Ведущий' : 'Отгадывающий'}</span>
-                <span className="text-[#d4af37] text-[10px]">СМЕНИТЬ</span>
+              <div 
+                id="nav-role" 
+                onClick={showRoleMenu} 
+                className="flex items-center gap-x-1.5 px-3 py-0.5 rounded border border-[#444] hover:border-[#c23c2a] cursor-pointer text-xs bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors"
+              >
+                <span className="font-medium text-[#e0d2b0]">{currentRole === 'leader' ? 'ВЕДУЩИЙ' : 'ОТГАДЫВАЮЩИЙ'}</span>
+                <span className="text-[#c23c2a] text-[10px] tracking-widest">СМЕНИТЬ</span>
               </div>
             )}
-            <div onClick={() => setShowHowto(true)} className="flex items-center gap-x-2 px-4 py-1 hover:bg-[#1a1a1a] rounded border border-[#4a3728] hover:border-[#d4af37] cursor-pointer text-[#d4af37] hover:text-white text-xs tracking-widest">
-              <i className="fa-solid fa-question-circle"></i>
-              <span className="hidden sm:inline font-medium">КАК ИГРАТЬ</span>
+            
+            <div 
+              onClick={() => setShowHowto(true)} 
+              className="flex items-center gap-x-1.5 px-3 py-0.5 rounded border border-[#444] hover:border-[#c23c2a] cursor-pointer text-xs bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors text-[#d4af37]"
+            >
+              <i className="fa-solid fa-question-circle text-sm"></i>
+              <span className="hidden sm:inline font-medium tracking-widest">КАК ИГРАТЬ</span>
             </div>
+
             {currentRoom && (
-              <div id="nav-room-badge" onClick={() => { /* copy link */ const l = `${window.location.origin}/?room=${currentRoom}`; navigator.clipboard?.writeText(l); }} className="flex items-center gap-x-2 px-3 py-1 text-xs rounded border border-[#d4af37]/60 bg-[#111] cursor-pointer">
-                <span className="font-mono text-[#f0c060]">{currentRoom}</span>
-                <button onClick={(e) => { e.stopPropagation(); leaveRoom(); }} className="text-[#d4af37] hover:text-white ml-1 text-[10px]">×</button>
+              <div 
+                id="nav-room-badge" 
+                onClick={() => { const l = `${window.location.origin}/?room=${currentRoom}`; navigator.clipboard?.writeText(l); }} 
+                className="flex items-center gap-x-1.5 px-3 py-0.5 text-xs rounded border border-[#444] bg-[#1f1f1f] cursor-pointer hover:bg-[#2a2a2a]"
+              >
+                <span className="font-mono text-[#f0c060] tracking-[2px]">{currentRoom}</span>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); leaveRoom(); }} 
+                  className="text-[#888] hover:text-white ml-1 text-[10px] leading-none"
+                >
+                  ×
+                </button>
               </div>
             )}
           </div>
