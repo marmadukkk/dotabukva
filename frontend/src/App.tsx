@@ -101,26 +101,95 @@ const App: React.FC = () => {
   const elimCDIntervalRef = useRef<number | null>(null);
 
   // Load data (exact same endpoints)
-  const loadData = useCallback(async (mode: string) => {
-    let endpoint = '/api/heroes';
-    let key = 'heroes';
-    if (mode === 'items') { endpoint = '/api/items'; key = 'items'; }
-    else if (mode === 'abilities') { endpoint = '/api/abilities'; key = 'abilities'; }
+  const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
-    try {
-      const res = await fetch(endpoint);
-      const data = await res.json();
-      const list = data[key] || data.heroes || data.items || data.abilities || [];
-      setHeroesData(list);
-      setCurrentMode(mode as any);
-      return list;
-    } catch (e) {
-      console.warn('loadData failed, fallback');
-      const fb = getFallbackHeroes();
-      setHeroesData(fb);
-      setCurrentMode(mode as any);
-      return fb;
+  const loadData = useCallback(async (mode: string) => {
+    // If API base is set, try backend first (for custom backend)
+    if (API_BASE) {
+      let endpoint = `${API_BASE}/api/heroes`;
+      let key = 'heroes';
+      if (mode === 'items') { endpoint = `${API_BASE}/api/items`; key = 'items'; }
+      else if (mode === 'abilities') { endpoint = `${API_BASE}/api/abilities`; key = 'abilities'; }
+
+      try {
+        const res = await fetch(endpoint);
+        if (res.ok) {
+          const data = await res.json();
+          const list = data[key] || data.heroes || data.items || data.abilities || [];
+          setHeroesData(list);
+          setCurrentMode(mode as any);
+          return list;
+        }
+      } catch (e) {
+        console.warn('Backend fetch failed, using client-side data');
+      }
     }
+
+    // Client-side data loading (works on Vercel without backend)
+    if (mode === 'heroes') {
+      try {
+        const res = await fetch('/data/heroes.json');
+        const d = await res.json();
+        const list = d.heroes || [];
+        setHeroesData(list);
+        setCurrentMode(mode as any);
+        return list;
+      } catch {
+        const fb = getFallbackHeroes();
+        setHeroesData(fb);
+        setCurrentMode(mode as any);
+        return fb;
+      }
+    } else if (mode === 'items') {
+      // Simple client fetch for items (no heavy filtering for Vercel simplicity)
+      try {
+        const res = await fetch('https://api.opendota.com/api/constants/items');
+        const raw = await res.json();
+        const list = Object.keys(raw)
+          .filter(k => !k.startsWith('item_recipe_') && !k.startsWith('recipe_') && raw[k].dname)
+          .slice(0, 100)
+          .map(k => ({
+            en: raw[k].dname,
+            ru: raw[k].dname,
+            short: k.replace('item_', ''),
+            attr: 'item'
+          }));
+        setHeroesData(list);
+        setCurrentMode(mode as any);
+        return list;
+      } catch {
+        setHeroesData([]);
+        setCurrentMode(mode as any);
+        return [];
+      }
+    } else if (mode === 'abilities') {
+      try {
+        const res = await fetch('https://api.opendota.com/api/constants/abilities');
+        const raw = await res.json();
+        const list = Object.keys(raw)
+          .filter(k => raw[k].dname && k.includes('_') && !k.includes('special_bonus'))
+          .slice(0, 50)
+          .map(k => ({
+            en: raw[k].dname,
+            ru: raw[k].dname,
+            short: k,
+            attr: 'ability'
+          }));
+        setHeroesData(list);
+        setCurrentMode(mode as any);
+        return list;
+      } catch {
+        const list = getFallbackAbilities();
+        setHeroesData(list);
+        setCurrentMode(mode as any);
+        return list;
+      }
+    }
+
+    const fb = getFallbackHeroes();
+    setHeroesData(fb);
+    setCurrentMode(mode as any);
+    return fb;
   }, []);
 
   function getFallbackHeroes() {
@@ -130,6 +199,14 @@ const App: React.FC = () => {
       {"en":"Anti-Mage","ru":"Anti-Mage","short":"antimage","attr":"agi"},
       {"en":"Crystal Maiden","ru":"Crystal Maiden","short":"crystal_maiden","attr":"int"},
       {"en":"Juggernaut","ru":"Juggernaut","short":"juggernaut","attr":"agi"}
+    ];
+  }
+
+  function getFallbackAbilities() {
+    return [
+      {"en":"Meat Hook","ru":"Meat Hook","short":"pudge_meat_hook","attr":"ability"},
+      {"en":"Sun Strike","ru":"Sun Strike","short":"invoker_sun_strike","attr":"ability"},
+      {"en":"Blink","ru":"Blink","short":"antimage_blink","attr":"ability"}
     ];
   }
 
@@ -600,7 +677,7 @@ const App: React.FC = () => {
 
     let result: SpinResult;
     try {
-      const res = await fetch(`/api/spin?mode=${encodeURIComponent(currentMode)}`);
+      const res = await fetch(`${API_BASE}/api/spin?mode=${encodeURIComponent(currentMode)}`);
       result = await res.json();
     } catch {
       const fb = heroesData.length ? heroesData : getFallbackHeroes();
@@ -608,7 +685,9 @@ const App: React.FC = () => {
       const letters = "АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЮЯ".split('');
       const fimg = (currentMode === 'items')
         ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${entry.short}_lg.png`
-        : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${entry.short}_lg.png`;
+        : (currentMode === 'abilities')
+          ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/abilities/${entry.short}.png`
+          : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${entry.short}_lg.png`;
 
       // Client fallback multiplier
       const r = Math.random();
@@ -755,7 +834,12 @@ const App: React.FC = () => {
 
   // WS room - exact replication of connect + handle
   function connectToRoomWS(code: string, role = 'guesser') {
-    if (window.location.hostname.includes('vercel.app')) return; // demo
+    // WebSocket disabled for Vercel deployment (no persistent server)
+    if (API_BASE || window.location.hostname.includes('vercel.app') || import.meta.env.PROD) {
+      // WebSocket / real-time rooms disabled for Vercel / production
+      // Client-side demo mode (localStorage rooms) is used instead.
+      return;
+    }
     if (roomSocketRef.current) {
       try { roomSocketRef.current.close(); } catch {}
     }
@@ -902,7 +986,7 @@ const App: React.FC = () => {
   // Room flows
   async function createRoom() {
     try {
-      const res = await fetch('/api/rooms/create', { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/rooms/create`, { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         setCurrentRoom(data.code);
@@ -935,7 +1019,7 @@ const App: React.FC = () => {
   async function showRoomList() {
     let rooms: any[] = [];
     try {
-      const res = await fetch('/api/rooms');
+      const res = await fetch(`${API_BASE}/api/rooms`);
       if (res.ok) {
         const data = await res.json();
         rooms = data.rooms || [];
