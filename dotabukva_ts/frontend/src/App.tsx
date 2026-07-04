@@ -64,6 +64,7 @@ const App: React.FC = () => {
   // Multicast / multiplier display (Ogre Magi style)
   const [multicastLevel, setMulticastLevel] = useState(0); // current shown x level during sequence
   const [currentMultiplier, setCurrentMultiplier] = useState(1);
+  const [sparks, setSparks] = useState<{id: string, tx: number, ty: number, delay: number, size: number}[]>([]); // yellow sparks for higher multipliers
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [eliminatedHeroes, setEliminatedHeroes] = useState<Set<string>>(new Set());
@@ -290,34 +291,64 @@ const App: React.FC = () => {
     } catch (e) {}
   }
 
+  // Yellow sparks effect - more intense for higher multipliers
+  function emitSparks(count = 8, intensity = 1) {
+    const newSparks: {id: string, tx: number, ty: number, delay: number, size: number}[] = [];
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 25 + Math.random() * 55 * intensity;
+      const tx = Math.cos(angle) * dist;
+      const ty = Math.sin(angle) * dist * 0.7 - 15; // upward bias
+      newSparks.push({
+        id: Date.now() + '-' + i + Math.random(),
+        tx: tx,
+        ty: ty,
+        delay: Math.random() * 120,
+        size: 3 + Math.random() * 5 * intensity
+      });
+    }
+    setSparks(prev => [...prev, ...newSparks].slice(-35));
+    setTimeout(() => {
+      setSparks(current => current.filter(s => !newSparks.some(ns => ns.id === s.id)));
+    }, 900);
+  }
+
   // Show the flashy multicast text with sequential animation (like Ogre Magi)
   function triggerMulticastSequence(multi: number) {
     if (!multi || multi < 1) multi = 1;
 
     setMulticastLevel(0);
+    setSparks([]); // clear previous sparks
 
     // x1 always shows first
     setTimeout(() => {
       setMulticastLevel(1);
       playMulticastSound(1);
+      emitSparks(6, 0.8); // more noticeable even on x1
     }, 50);
 
     if (multi >= 2) {
       setTimeout(() => {
         setMulticastLevel(2);
         playMulticastSound(2);
+        emitSparks(14, 1.3);
       }, 480);
     }
     if (multi >= 3) {
       setTimeout(() => {
         setMulticastLevel(3);
         playMulticastSound(3);
+        emitSparks(22, 1.8); // intense
       }, 480 * 2);
     }
     if (multi >= 4) {
       setTimeout(() => {
         setMulticastLevel(4);
         playMulticastSound(4);
+        emitSparks(32, 2.5); // very intense
+        // extra bursts for x4
+        setTimeout(() => emitSparks(18, 2.0), 120);
+        setTimeout(() => emitSparks(14, 1.7), 280);
       }, 480 * 3);
     }
 
@@ -515,6 +546,7 @@ const App: React.FC = () => {
     // Hide multicast display after result is shown
     setTimeout(() => {
       setMulticastLevel(0);
+      setSparks([]);
     }, 1400);
   }
 
@@ -615,7 +647,10 @@ const App: React.FC = () => {
 
     showResult(result);
 
-    setTimeout(() => setMulticastLevel(0), 1400);
+    setTimeout(() => {
+      setMulticastLevel(0);
+      setSparks([]);
+    }, 1400);
     logSpin(result);
 
     setIsSpinning(false);
@@ -1020,6 +1055,21 @@ const App: React.FC = () => {
   return (
     <>
       <GlobalStyle />
+
+      {/* Background looped video */}
+      <video
+        className="fixed inset-0 w-full h-full object-cover z-[-2]"
+        autoPlay
+        loop
+        muted
+        playsInline
+      >
+        <source src="/videos/background.mp4" type="video/mp4" />
+      </video>
+
+      {/* Subtle dark overlay to keep readability and Dota tavern feel */}
+      <div className="fixed inset-0 bg-black/50 z-[-1]" />
+
       {/* Wooden sides - exact */}
       <div className="wood-side wood-left hidden lg:block" aria-hidden="true">
         <div className="wood-rivet" style={{top:'18%'}}></div>
@@ -1247,21 +1297,50 @@ const App: React.FC = () => {
                 {/* Multicast numbers overlaid directly IN FRONT OF the drums on a higher layer */}
                 {multicastLevel > 0 && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[60]">
-                    <div 
-                      className={`
-                        multicast-badge font-display text-7xl font-black tracking-[-4px] 
-                        px-10 py-2 rounded-3xl border-[6px] border-[#d4af37] 
-                        bg-[#0a0805]/95 text-[#f0e6c0] 
-                        shadow-[0_0_40px_rgba(212,175,55,0.85),0_10px_30px_rgba(0,0,0,0.9)]
-                        transition-all duration-100
-                        ${multicastLevel >= 3 ? 'scale-125' : 'scale-100'}
-                      `}
-                      style={{
-                        textShadow: '0 0 15px #d4af37, 0 0 25px #8b6914, 3px 4px 8px rgba(0,0,0,0.95)',
-                        animation: multicastLevel === 4 ? 'multicast-pop 0.18s ease' : 'multicast-pop 0.22s ease'
-                      }}
-                    >
-                      x{multicastLevel}
+                    <div className="relative">
+                      {/* The x text - plain, no box/border/background */}
+                      <div 
+                        className={`
+                          multicast-text font-display text-[5.5rem] sm:text-[6rem] font-black tracking-[-5px] 
+                          transition-all duration-100
+                          ${multicastLevel >= 3 ? 'scale-125' : 'scale-100'}
+                          level-${multicastLevel}
+                        `}
+                        style={{
+                          color: multicastLevel >= 4 
+                            ? '#ff6b6b' 
+                            : (multicastLevel >= 3 ? '#ff9f43' : '#f0c060'),
+                          textShadow: multicastLevel >= 4 
+                            ? '0 0 12px #ff6b6b, 0 0 28px #ff4500, 0 0 45px #d4af37, 2px 3px 6px rgba(0,0,0,0.95)' 
+                            : (multicastLevel >= 3 
+                              ? '0 0 12px #ff9f43, 0 0 26px #ff6b00, 0 0 38px #d4af37, 2px 3px 6px rgba(0,0,0,0.9)' 
+                              : '0 0 10px #d4af37, 0 0 22px #8b6914, 2px 3px 5px rgba(0,0,0,0.9)'),
+                          animation: multicastLevel === 4 ? 'multicast-pop 0.18s ease, multicast-pulse 1.2s ease-in-out infinite' : 'multicast-pop 0.22s ease'
+                        }}
+                      >
+                        x{multicastLevel}
+                      </div>
+
+                      {/* Dynamic sparks - more intense for higher x */}
+                      {sparks.map((spark) => (
+                        <div
+                          key={spark.id}
+                          className="spark"
+                          style={{
+                            '--tx': `${spark.tx}px` as any,
+                            '--ty': `${spark.ty}px` as any,
+                            left: '50%',
+                            top: '50%',
+                            width: `${spark.size * 1.2}px`,
+                            height: `${spark.size * 1.2}px`,
+                            animationDelay: `${spark.delay}ms`,
+                            background: multicastLevel >= 4 ? '#ffeb3b' : (multicastLevel >= 3 ? '#ffd700' : '#f0c060'),
+                            boxShadow: multicastLevel >= 3 
+                              ? '0 0 10px #ff8c00, 0 0 18px #ff4500' 
+                              : '0 0 8px #f0c060, 0 0 14px #d4af37'
+                          } as any}
+                        />
+                      ))}
                     </div>
                   </div>
                 )}

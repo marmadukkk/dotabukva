@@ -30,7 +30,7 @@
         }
 
         .dota-bg {
-            background: #090909;
+            /* background color and vignette now handled by video + overlay */
             background-image: 
                 /* Classic very faint Dota red UI grid */
                 linear-gradient(rgba(194, 60, 42, 0.018) 1px, transparent 1px),
@@ -53,29 +53,11 @@
                     rgba(0, 0, 0, 0.04) 5px
                 );
             background-size: 46px 46px, 46px 46px, 100% 62px, 19px 19px;
+            background-color: transparent;
         }
 
-        /* Strong Dota-style vignette + depth (like in-game menus and tavern) */
-        .dota-bg {
-            box-shadow: 
-                inset 0 0 140px rgba(0, 0, 0, 0.82),
-                inset 0 80px 90px rgba(0, 0, 0, 0.35);
-        }
-
-        .dota-bg::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background: 
-                radial-gradient(
-                    ellipse at 50% 28%,
-                    transparent 22%,
-                    rgba(0, 0, 0, 0.32) 58%,
-                    rgba(0, 0, 0, 0.6) 90%
-                );
-            pointer-events: none;
-            z-index: 0;
-        }
+        /* Old vignette disabled - now handled by video + overlay div */
+        /* .dota-bg::before { ... } */
 
         .dota-card {
             background: #111111;
@@ -308,16 +290,69 @@
 
         /* Multicast badge animation (Ogre Magi style) */
         @keyframes multicast-pop {
-            0% { transform: scale(0.4) translateY(20px); opacity: 0; }
-            40% { transform: scale(1.35) translateY(-6px); }
-            70% { transform: scale(0.95) translateY(2px); }
+            0% { transform: scale(0.3) translateY(30px); opacity: 0; }
+            30% { transform: scale(1.5) translateY(-10px); }
+            55% { transform: scale(0.92) translateY(4px); }
             100% { transform: scale(1) translateY(0); opacity: 1; }
         }
 
-        .multicast-badge {
+        @keyframes spark-fly {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(0.2);
+                opacity: 0;
+            }
+        }
+
+        .multicast-text {
             font-variant-numeric: tabular-nums;
             letter-spacing: -4px;
             user-select: none;
+            position: relative;
+            z-index: 2;
+            transition: transform 0.1s ease, color 0.1s ease;
+        }
+
+        /* Tiered effects - higher x = more heated (pure text, no box) */
+        .multicast-text.level-1 {
+            color: #f0c060;
+            text-shadow: 0 0 10px #d4af37, 0 0 22px #8b6914, 2px 3px 5px rgba(0,0,0,0.9);
+        }
+        .multicast-text.level-2 {
+            color: #f0c060;
+            text-shadow: 0 0 14px #f0c060, 0 0 28px #d4af37, 2px 3px 6px rgba(0,0,0,0.9);
+            transform: scale(1.05);
+        }
+        .multicast-text.level-3 {
+            color: #ff9f43;
+            text-shadow: 0 0 16px #ff9f43, 0 0 32px #ff6b00, 0 0 45px #d4af37, 2px 3px 6px rgba(0,0,0,0.9);
+            transform: scale(1.12);
+        }
+        .multicast-text.level-4 {
+            color: #ff6b6b;
+            text-shadow: 0 0 14px #ff6b6b, 0 0 30px #ff4500, 0 0 48px #d4af37, 2px 3px 7px rgba(0,0,0,0.95);
+            transform: scale(1.18);
+            animation: multicast-pop 0.18s ease, multicast-pulse 1.2s ease-in-out infinite;
+        }
+
+        @keyframes multicast-pulse {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.4); }
+        }
+
+        .spark {
+            position: absolute;
+            background: #ffeb3b;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #ffd700, 0 0 16px #ff8c00, 0 0 24px #ff4500;
+            pointer-events: none;
+            z-index: 1;
+            animation: spark-fly 0.65s ease-out forwards;
+            left: 50%;
+            top: 50%;
         }
 
         .spin-button {
@@ -1061,7 +1096,7 @@
         }
     </style>
 </head>
-<body class="bg-[#0a0a0a] text-white dota-bg min-h-screen">
+<body class="text-white dota-bg min-h-screen bg-transparent">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 </body>
