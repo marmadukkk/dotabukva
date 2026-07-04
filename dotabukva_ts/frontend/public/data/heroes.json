@@ -1,0 +1,804 @@
+{
+  "descr": {
+    "message": "на всякий случай если апи наебнётся, а картинки нахуй надо"
+  },
+  "heroes": [
+    {
+      "en": "Abaddon",
+      "ru": "Абаддон",
+      "short": "abaddon",
+      "attr": "str"
+    },
+    {
+      "en": "Alchemist",
+      "ru": "Алхимик",
+      "short": "alchemist",
+      "attr": "str"
+    },
+    {
+      "en": "Ancient Apparition",
+      "ru": "Древний Призрак",
+      "short": "ancient_apparition",
+      "attr": "int"
+    },
+    {
+      "en": "Anti-Mage",
+      "ru": "Антимаг",
+      "short": "antimage",
+      "attr": "agi"
+    },
+    {
+      "en": "Arc Warden",
+      "ru": "Хранитель Арки",
+      "short": "arc_warden",
+      "attr": "agi"
+    },
+    {
+      "en": "Axe",
+      "ru": "Акс",
+      "short": "axe",
+      "attr": "str"
+    },
+    {
+      "en": "Bane",
+      "ru": "Бэйн",
+      "short": "bane",
+      "attr": "int"
+    },
+    {
+      "en": "Batrider",
+      "ru": "Летучий Мышь",
+      "short": "batrider",
+      "attr": "int"
+    },
+    {
+      "en": "Beastmaster",
+      "ru": "Повелитель Зверей",
+      "short": "beastmaster",
+      "attr": "str"
+    },
+    {
+      "en": "Bloodseeker",
+      "ru": "Кровожад",
+      "short": "bloodseeker",
+      "attr": "agi"
+    },
+    {
+      "en": "Bounty Hunter",
+      "ru": "Охотник за Головами",
+      "short": "bounty_hunter",
+      "attr": "agi"
+    },
+    {
+      "en": "Brewmaster",
+      "ru": "Пивовар",
+      "short": "brewmaster",
+      "attr": "str"
+    },
+    {
+      "en": "Bristleback",
+      "ru": "Дикобраз",
+      "short": "bristleback",
+      "attr": "str"
+    },
+    {
+      "en": "Broodmother",
+      "ru": "Паучиха",
+      "short": "broodmother",
+      "attr": "agi"
+    },
+    {
+      "en": "Centaur Warrunner",
+      "ru": "Кентавр",
+      "short": "centaur",
+      "attr": "str"
+    },
+    {
+      "en": "Chaos Knight",
+      "ru": "Рыцарь Хаоса",
+      "short": "chaos_knight",
+      "attr": "str"
+    },
+    {
+      "en": "Chen",
+      "ru": "Чен",
+      "short": "chen",
+      "attr": "int"
+    },
+    {
+      "en": "Clinkz",
+      "ru": "Клинкз",
+      "short": "clinkz",
+      "attr": "agi"
+    },
+    {
+      "en": "Clockwerk",
+      "ru": "Часовой",
+      "short": "rattletrap",
+      "attr": "str"
+    },
+    {
+      "en": "Crystal Maiden",
+      "ru": "Кристальная Дева",
+      "short": "crystal_maiden",
+      "attr": "int"
+    },
+    {
+      "en": "Dark Seer",
+      "ru": "Тёмный Пророк",
+      "short": "dark_seer",
+      "attr": "int"
+    },
+    {
+      "en": "Dark Willow",
+      "ru": "Тёмная Ива",
+      "short": "dark_willow",
+      "attr": "int"
+    },
+    {
+      "en": "Dawnbreaker",
+      "ru": "Рассветница",
+      "short": "dawnbreaker",
+      "attr": "str"
+    },
+    {
+      "en": "Dazzle",
+      "ru": "Даззл",
+      "short": "dazzle",
+      "attr": "int"
+    },
+    {
+      "en": "Death Prophet",
+      "ru": "Пророчица Смерти",
+      "short": "death_prophet",
+      "attr": "int"
+    },
+    {
+      "en": "Disruptor",
+      "ru": "Дисраптор",
+      "short": "disruptor",
+      "attr": "int"
+    },
+    {
+      "en": "Doom",
+      "ru": "Дум",
+      "short": "doom_bringer",
+      "attr": "str"
+    },
+    {
+      "en": "Dragon Knight",
+      "ru": "Рыцарь-Дракон",
+      "short": "dragon_knight",
+      "attr": "str"
+    },
+    {
+      "en": "Drow Ranger",
+      "ru": "Дроу Рейнджер",
+      "short": "drow_ranger",
+      "attr": "agi"
+    },
+    {
+      "en": "Earth Spirit",
+      "ru": "Дух Земли",
+      "short": "earth_spirit",
+      "attr": "str"
+    },
+    {
+      "en": "Earthshaker",
+      "ru": "Землетряс",
+      "short": "earthshaker",
+      "attr": "str"
+    },
+    {
+      "en": "Elder Titan",
+      "ru": "Древний Титан",
+      "short": "elder_titan",
+      "attr": "str"
+    },
+    {
+      "en": "Ember Spirit",
+      "ru": "Дух Огня",
+      "short": "ember_spirit",
+      "attr": "agi"
+    },
+    {
+      "en": "Enchantress",
+      "ru": "Чаровница",
+      "short": "enchantress",
+      "attr": "int"
+    },
+    {
+      "en": "Enigma",
+      "ru": "Энигма",
+      "short": "enigma",
+      "attr": "int"
+    },
+    {
+      "en": "Faceless Void",
+      "ru": "Безликий",
+      "short": "faceless_void",
+      "attr": "agi"
+    },
+    {
+      "en": "Grimstroke",
+      "ru": "Мрачный росчерк",
+      "short": "grimstroke",
+      "attr": "int"
+    },
+    {
+      "en": "Gyrocopter",
+      "ru": "Гирокоптер",
+      "short": "gyrocopter",
+      "attr": "agi"
+    },
+    {
+      "en": "Hoodwink",
+      "ru": "Худвинк",
+      "short": "hoodwink",
+      "attr": "agi"
+    },
+    {
+      "en": "Huskar",
+      "ru": "Хускар",
+      "short": "huskar",
+      "attr": "str"
+    },
+    {
+      "en": "Invoker",
+      "ru": "Инвокер",
+      "short": "invoker",
+      "attr": "int"
+    },
+    {
+      "en": "Io",
+      "ru": "Ио",
+      "short": "wisp",
+      "attr": "uni"
+    },
+    {
+      "en": "Jakiro",
+      "ru": "Джакиро",
+      "short": "jakiro",
+      "attr": "int"
+    },
+    {
+      "en": "Juggernaut",
+      "ru": "Джаггернаут",
+      "short": "juggernaut",
+      "attr": "agi"
+    },
+    {
+      "en": "Keeper of the Light",
+      "ru": "Хранитель Света",
+      "short": "keeper_of_the_light",
+      "attr": "int"
+    },
+    {
+      "en": "Kez",
+      "ru": "Кез",
+      "short": "kez",
+      "attr": "agi"
+    },
+    {
+      "en": "Kunkka",
+      "ru": "Кунка",
+      "short": "kunkka",
+      "attr": "str"
+    },
+    {
+      "en": "Legion Commander",
+      "ru": "Командир Легиона",
+      "short": "legion_commander",
+      "attr": "str"
+    },
+    {
+      "en": "Leshrac",
+      "ru": "Лешрак",
+      "short": "leshrac",
+      "attr": "int"
+    },
+    {
+      "en": "Lich",
+      "ru": "Лич",
+      "short": "lich",
+      "attr": "int"
+    },
+    {
+      "en": "Lifestealer",
+      "ru": "Пожиратель",
+      "short": "life_stealer",
+      "attr": "str"
+    },
+    {
+      "en": "Lina",
+      "ru": "Лина",
+      "short": "lina",
+      "attr": "int"
+    },
+    {
+      "en": "Lion",
+      "ru": "Лайон",
+      "short": "lion",
+      "attr": "int"
+    },
+    {
+      "en": "Lone Druid",
+      "ru": "Одинокий Друид",
+      "short": "lone_druid",
+      "attr": "agi"
+    },
+    {
+      "en": "Luna",
+      "ru": "Луна",
+      "short": "luna",
+      "attr": "agi"
+    },
+    {
+      "en": "Lycan",
+      "ru": "Ликан",
+      "short": "lycan",
+      "attr": "str"
+    },
+    {
+      "en": "Magnus",
+      "ru": "Магнус",
+      "short": "magnataur",
+      "attr": "str"
+    },
+    {
+      "en": "Marci",
+      "ru": "Марси",
+      "short": "marci",
+      "attr": "str"
+    },
+    {
+      "en": "Mars",
+      "ru": "Марс",
+      "short": "mars",
+      "attr": "str"
+    },
+    {
+      "en": "Medusa",
+      "ru": "Медуза",
+      "short": "medusa",
+      "attr": "agi"
+    },
+    {
+      "en": "Meepo",
+      "ru": "Мипо",
+      "short": "meepo",
+      "attr": "agi"
+    },
+    {
+      "en": "Mirana",
+      "ru": "Мирана",
+      "short": "mirana",
+      "attr": "agi"
+    },
+    {
+      "en": "Monkey King",
+      "ru": "Король Обезьян",
+      "short": "monkey_king",
+      "attr": "agi"
+    },
+    {
+      "en": "Morphling",
+      "ru": "Морфлинг",
+      "short": "morphling",
+      "attr": "agi"
+    },
+    {
+      "en": "Muerta",
+      "ru": "Муэрта",
+      "short": "muerta",
+      "attr": "int"
+    },
+    {
+      "en": "Naga Siren",
+      "ru": "Нага Сирена",
+      "short": "naga_siren",
+      "attr": "agi"
+    },
+    {
+      "en": "Nature's Prophet",
+      "ru": "Пророк Природы",
+      "short": "furion",
+      "attr": "int"
+    },
+    {
+      "en": "Necrophos",
+      "ru": "Некрофос",
+      "short": "necrolyte",
+      "attr": "int"
+    },
+    {
+      "en": "Night Stalker",
+      "ru": "Ночной Сталкер",
+      "short": "night_stalker",
+      "attr": "str"
+    },
+    {
+      "en": "Nyx Assassin",
+      "ru": "Ассасин Никс",
+      "short": "nyx_assassin",
+      "attr": "agi"
+    },
+    {
+      "en": "Ogre Magi",
+      "ru": "Огр Маг",
+      "short": "ogre_magi",
+      "attr": "int"
+    },
+    {
+      "en": "Omniknight",
+      "ru": "Омникнайт",
+      "short": "omniknight",
+      "attr": "str"
+    },
+    {
+      "en": "Oracle",
+      "ru": "Оракл",
+      "short": "oracle",
+      "attr": "int"
+    },
+    {
+      "en": "Outworld Destroyer",
+      "ru": "Разрушитель Миров",
+      "short": "obsidian_destroyer",
+      "attr": "int"
+    },
+    {
+      "en": "Pangolier",
+      "ru": "Пангольер",
+      "short": "pangolier",
+      "attr": "agi"
+    },
+    {
+      "en": "Phantom Assassin",
+      "ru": "Фантомная Ассасин",
+      "short": "phantom_assassin",
+      "attr": "agi"
+    },
+    {
+      "en": "Phantom Lancer",
+      "ru": "Фантомный Лансер",
+      "short": "phantom_lancer",
+      "attr": "agi"
+    },
+    {
+      "en": "Phoenix",
+      "ru": "Феникс",
+      "short": "phoenix",
+      "attr": "str"
+    },
+    {
+      "en": "Primal Beast",
+      "ru": "Первобытный Зверь",
+      "short": "primal_beast",
+      "attr": "str"
+    },
+    {
+      "en": "Puck",
+      "ru": "Пак",
+      "short": "puck",
+      "attr": "int"
+    },
+    {
+      "en": "Pudge",
+      "ru": "Пудж",
+      "short": "pudge",
+      "attr": "str"
+    },
+    {
+      "en": "Pugna",
+      "ru": "Пугна",
+      "short": "pugna",
+      "attr": "int"
+    },
+    {
+      "en": "Queen of Pain",
+      "ru": "Королева Боли",
+      "short": "queenofpain",
+      "attr": "int"
+    },
+    {
+      "en": "Razor",
+      "ru": "Бритва",
+      "short": "razor",
+      "attr": "agi"
+    },
+    {
+      "en": "Riki",
+      "ru": "Рики",
+      "short": "riki",
+      "attr": "agi"
+    },
+    {
+      "en": "Ringmaster",
+      "ru": "Циркач",
+      "short": "ringmaster",
+      "attr": "int"
+    },
+    {
+      "en": "Rubick",
+      "ru": "Рубик",
+      "short": "rubick",
+      "attr": "int"
+    },
+    {
+      "en": "Sand King",
+      "ru": "Король Песков",
+      "short": "sand_king",
+      "attr": "str"
+    },
+    {
+      "en": "Shadow Demon",
+      "ru": "Теневой Демон",
+      "short": "shadow_demon",
+      "attr": "int"
+    },
+    {
+      "en": "Shadow Fiend",
+      "ru": "Мрачный жнец",
+      "short": "nevermore",
+      "attr": "agi"
+    },
+    {
+      "en": "Shadow Shaman",
+      "ru": "Теневой Шаман",
+      "short": "shadow_shaman",
+      "attr": "int"
+    },
+    {
+      "en": "Silencer",
+      "ru": "Обесшумитель",
+      "short": "silencer",
+      "attr": "int"
+    },
+    {
+      "en": "Skywrath Mage",
+      "ru": "Небесный Маг",
+      "short": "skywrath_mage",
+      "attr": "int"
+    },
+    {
+      "en": "Slardar",
+      "ru": "Слардар",
+      "short": "slardar",
+      "attr": "str"
+    },
+    {
+      "en": "Slark",
+      "ru": "Сларк",
+      "short": "slark",
+      "attr": "agi"
+    },
+    {
+      "en": "Snapfire",
+      "ru": "Снэпфайр",
+      "short": "snapfire",
+      "attr": "str"
+    },
+    {
+      "en": "Sniper",
+      "ru": "Снайпер",
+      "short": "sniper",
+      "attr": "agi"
+    },
+    {
+      "en": "Spectre",
+      "ru": "Спектра",
+      "short": "spectre",
+      "attr": "agi"
+    },
+    {
+      "en": "Spirit Breaker",
+      "ru": "Разрыватель Духов",
+      "short": "spirit_breaker",
+      "attr": "str"
+    },
+    {
+      "en": "Storm Spirit",
+      "ru": "Дух Шторма",
+      "short": "storm_spirit",
+      "attr": "int"
+    },
+    {
+      "en": "Sven",
+      "ru": "Свен",
+      "short": "sven",
+      "attr": "str"
+    },
+    {
+      "en": "Techies",
+      "ru": "Техи",
+      "short": "techies",
+      "attr": "uni"
+    },
+    {
+      "en": "Templar Assassin",
+      "ru": "Ассасин Храма",
+      "short": "templar_assassin",
+      "attr": "agi"
+    },
+    {
+      "en": "Terrorblade",
+      "ru": "Террорблейд",
+      "short": "terrorblade",
+      "attr": "agi"
+    },
+    {
+      "en": "Tidehunter",
+      "ru": "Охотник Прилива",
+      "short": "tidehunter",
+      "attr": "str"
+    },
+    {
+      "en": "Timbersaw",
+      "ru": "Лесоруб",
+      "short": "shredder",
+      "attr": "str"
+    },
+    {
+      "en": "Tinker",
+      "ru": "Тинкер",
+      "short": "tinker",
+      "attr": "int"
+    },
+    {
+      "en": "Tiny",
+      "ru": "Тини",
+      "short": "tiny",
+      "attr": "str"
+    },
+    {
+      "en": "Treant Protector",
+      "ru": "Древо Защиты",
+      "short": "treant",
+      "attr": "str"
+    },
+    {
+      "en": "Troll Warlord",
+      "ru": "Тролль-Полководец",
+      "short": "troll_warlord",
+      "attr": "agi"
+    },
+    {
+      "en": "Tusk",
+      "ru": "Бивень",
+      "short": "tusk",
+      "attr": "str"
+    },
+    {
+      "en": "Underlord",
+      "ru": "Владыка Бездны",
+      "short": "abyssal_underlord",
+      "attr": "str"
+    },
+    {
+      "en": "Undying",
+      "ru": "Нежить",
+      "short": "undying",
+      "attr": "str"
+    },
+    {
+      "en": "Ursa",
+      "ru": "Урса",
+      "short": "ursa",
+      "attr": "agi"
+    },
+    {
+      "en": "Vengeful Spirit",
+      "ru": "Мстительный Дух",
+      "short": "vengefulspirit",
+      "attr": "agi"
+    },
+    {
+      "en": "Venomancer",
+      "ru": "Веномансер",
+      "short": "venomancer",
+      "attr": "int"
+    },
+    {
+      "en": "Viper",
+      "ru": "Гадюка",
+      "short": "viper",
+      "attr": "agi"
+    },
+    {
+      "en": "Visage",
+      "ru": "Визаж",
+      "short": "visage",
+      "attr": "int"
+    },
+    {
+      "en": "Void Spirit",
+      "ru": "Дух Пустоты",
+      "short": "void_spirit",
+      "attr": "uni"
+    },
+    {
+      "en": "Warlock",
+      "ru": "Чернокнижник",
+      "short": "warlock",
+      "attr": "int"
+    },
+    {
+      "en": "Weaver",
+      "ru": "Ткач",
+      "short": "weaver",
+      "attr": "agi"
+    },
+    {
+      "en": "Windranger",
+      "ru": "Ветрогонка",
+      "short": "windrunner",
+      "attr": "agi"
+    },
+    {
+      "en": "Winter Wyvern",
+      "ru": "Зимний Виверн",
+      "short": "winter_wyvern",
+      "attr": "int"
+    },
+    {
+      "en": "Witch Doctor",
+      "ru": "Знахарь",
+      "short": "witch_doctor",
+      "attr": "int"
+    },
+    {
+      "en": "Wraith King",
+      "ru": "Король Призраков",
+      "short": "skeleton_king",
+      "attr": "str"
+    },
+    {
+      "en": "Zeus",
+      "ru": "Зевс",
+      "short": "zuus",
+      "attr": "int"
+    }
+  ],
+  "letters": [
+    "А",
+    "Б",
+    "В",
+    "Г",
+    "Д",
+    "Е",
+    "Ж",
+    "З",
+    "И",
+    "К",
+    "Л",
+    "М",
+    "Н",
+    "О",
+    "П",
+    "Р",
+    "С",
+    "Т",
+    "У",
+    "Ф",
+    "Х",
+    "Ц",
+    "Ч",
+    "Ш",
+    "Щ",
+    "Ю",
+    "Я"
+  ],
+  "attr_labels": {
+    "str": "СИЛА",
+    "agi": "ЛОВКОСТЬ",
+    "int": "ИНТЕЛЛЕКТ",
+    "uni": "УНИВЕРСАЛ"
+  },
+  "attr_colors": {
+    "str": "#f97316",
+    "agi": "#22c55e",
+    "int": "#a855f7",
+    "uni": "#eab308"
+  }
+}
