@@ -30,11 +30,51 @@
         }
 
         .dota-bg {
-            background: #0a0a0a;
+            background: #090909;
             background-image: 
-                linear-gradient(rgba(194, 60, 42, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(194, 60, 42, 0.03) 1px, transparent 1px);
-            background-size: 40px 40px;
+                /* Classic very faint Dota red UI grid */
+                linear-gradient(rgba(194, 60, 42, 0.018) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(194, 60, 42, 0.018) 1px, transparent 1px),
+                /* Tavern wood floor grain (horizontal planks) */
+                repeating-linear-gradient(
+                    to bottom,
+                    transparent 0px,
+                    transparent 29px,
+                    rgba(0, 0, 0, 0.22) 30px,
+                    rgba(255,255,255,0.01) 31px,
+                    transparent 35px
+                ),
+                /* Subtle diagonal stone/metal texture (Dota UI feel) */
+                repeating-linear-gradient(
+                    42deg,
+                    transparent 0px,
+                    transparent 3px,
+                    rgba(0, 0, 0, 0.04) 4px,
+                    rgba(0, 0, 0, 0.04) 5px
+                );
+            background-size: 46px 46px, 46px 46px, 100% 62px, 19px 19px;
+        }
+
+        /* Strong Dota-style vignette + depth (like in-game menus and tavern) */
+        .dota-bg {
+            box-shadow: 
+                inset 0 0 140px rgba(0, 0, 0, 0.82),
+                inset 0 80px 90px rgba(0, 0, 0, 0.35);
+        }
+
+        .dota-bg::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: 
+                radial-gradient(
+                    ellipse at 50% 28%,
+                    transparent 22%,
+                    rgba(0, 0, 0, 0.32) 58%,
+                    rgba(0, 0, 0, 0.6) 90%
+                );
+            pointer-events: none;
+            z-index: 0;
         }
 
         .dota-card {
@@ -264,6 +304,20 @@
             border-radius: inherit;
             pointer-events: none;
             z-index: 2;
+        }
+
+        /* Multicast badge animation (Ogre Magi style) */
+        @keyframes multicast-pop {
+            0% { transform: scale(0.4) translateY(20px); opacity: 0; }
+            40% { transform: scale(1.35) translateY(-6px); }
+            70% { transform: scale(0.95) translateY(2px); }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .multicast-badge {
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -4px;
+            user-select: none;
         }
 
         .spin-button {
@@ -999,8 +1053,15 @@
             .header-rivet[style*="right: 64px"] { right: 38px !important; }
         }
     </style>
+    <style>
+        /* Ensure React content sits above the vignette */
+        #root {
+            position: relative;
+            z-index: 1;
+        }
+    </style>
 </head>
-<body>
+<body class="bg-[#0a0a0a] text-white dota-bg min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 </body>
