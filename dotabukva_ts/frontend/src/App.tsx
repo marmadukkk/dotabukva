@@ -12,6 +12,7 @@ interface SpinResult {
   color: string;
   image: string;
   letter: string;
+  multiplier?: number;   // 1 | 2 | 3 | 4  (Ogre Magi Multicast style)
 }
 
 interface HistoryEntry {
@@ -60,6 +61,10 @@ const App: React.FC = () => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [lastResult, setLastResult] = useState<SpinResult | null>(null);
 
+  // Multicast / multiplier display (Ogre Magi style)
+  const [multicastLevel, setMulticastLevel] = useState(0); // current shown x level during sequence
+  const [currentMultiplier, setCurrentMultiplier] = useState(1);
+
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [eliminatedHeroes, setEliminatedHeroes] = useState<Set<string>>(new Set());
 
@@ -79,6 +84,11 @@ const App: React.FC = () => {
   // Modals
   const [showHowto, setShowHowto] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ show: boolean; title: string; message: string; onConfirm?: () => void }>({ show: false, title: '', message: '' });
+
+  // Room list modal state
+  const [showRoomListModal, setShowRoomListModal] = useState(false);
+  const [roomsList, setRoomsList] = useState<any[]>([]);
+  const [joinCodeInput, setJoinCodeInput] = useState('');
 
   // Refs for reels (DOM manipulation for animations to match original exactly)
   const heroStripRef = useRef<HTMLDivElement>(null);
@@ -101,11 +111,13 @@ const App: React.FC = () => {
       const data = await res.json();
       const list = data[key] || data.heroes || data.items || data.abilities || [];
       setHeroesData(list);
+      setCurrentMode(mode as any);
       return list;
     } catch (e) {
       console.warn('loadData failed, fallback');
       const fb = getFallbackHeroes();
       setHeroesData(fb);
+      setCurrentMode(mode as any);
       return fb;
     }
   }, []);
@@ -269,6 +281,53 @@ const App: React.FC = () => {
     } catch {}
   }
 
+  // Multicast sounds (Ogre Magi style)
+  function playMulticastSound(level: number) {
+    try {
+      const audio = new Audio(`/sounds/x${level}.mp3`);
+      audio.volume = 0.9;
+      audio.play().catch(() => {});
+    } catch (e) {}
+  }
+
+  // Show the flashy multicast text with sequential animation (like Ogre Magi)
+  function triggerMulticastSequence(multi: number) {
+    if (!multi || multi < 1) multi = 1;
+
+    setMulticastLevel(0);
+
+    // x1 always shows first
+    setTimeout(() => {
+      setMulticastLevel(1);
+      playMulticastSound(1);
+    }, 50);
+
+    if (multi >= 2) {
+      setTimeout(() => {
+        setMulticastLevel(2);
+        playMulticastSound(2);
+      }, 480);
+    }
+    if (multi >= 3) {
+      setTimeout(() => {
+        setMulticastLevel(3);
+        playMulticastSound(3);
+      }, 480 * 2);
+    }
+    if (multi >= 4) {
+      setTimeout(() => {
+        setMulticastLevel(4);
+        playMulticastSound(4);
+      }, 480 * 3);
+    }
+
+    // Keep the final level visible for a moment, then optionally hide or leave
+    const keepTime = multi >= 3 ? 1600 : 900;
+    setTimeout(() => {
+      // We leave it visible until next spin or result is shown
+    }, 480 * (multi - 1) + keepTime);
+  }
+
   // Confetti (exact)
   function launchConfetti(count = 40) {
     const canvas = document.createElement('canvas');
@@ -405,6 +464,9 @@ const App: React.FC = () => {
     if (hReel) hReel.classList.remove('reel-waiting-spin');
     if (lReel) lReel.classList.remove('reel-waiting-spin');
 
+    const multi = result.multiplier || 1;
+    setCurrentMultiplier(multi);
+
     if (!heroStrip || !letterStrip) {
       showResult(result);
       setIsSpinning(false);
@@ -414,8 +476,23 @@ const App: React.FC = () => {
     const hIdx = findHeroIndexInStrip(heroStrip, result.hero || result.hero_en || '');
     const lIdx = findLetterIndexInStrip(letterStrip, result.letter);
 
-    const hd = 2650 + Math.random()*400;
-    const ld = 1950 + Math.random()*300;
+    // Base durations + extra time for higher multipliers (x2/x3/x4 feel much longer)
+    let hd = 2650 + Math.random() * 400;
+    let ld = 1950 + Math.random() * 300;
+
+    if (multi === 2) {
+      hd += 1350;
+      ld += 1100;
+    } else if (multi === 3) {
+      hd += 2600;
+      ld += 2100;
+    } else if (multi === 4) {
+      hd += 4200;
+      ld += 3400;
+    }
+
+    // Trigger the multicast visual + sounds BEFORE or as reels slow down
+    triggerMulticastSequence(multi);
 
     playSpinSounds(Math.max(hd, ld));
 
@@ -434,6 +511,11 @@ const App: React.FC = () => {
     setIsSpinning(false);
     if (Math.random() > 0.65) launchConfetti(28);
     playDing();
+
+    // Hide multicast display after result is shown
+    setTimeout(() => {
+      setMulticastLevel(0);
+    }, 1400);
   }
 
   function showResult(result: SpinResult) {
@@ -466,6 +548,9 @@ const App: React.FC = () => {
   async function spin() {
     if (isSpinning) return;
 
+    setMulticastLevel(0);
+    setCurrentMultiplier(1);
+
     // ROOM LEADER SPIN: send via WS, start waiting visual
     if (currentRoom && roomSocketRef.current) {
       setIsSpinning(true);
@@ -492,6 +577,11 @@ const App: React.FC = () => {
       const fimg = (currentMode === 'items')
         ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${entry.short}_lg.png`
         : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${entry.short}_lg.png`;
+
+      // Client fallback multiplier
+      const r = Math.random();
+      const fbMulti = r < 0.40 ? 1 : (r < 0.70 ? 2 : (r < 0.85 ? 3 : 4));
+
       result = {
         hero: entry.en, hero_ru: entry.ru, hero_en: entry.en,
         short: entry.short,
@@ -499,21 +589,33 @@ const App: React.FC = () => {
         attr_label: currentMode === 'items' ? 'ПРЕДМЕТ' : (currentMode === 'abilities' ? 'СПОСОБНОСТЬ' : (entry.attr === 'str' ? 'СИЛА' : entry.attr === 'agi' ? 'ЛОВКОСТЬ' : 'ИНТЕЛЛЕКТ')),
         color: getAttrColor(entry.attr || 'str'),
         image: fimg,
-        letter: letters[Math.floor(Math.random()*letters.length)]
+        letter: letters[Math.floor(Math.random()*letters.length)],
+        multiplier: fbMulti
       };
     }
+
+    const multi = result.multiplier || 1;
+    setCurrentMultiplier(multi);
 
     const hs = heroStripRef.current; const ls = letterStripRef.current;
     const hT = findHeroIndexInStrip(hs!, result.hero || result.hero_en || '');
     const lT = findLetterIndexInStrip(ls!, result.letter);
 
-    const hd = 2650 + Math.random()*400, ld = 1950 + Math.random()*300;
+    let hd = 2650 + Math.random() * 400;
+    let ld = 1950 + Math.random() * 300;
+    if (multi === 2) { hd += 1350; ld += 1100; }
+    else if (multi === 3) { hd += 2600; ld += 2100; }
+    else if (multi === 4) { hd += 4200; ld += 3400; }
+
+    triggerMulticastSequence(multi);
     playSpinSounds(Math.max(hd, ld));
 
     await Promise.all([animateReel(hs!, hT, hd, false), animateReel(ls!, lT, ld, true)]);
     await new Promise(r => setTimeout(r, 180));
 
     showResult(result);
+
+    setTimeout(() => setMulticastLevel(0), 1400);
     logSpin(result);
 
     setIsSpinning(false);
@@ -699,6 +801,18 @@ const App: React.FC = () => {
   // Navigation / screen switching (exact hide/show + history)
   const [screen, setScreen] = useState<'main-menu' | 'role-menu' | 'room-lobby' | 'leader-view' | 'guesser-view'>('main-menu');
 
+  // Ensure correct data for the reel when mode or leader context changes
+  useEffect(() => {
+    if ((screen === 'leader-view' || currentRole === 'leader') && currentMode) {
+      loadData(currentMode).then(() => {
+        setTimeout(() => {
+          buildHeroStrip();
+          buildLetterStrip();
+        }, 20);
+      });
+    }
+  }, [currentMode, screen, currentRole]);
+
   function switchToScreen(s: any, push = true) {
     setScreen(s);
     if (push) {
@@ -786,16 +900,24 @@ const App: React.FC = () => {
   async function showRoomList() {
     let rooms: any[] = [];
     try {
-      const r = await fetch('/api/rooms'); if (r.ok) rooms = (await r.json()).rooms || [];
+      const res = await fetch('/api/rooms');
+      if (res.ok) {
+        const data = await res.json();
+        rooms = data.rooms || [];
+      } else {
+        throw new Error('backend not available');
+      }
     } catch {
       rooms = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
     }
-    // Use confirm modal styled as list for simplicity (or implement separate but to keep fidelity use DOM like original)
-    // For React we render a simple modal using state
-    const modalHtml = rooms.length ? rooms.map((rm:any) => `<div onclick="window.__joinRoom('${rm.code}')" class="flex justify-between p-3 border border-[#4a3728] hover:border-[#d4af37] cursor-pointer rounded-xl"><span class="font-mono text-[#f0c060]">${rm.code}</span></div>`).join('') : '<div class="text-zinc-400">Пока нет комнат.</div>';
-    // Simple alert fallback for now (full modal can be added in future iterations)
-    const code = prompt('Введите код комнаты или создайте новую (для списка используйте UI):', '');
-    if (code && code.length >= 4) joinRoom(code.toUpperCase());
+    setRoomsList(rooms);
+    setJoinCodeInput('');
+    setShowRoomListModal(true);
+  }
+
+  function closeRoomListModal() {
+    setShowRoomListModal(false);
+    setJoinCodeInput('');
   }
 
   function joinRoom(code: string) {
@@ -807,6 +929,9 @@ const App: React.FC = () => {
     if (!leader) { setMyFreeElims(3); setMyLastElim(0); }
     showRoomLobby(c, leader);
     connectToRoomWS(c, leader ? 'leader' : 'guesser');
+
+    // Close room list modal if it's open
+    closeRoomListModal();
   }
 
   function showRoomLobby(code: string, leader: boolean) {
@@ -924,7 +1049,7 @@ const App: React.FC = () => {
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center shadow-inner">
                 <i className="fa-solid fa-dice text-white text-2xl"></i>
               </div>
-              <span className="font-display text-2xl font-semibold tracking-tighter">DOTA-BUKVA</span>
+              <span className="font-display text-2xl font-semibold tracking-tighter text-white">DOTA-BUKVA</span>
             </div>
           </div>
           <div className="flex items-center gap-x-3 text-sm">
@@ -957,7 +1082,7 @@ const App: React.FC = () => {
                 <i className="fa-solid fa-dice text-white text-5xl"></i>
               </div>
             </div>
-            <h1 className="font-display text-6xl sm:text-7xl font-bold tracking-tighter">DOTA-BUKVA</h1>
+            <h1 className="font-display text-6xl sm:text-7xl font-bold tracking-tighter text-white">DOTA-BUKVA</h1>
             <p className="mt-2 text-zinc-400 text-lg">Крути. Описывай. Отгадывай.</p>
           </div>
 
@@ -966,7 +1091,7 @@ const App: React.FC = () => {
               <div className="flex items-center gap-4">
                 <i className="fa-solid fa-gamepad text-3xl text-[#d4af37]"></i>
                 <div>
-                  <div className="font-display text-2xl tracking-tight">Обычный режим</div>
+                  <div className="font-display text-2xl tracking-tight text-white">Обычный режим</div>
                   <div className="text-sm text-zinc-400 mt-0.5">Играть без комнаты (классика)</div>
                 </div>
               </div>
@@ -976,7 +1101,7 @@ const App: React.FC = () => {
               <div className="flex items-center gap-4">
                 <i className="fa-solid fa-plus text-3xl text-[#d4af37] group-hover:rotate-90 transition-transform"></i>
                 <div>
-                  <div className="font-display text-2xl tracking-tight">Создать комнату</div>
+                  <div className="font-display text-2xl tracking-tight text-white">Создать комнату</div>
                   <div className="text-sm text-zinc-400 mt-0.5">Сгенерировать код и пригласить друзей</div>
                 </div>
               </div>
@@ -986,7 +1111,7 @@ const App: React.FC = () => {
               <div className="flex items-center gap-4">
                 <i className="fa-solid fa-list text-3xl text-[#d4af37]"></i>
                 <div>
-                  <div className="font-display text-2xl tracking-tight">Список комнат</div>
+                  <div className="font-display text-2xl tracking-tight text-white">Список комнат</div>
                   <div className="text-sm text-zinc-400 mt-0.5">Присоединиться к существующей комнате</div>
                 </div>
               </div>
@@ -1007,16 +1132,16 @@ const App: React.FC = () => {
               <i className="fa-solid fa-users"></i>
               <span>ИГРА В КОМПАНИИ</span>
             </div>
-            <h1 className="font-display text-5xl sm:text-6xl font-bold tracking-tighter">Выбери роль</h1>
+            <h1 className="font-display text-5xl sm:text-6xl font-bold tracking-tighter text-white">Выбери роль</h1>
             <p className="mt-2 text-zinc-400 text-[15px]">Один ведущий крутит и даёт подсказки. Остальные вычёркивают героев.</p>
 
             {/* Mode switch exact */}
             <div className="mt-4 mb-2">
               <div className="text-[10px] text-zinc-500 tracking-[1.5px] mb-1">РЕЖИМ</div>
               <div className="inline-flex rounded-2xl border border-[#4a3728] overflow-hidden text-sm">
-                <button onClick={() => setCurrentMode('heroes')} className={`px-4 py-1.5 font-medium ${currentMode==='heroes' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'}`}>Герои</button>
-                <button onClick={() => setCurrentMode('items')} className={`px-4 py-1.5 font-medium ${currentMode==='items' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'} border-l border-[#4a3728]`}>Предметы</button>
-                <button onClick={() => setCurrentMode('abilities')} className={`px-4 py-1.5 font-medium ${currentMode==='abilities' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'} border-l border-[#4a3728]`}>Способности</button>
+                <button onClick={() => loadData('heroes')} className={`px-4 py-1.5 font-medium ${currentMode==='heroes' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'}`}>Герои</button>
+                <button onClick={() => loadData('items')} className={`px-4 py-1.5 font-medium ${currentMode==='items' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'} border-l border-[#4a3728]`}>Предметы</button>
+                <button onClick={() => loadData('abilities')} className={`px-4 py-1.5 font-medium ${currentMode==='abilities' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'} border-l border-[#4a3728]`}>Способности</button>
               </div>
             </div>
           </div>
@@ -1026,7 +1151,7 @@ const App: React.FC = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-xs tracking-[2.5px] text-[#c23c2a] font-bold">ДЛЯ ВЕДУЩЕГО</div>
-                  <div className="font-display text-4xl tracking-[-1.5px] mt-1 group-hover:text-[#f0c060] transition-colors">Ведущий</div>
+                  <div className="font-display text-4xl tracking-[-1.5px] mt-1 group-hover:text-[#f0c060] transition-colors text-white">Ведущий</div>
                 </div>
                 <i className="fa-solid fa-dice text-4xl text-[#d4af37] group-hover:rotate-12 transition-transform"></i>
               </div>
@@ -1038,7 +1163,7 @@ const App: React.FC = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-xs tracking-[2.5px] text-emerald-400 font-bold">ДЛЯ ОТГАДЫВАЮЩИХ</div>
-                  <div className="font-display text-4xl tracking-[-1.5px] mt-1 group-hover:text-[#f0c060] transition-colors">Отгадывающий</div>
+                  <div className="font-display text-4xl tracking-[-1.5px] mt-1 group-hover:text-[#f0c060] transition-colors text-white">Отгадывающий</div>
                 </div>
                 <i className="fa-solid fa-th-large text-4xl text-[#d4af37] group-hover:scale-110 transition-transform"></i>
               </div>
@@ -1085,37 +1210,61 @@ const App: React.FC = () => {
         <div id="leader-view">
           <div className="max-w-5xl mx-auto px-5 pt-4 pb-4">
             <div className="max-w-[860px] mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
-                {/* HERO / ITEM / ABILITY REEL */}
-                <div className="lg:col-span-3">
-                  <div className="flex items-center mb-2 px-1">
-                    <div className="section-title flex items-center gap-x-2">
-                      <i className="fa-solid fa-user-ninja"></i>
-                      <span>{currentMode === 'items' ? 'ПРЕДМЕТ' : currentMode === 'abilities' ? 'СПОСОБНОСТЬ' : 'ГЕРОЙ'}</span>
+              <div className="relative mb-6">
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                  {/* HERO / ITEM / ABILITY REEL */}
+                  <div className="lg:col-span-3">
+                    <div className="flex items-center mb-2 px-1">
+                      <div className="section-title flex items-center gap-x-2">
+                        <i className="fa-solid fa-user-ninja"></i>
+                        <span>{currentMode === 'items' ? 'ПРЕДМЕТ' : currentMode === 'abilities' ? 'СПОСОБНОСТЬ' : 'ГЕРОЙ'}</span>
+                      </div>
+                    </div>
+                    <div id="hero-reel" ref={heroReelRef} className="slot-window h-[236px] relative cursor-pointer" onClick={() => !isSpinning && spin()}>
+                      <div id="hero-strip" ref={heroStripRef} className="slot-strip"></div>
+                      <div className="reel-cylinder left"><div className="cylinder-strip"></div></div>
+                      <div className="reel-cylinder right"><div className="cylinder-strip"></div></div>
+                      <div className="reel-shadow"></div>
+                      <div className="reel-lens absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-24px)] h-[78px] rounded-xl pointer-events-none z-20"></div>
                     </div>
                   </div>
-                  <div id="hero-reel" ref={heroReelRef} className="slot-window h-[236px] relative cursor-pointer" onClick={() => !isSpinning && spin()}>
-                    <div id="hero-strip" ref={heroStripRef} className="slot-strip"></div>
-                    <div className="reel-cylinder left"><div className="cylinder-strip"></div></div>
-                    <div className="reel-cylinder right"><div className="cylinder-strip"></div></div>
-                    <div className="reel-shadow"></div>
-                    <div className="reel-lens absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-24px)] h-[78px] rounded-xl pointer-events-none z-20"></div>
+
+                  {/* LETTER REEL */}
+                  <div className="lg:col-span-2">
+                    <div className="flex items-center justify-between mb-2 px-1">
+                      <div className="section-title flex items-center gap-x-2"><i className="fa-solid fa-font"></i><span>БУКВА</span></div>
+                    </div>
+                    <div id="letter-reel" ref={letterReelRef} className="slot-window h-[236px] relative cursor-pointer" onClick={() => !isSpinning && spin()}>
+                      <div id="letter-strip" ref={letterStripRef} className="slot-strip letter-strip"></div>
+                      <div className="reel-cylinder left"><div className="cylinder-strip"></div></div>
+                      <div className="reel-cylinder right"><div className="cylinder-strip"></div></div>
+                      <div className="reel-shadow"></div>
+                      <div className="reel-lens absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-32px)] h-[110px] rounded-2xl pointer-events-none z-20"></div>
+                    </div>
                   </div>
                 </div>
 
-                {/* LETTER REEL */}
-                <div className="lg:col-span-2">
-                  <div className="flex items-center justify-between mb-2 px-1">
-                    <div className="section-title flex items-center gap-x-2"><i className="fa-solid fa-font"></i><span>БУКВА</span></div>
+                {/* Multicast numbers overlaid directly IN FRONT OF the drums on a higher layer */}
+                {multicastLevel > 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[60]">
+                    <div 
+                      className={`
+                        multicast-badge font-display text-7xl font-black tracking-[-4px] 
+                        px-10 py-2 rounded-3xl border-[6px] border-[#d4af37] 
+                        bg-[#0a0805]/95 text-[#f0e6c0] 
+                        shadow-[0_0_40px_rgba(212,175,55,0.85),0_10px_30px_rgba(0,0,0,0.9)]
+                        transition-all duration-100
+                        ${multicastLevel >= 3 ? 'scale-125' : 'scale-100'}
+                      `}
+                      style={{
+                        textShadow: '0 0 15px #d4af37, 0 0 25px #8b6914, 3px 4px 8px rgba(0,0,0,0.95)',
+                        animation: multicastLevel === 4 ? 'multicast-pop 0.18s ease' : 'multicast-pop 0.22s ease'
+                      }}
+                    >
+                      x{multicastLevel}
+                    </div>
                   </div>
-                  <div id="letter-reel" ref={letterReelRef} className="slot-window h-[236px] relative cursor-pointer" onClick={() => !isSpinning && spin()}>
-                    <div id="letter-strip" ref={letterStripRef} className="slot-strip letter-strip"></div>
-                    <div className="reel-cylinder left"><div className="cylinder-strip"></div></div>
-                    <div className="reel-cylinder right"><div className="cylinder-strip"></div></div>
-                    <div className="reel-shadow"></div>
-                    <div className="reel-lens absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-32px)] h-[110px] rounded-2xl pointer-events-none z-20"></div>
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="flex justify-center mb-1">
@@ -1277,7 +1426,73 @@ const App: React.FC = () => {
             <div className="text-[#e0d2b0] text-[15px] mb-6 leading-snug whitespace-pre-line">{confirmModal.message}</div>
             <div className="flex gap-3">
               <button onClick={() => hideConfirm(false)} className="flex-1 h-10 text-sm font-medium rounded-xl border border-[#4a3728] hover:bg-[#1a1a1a]">ОТМЕНА</button>
-              <button onClick={() => hideConfirm(true)} className="flex-1 h-10 text-sm font-semibold rounded-xl bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37]">ДА</button>
+              <button onClick={() => hideConfirm(true)} className="flex-1 h-10 text-sm font-semibold rounded-xl bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] text-white">ДА</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ROOM LIST MODAL - exact replica of original */}
+      {showRoomListModal && (
+        <div 
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[130] flex items-center justify-center p-5"
+          onClick={(e) => { if (e.target === e.currentTarget) closeRoomListModal(); }}
+        >
+          <div 
+            className="dota-card max-w-md w-full rounded-2xl p-6 border-2 border-[#4a3728]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <div className="font-display text-xl tracking-[2px] text-[#d4af37]">Список комнат</div>
+              <button onClick={closeRoomListModal} className="text-2xl leading-none text-[#d4af37] hover:text-white">×</button>
+            </div>
+
+            {roomsList.length === 0 ? (
+              <div className="text-zinc-400 text-sm py-4">Пока нет комнат. Создайте свою или введите код.</div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-auto">
+                {roomsList.map((room, idx) => {
+                  const time = room.created 
+                    ? new Date(room.created * 1000 || room.created).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) 
+                    : '';
+                  return (
+                    <div 
+                      key={idx}
+                      onClick={() => joinRoom(room.code)}
+                      className="flex justify-between items-center p-3 rounded-xl border border-[#4a3728] hover:border-[#d4af37] cursor-pointer"
+                    >
+                      <div>
+                        <span className="font-mono text-lg text-[#f0c060]">{room.code}</span>
+                      </div>
+                      <div className="text-xs text-zinc-500">{time}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-4 pt-4 border-t border-[#4a3728]">
+              <div className="text-xs text-zinc-400 mb-2">Или введи код комнаты:</div>
+              <div className="flex gap-2">
+                <input 
+                  value={joinCodeInput}
+                  onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                  maxLength={8} 
+                  placeholder="ABCDEF" 
+                  className="flex-1 bg-[#111] border border-[#4a3728] px-3 py-2 rounded text-center font-mono tracking-widest uppercase"
+                />
+                <button 
+                  onClick={() => {
+                    const code = joinCodeInput.trim();
+                    if (code.length >= 4) {
+                      joinRoom(code);
+                    }
+                  }} 
+                  className="px-4 bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] rounded text-sm"
+                >
+                  Войти
+                </button>
+              </div>
             </div>
           </div>
         </div>
