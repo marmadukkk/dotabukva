@@ -61,8 +61,6 @@ const App: React.FC = () => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [lastResult, setLastResult] = useState<SpinResult | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
-  const [tableExpectedImages, setTableExpectedImages] = useState(0);
-  const [tableLoadedImages, setTableLoadedImages] = useState(0);
   const [isTableImagesLoading, setIsTableImagesLoading] = useState(false);
   const pendingTableImagesRef = React.useRef(new Set<string>());
   const loadingTimeoutRef = React.useRef<number | null>(null);
@@ -214,6 +212,7 @@ const App: React.FC = () => {
         list.sort((a: any, b: any) => a.en.localeCompare(b.en));
         setHeroesData(list);
         setCurrentMode(mode as any);
+        setIsLoadingData(false);
         return list;
       } catch {
         // Fallback to local json snapshot
@@ -1414,19 +1413,22 @@ const App: React.FC = () => {
     }));
   }, [heroesData, currentGuesserSort, guesserSearch, currentMode]);
 
-  // Track table image loading for guesser view - reset pending when list changes
-  if (screen === 'guesser-view' && filteredSorted.length > 0) {
-    const shorts = filteredSorted.map(h => h.short);
-    const pending = pendingTableImagesRef.current;
-    const isDifferent = pending.size !== shorts.length || !shorts.every(s => pending.has(s));
-    if (isDifferent) {
-      pendingTableImagesRef.current = new Set(shorts);
-      setIsTableImagesLoading(true);
+  // Track table image loading for guesser view - reset pending only when actual data changes (not on search/sort)
+  React.useEffect(() => {
+    if (screen !== 'guesser-view') {
+      pendingTableImagesRef.current.clear();
+      setIsTableImagesLoading(false);
+      return;
     }
-  } else if (pendingTableImagesRef.current.size > 0) {
-    pendingTableImagesRef.current.clear();
-    setIsTableImagesLoading(false);
-  }
+    if (filteredSorted.length === 0) {
+      pendingTableImagesRef.current.clear();
+      setIsTableImagesLoading(false);
+      return;
+    }
+    // New batch
+    pendingTableImagesRef.current = new Set(filteredSorted.map(h => h.short));
+    setIsTableImagesLoading(true);
+  }, [screen, heroesData, currentMode]);  // only on data/mode change, not search/sort
 
   // Update nav on room change
   useEffect(() => { updateNavRoomVisual(); }, [currentRoom]);
