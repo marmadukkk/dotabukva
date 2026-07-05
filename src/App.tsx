@@ -60,6 +60,12 @@ const App: React.FC = () => {
 
   const [isSpinning, setIsSpinning] = useState(false);
   const [lastResult, setLastResult] = useState<SpinResult | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [tableExpectedImages, setTableExpectedImages] = useState(0);
+  const [tableLoadedImages, setTableLoadedImages] = useState(0);
+  const [isTableImagesLoading, setIsTableImagesLoading] = useState(false);
+  const pendingTableImagesRef = React.useRef(new Set<string>());
+  const loadingTimeoutRef = React.useRef<number | null>(null);
 
   // Multicast / multiplier display (Ogre Magi style)
   const [multicastLevel, setMulticastLevel] = useState(0); // current shown x level during sequence
@@ -86,6 +92,49 @@ const App: React.FC = () => {
   const [showHowto, setShowHowto] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ show: boolean; title: string; message: string; onConfirm?: () => void }>({ show: false, title: '', message: '' });
 
+  const BG_STORAGE_KEY = 'dota_bukva_background_index';
+
+  const backgroundVideos = [
+    '/videos/background.mp4',
+    '/videos/background2.mp4',
+    '/videos/background3.mp4',
+    '/videos/background4.mp4',
+    '/videos/background5.mp4',
+  ];
+
+  const [currentBgIndex, setCurrentBgIndex] = useState(() => {
+    try {
+      const saved = localStorage.getItem(BG_STORAGE_KEY);
+      if (saved !== null) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 0 && parsed < backgroundVideos.length) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return 0;
+  });
+  const [activeVideo, setActiveVideo] = useState(0); // 0 or 1 for which video element is currently visible
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const videoARef = useRef<HTMLVideoElement>(null);
+  const videoBRef = useRef<HTMLVideoElement>(null);
+
+  // Persist background index to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(BG_STORAGE_KEY, currentBgIndex.toString());
+    } catch {}
+  }, [currentBgIndex]);
+
+  // Initialize the first background on mount (respects saved index)
+  useEffect(() => {
+    const firstVideo = videoARef.current;
+    if (firstVideo) {
+      firstVideo.src = backgroundVideos[currentBgIndex];
+      firstVideo.play().catch(() => {});
+    }
+  }, []);
+
   // Room list modal state
   const [showRoomListModal, setShowRoomListModal] = useState(false);
   const [roomsList, setRoomsList] = useState<any[]>([]);
@@ -104,6 +153,7 @@ const App: React.FC = () => {
   const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
   const loadData = useCallback(async (mode: string) => {
+    setIsLoadingData(true);
     // If API base is set, try backend first (for custom backend)
     if (API_BASE) {
       let endpoint = `${API_BASE}/api/heroes`;
@@ -118,6 +168,7 @@ const App: React.FC = () => {
           const list = data[key] || data.heroes || data.items || data.abilities || [];
           setHeroesData(list);
           setCurrentMode(mode as any);
+          setIsLoadingData(false);
           return list;
         }
       } catch (e) {
@@ -172,11 +223,13 @@ const App: React.FC = () => {
           const list = d.heroes || [];
           setHeroesData(list);
           setCurrentMode(mode as any);
+          setIsLoadingData(false);
           return list;
         } catch {
           const fb = getFallbackHeroes();
           setHeroesData(fb);
           setCurrentMode(mode as any);
+          setIsLoadingData(false);
           return fb;
         }
       }
@@ -220,10 +273,12 @@ const App: React.FC = () => {
           }));
         setHeroesData(list);
         setCurrentMode(mode as any);
+        setIsLoadingData(false);
         return list;
       } catch {
         setHeroesData([]);
         setCurrentMode(mode as any);
+        setIsLoadingData(false);
         return [];
       }
     } else if (mode === 'abilities') {
@@ -317,11 +372,13 @@ const App: React.FC = () => {
         const validated = await filterValidAbilityIcons(list);
         setHeroesData(validated);
         setCurrentMode(mode as any);
+        setIsLoadingData(false);
         return validated;
       } catch {
         const list = getFallbackAbilities();
         setHeroesData(list);
         setCurrentMode(mode as any);
+        setIsLoadingData(false);
         return list;
       }
     }
@@ -329,6 +386,7 @@ const App: React.FC = () => {
     const fb = getFallbackHeroes();
     setHeroesData(fb);
     setCurrentMode(mode as any);
+    setIsLoadingData(false);
     return fb;
   }, []);
 
@@ -351,6 +409,42 @@ const App: React.FC = () => {
       {"en":"Blink","ru":"Blink","short":"antimage_blink","attr":"ability"}
     ];
   }
+
+  const changeBackground = () => {
+    if (isTransitioning) return;
+
+    const nextIndex = (currentBgIndex + 1) % backgroundVideos.length;
+    const currentActive = activeVideo;
+    const nextActive = 1 - currentActive;
+
+    const nextVideo = nextActive === 0 ? videoARef.current : videoBRef.current;
+    if (!nextVideo) return;
+
+    setIsTransitioning(true);
+
+    // Prepare the next video
+    nextVideo.src = backgroundVideos[nextIndex];
+    nextVideo.load();
+
+    nextVideo.oncanplay = () => {
+      nextVideo.play().catch(() => {});
+      nextVideo.oncanplay = null;
+
+      // Start the crossfade
+      setActiveVideo(nextActive);
+      setCurrentBgIndex(nextIndex);
+
+      // End transition after CSS duration
+      setTimeout(() => {
+        setIsTransitioning(false);
+        // Pause the now hidden video to save resources
+        const oldVideo = currentActive === 0 ? videoARef.current : videoBRef.current;
+        if (oldVideo) {
+          oldVideo.pause();
+        }
+      }, 700);
+    };
+  };
 
   // Filter abilities to only those whose icon actually loads (prevents pudge_lg.png placeholder in table)
   async function filterValidAbilityIcons(abilities: any[]): Promise<any[]> {
@@ -946,6 +1040,16 @@ const App: React.FC = () => {
     // For React we will use derived state.
   }
 
+  const handleTableImageLoad = (short: string) => {
+    const pending = pendingTableImagesRef.current;
+    if (pending.has(short)) {
+      pending.delete(short);
+      if (pending.size === 0) {
+        setIsTableImagesLoading(false);
+      }
+    }
+  };
+
   const toggleEliminated = (short: string) => {
     if (currentRoom && roomSocketRef.current) {
       if (currentRole !== 'guesser') return;
@@ -1310,8 +1414,75 @@ const App: React.FC = () => {
     }));
   }, [heroesData, currentGuesserSort, guesserSearch, currentMode]);
 
+  // Track table image loading for guesser view - reset pending when list changes
+  if (screen === 'guesser-view' && filteredSorted.length > 0) {
+    const shorts = filteredSorted.map(h => h.short);
+    const pending = pendingTableImagesRef.current;
+    const isDifferent = pending.size !== shorts.length || !shorts.every(s => pending.has(s));
+    if (isDifferent) {
+      pendingTableImagesRef.current = new Set(shorts);
+      setIsTableImagesLoading(true);
+    }
+  } else if (pendingTableImagesRef.current.size > 0) {
+    pendingTableImagesRef.current.clear();
+    setIsTableImagesLoading(false);
+  }
+
   // Update nav on room change
   useEffect(() => { updateNavRoomVisual(); }, [currentRoom]);
+
+  // After render, mark any already-complete (cached) images as loaded
+  React.useEffect(() => {
+    if (screen !== 'guesser-view' || !isTableImagesLoading) return;
+    const id = setTimeout(() => {
+      const grid = document.getElementById('hero-grid');
+      if (!grid) return;
+      const imgs = grid.querySelectorAll('img');
+      const pending = pendingTableImagesRef.current;
+      imgs.forEach((imgEl) => {
+        const cell = (imgEl as HTMLElement).closest('.hero-cell');
+        const short = cell?.getAttribute('data-short');
+        const img = imgEl as HTMLImageElement;
+        if (short && pending.has(short) && img.complete) {
+          pending.delete(short);
+        }
+      });
+      if (pending.size === 0) {
+        setIsTableImagesLoading(false);
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [screen, filteredSorted, isTableImagesLoading]);
+
+  // Safety timeout: hide loading overlay after 5 seconds no matter what
+  React.useEffect(() => {
+    const shouldShowLoading = (isLoadingData && screen === 'leader-view') || 
+                              (screen === 'guesser-view' && (isLoadingData || isTableImagesLoading));
+
+    if (shouldShowLoading) {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+      loadingTimeoutRef.current = window.setTimeout(() => {
+        setIsLoadingData(false);
+        setIsTableImagesLoading(false);
+        pendingTableImagesRef.current.clear();
+        loadingTimeoutRef.current = null;
+      }, 5000);
+    } else {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    }
+
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    };
+  }, [isLoadingData, isTableImagesLoading, screen]);
 
   // Keyboard space to spin (leader)
   useEffect(() => {
@@ -1331,16 +1502,25 @@ const App: React.FC = () => {
     <>
       <GlobalStyle />
 
-      {/* Background looped video */}
+      {/* Background looped video - two layers for smooth crossfade */}
       <video
-        className="fixed inset-0 w-full h-full object-cover z-[-2]"
+        ref={videoARef}
+        src={activeVideo === 0 ? backgroundVideos[currentBgIndex] : undefined}
+        className={`fixed inset-0 w-full h-full object-cover z-[-2] transition-opacity duration-700 ${activeVideo === 0 ? 'opacity-100' : 'opacity-0'}`}
         autoPlay
         loop
         muted
         playsInline
-      >
-        <source src="/videos/background.mp4" type="video/mp4" />
-      </video>
+      />
+      <video
+        ref={videoBRef}
+        src={activeVideo === 1 ? backgroundVideos[currentBgIndex] : undefined}
+        className={`fixed inset-0 w-full h-full object-cover z-[-2] transition-opacity duration-700 ${activeVideo === 1 ? 'opacity-100' : 'opacity-0'}`}
+        autoPlay
+        loop
+        muted
+        playsInline
+      />
 
       {/* Subtle dark overlay to keep readability and Dota tavern feel */}
       <div className="fixed inset-0 bg-black/50 z-[-1]" />
@@ -1358,9 +1538,11 @@ const App: React.FC = () => {
               onClick={() => { setScreen('main-menu'); }} 
               className="logo-frame flex items-center gap-x-2.5 cursor-pointer px-3 py-1.5 rounded-sm"
             >
-              <div className="w-8 h-8 rounded bg-gradient-to-br from-[#c23c2a] to-orange-600 flex items-center justify-center shadow-[0_0_8px_rgba(194,60,42,0.6)] border border-[#8b2a1f]">
-                <i className="fa-solid fa-dice text-white text-xl"></i>
-              </div>
+              <img 
+                src="/images/canvas.png" 
+                alt="Dota Bukva" 
+                className="w-10 h-10 object-contain" 
+              />
               <span className="font-display text-xl font-semibold tracking-tighter text-[#f0c060]">DOTA-BUKVA</span>
             </div>
           </div>
@@ -1409,10 +1591,12 @@ const App: React.FC = () => {
       {screen === 'main-menu' && (
         <div id="main-menu" className="max-w-5xl mx-auto px-5 pt-12 pb-12">
           <div className="text-center mb-10">
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center shadow-inner">
-                <i className="fa-solid fa-dice text-white text-5xl"></i>
-              </div>
+            <div className="flex justify-center mb-6">
+              <img 
+                src="/images/canvas.png" 
+                alt="Dota Bukva" 
+                className="w-28 h-28 object-contain drop-shadow-lg" 
+              />
             </div>
             <h1 className="font-display text-6xl sm:text-7xl font-bold tracking-tighter text-white">DOTA-BUKVA</h1>
             <p className="mt-2 text-zinc-400 text-lg">Крути. Описывай. Отгадывай.</p>
@@ -1451,7 +1635,7 @@ const App: React.FC = () => {
           </div>
 
           <div id="papich-phrase" onClick={() => { /* random phrase load */ }} className="text-center mt-8 text-[11px] text-zinc-500 tracking-wider cursor-pointer">
-            МУЛЬТИПЛЕЕР В РАЗРАБОТКЕ • КОМНАТЫ ДЛЯ ОБЩЕЙ ИГРЫ
+            VERSION 1.0 • МУЛЬТИПЛЕЕР ЕЩЁ В РАЗРАБОТКЕ
           </div>
         </div>
       )}
@@ -1470,10 +1654,10 @@ const App: React.FC = () => {
             {/* Mode switch exact */}
             <div className="mt-4 mb-2">
               <div className="text-[10px] text-zinc-500 tracking-[1.5px] mb-1">РЕЖИМ</div>
-              <div className="inline-flex rounded-2xl border border-[#4a3728] overflow-hidden text-sm">
-                <button onClick={() => loadData('heroes')} className={`px-4 py-1.5 font-medium ${currentMode==='heroes' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'}`}>Герои</button>
-                <button onClick={() => loadData('items')} className={`px-4 py-1.5 font-medium ${currentMode==='items' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'} border-l border-[#4a3728]`}>Предметы</button>
-                <button onClick={() => loadData('abilities')} className={`px-4 py-1.5 font-medium ${currentMode==='abilities' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'} border-l border-[#4a3728]`}>Способности</button>
+              <div className="inline-grid grid-cols-3 rounded-2xl border border-[#4a3728] overflow-hidden text-sm">
+                <button onClick={() => loadData('heroes')} className={`px-4 py-1.5 font-medium text-center ${currentMode==='heroes' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'}`}>Герои</button>
+                <button onClick={() => loadData('items')} className={`px-4 py-1.5 font-medium text-center ${currentMode==='items' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'} border-l border-[#4a3728]`}>Предметы</button>
+                <button onClick={() => loadData('abilities')} className={`px-4 py-1.5 font-medium text-center ${currentMode==='abilities' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'} border-l border-[#4a3728]`}>Способности</button>
               </div>
             </div>
           </div>
@@ -1485,7 +1669,11 @@ const App: React.FC = () => {
                   <div className="text-xs tracking-[2.5px] text-[#c23c2a] font-bold">ДЛЯ ВЕДУЩЕГО</div>
                   <div className="font-display text-4xl tracking-[-1.5px] mt-1 group-hover:text-[#f0c060] transition-colors text-white">Ведущий</div>
                 </div>
-                <i className="fa-solid fa-dice text-4xl text-[#d4af37] group-hover:rotate-12 transition-transform"></i>
+                <img 
+                  src="/images/canvas.png" 
+                  alt="" 
+                  className="w-8 h-8 object-contain group-hover:scale-110 transition-transform" 
+                />
               </div>
               <div className="mt-5 text-[15px] text-zinc-300">Открывается барабан с <span>{currentMode === 'items' ? 'предметом' : currentMode === 'abilities' ? 'способностью' : 'героем'}</span> и буквой.<br />Ты видишь комбинацию и даёшь описание остальным.</div>
               <div className="mt-5 inline-flex items-center text-xs font-semibold tracking-widest text-[#d4af37]">ОТКРЫТЬ БАРАБАН <i className="fa-solid fa-arrow-right ml-2"></i></div>
@@ -1752,7 +1940,16 @@ const App: React.FC = () => {
                 className={`hero-cell ${eliminatedHeroes.has(h.short) ? 'eliminated' : ''} ${!h._match ? 'search-dimmed' : ''}`}
               >
                 <div className="img-wrap">
-                  <img src={getEntryImage(h.short, currentMode)} alt={h.en} loading="lazy" onError={(e:any)=> e.target.src='https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png'} />
+                  <img 
+                    src={getEntryImage(h.short, currentMode)} 
+                    alt={h.en} 
+                    loading="eager" 
+                    onLoad={() => handleTableImageLoad(h.short)}
+                    onError={(e:any) => {
+                      e.target.src='https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png';
+                      handleTableImageLoad(h.short);
+                    }} 
+                  />
                 </div>
                 <div className="hero-label" title={h.ru}>{h.en}</div>
               </div>
@@ -1760,6 +1957,18 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Full-screen loading overlay for барабан and таблицы */}
+      {(() => {
+        const isDrumLoading = isLoadingData && screen === 'leader-view';
+        const isTableLoading = screen === 'guesser-view' && (isLoadingData || isTableImagesLoading);
+        return (isDrumLoading || isTableLoading) && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90] flex flex-col items-center justify-center">
+            <div className="w-10 h-10 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin mb-4"></div>
+            <div className="text-[#d4af37] text-sm tracking-[3px] font-semibold">ЗАГРУЗКА</div>
+          </div>
+        );
+      })()}
 
       {/* HOW TO MODAL - exact */}
       {showHowto && (
@@ -1858,6 +2067,16 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Background change button - bottom right */}
+      <button
+        onClick={changeBackground}
+        disabled={isTransitioning}
+        className="fixed bottom-4 right-4 z-[95] w-9 h-9 bg-black/70 hover:bg-black/90 text-[#d4af37] border border-[#444] hover:border-[#d4af37] rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 disabled:opacity-50"
+        title="Сменить фон"
+      >
+        <i className="fa-solid fa-sync text-base"></i>
+      </button>
     </>
   );
 };
