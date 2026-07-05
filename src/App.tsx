@@ -1454,7 +1454,7 @@ const App: React.FC = () => {
     return () => clearTimeout(id);
   }, [screen, filteredSorted, isTableImagesLoading]);
 
-  // Safety timeout: hide loading overlay after 5 seconds no matter what
+  // Safety timeout: hide loading overlay after 2 seconds no matter what
   React.useEffect(() => {
     const shouldShowLoading = (isLoadingData && screen === 'leader-view') || 
                               (screen === 'guesser-view' && (isLoadingData || isTableImagesLoading));
@@ -1468,7 +1468,7 @@ const App: React.FC = () => {
         setIsTableImagesLoading(false);
         pendingTableImagesRef.current.clear();
         loadingTimeoutRef.current = null;
-      }, 5000);
+      }, 2000);
     } else {
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
