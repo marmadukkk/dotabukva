@@ -128,30 +128,94 @@ const App: React.FC = () => {
     // Client-side data loading (works on Vercel without backend)
     if (mode === 'heroes') {
       try {
-        const res = await fetch('/data/heroes.json');
-        const d = await res.json();
-        const list = d.heroes || [];
+        // Build ru+attr map from bundled snapshot (preserve good Russian names and canonical attrs)
+        let ruMap: Record<string, string> = {};
+        let attrMap: Record<string, string> = {};
+        try {
+          const ruRes = await fetch('/data/heroes.json');
+          const ruD = await ruRes.json();
+          (ruD.heroes || []).forEach((h: any) => {
+            if (h.short) {
+              ruMap[h.short] = h.ru || h.en;
+              if (h.attr) attrMap[h.short] = h.attr;
+            }
+            if (h.en) {
+              ruMap[h.en.toLowerCase()] = h.ru || h.en;
+              if (h.attr) attrMap[h.en.toLowerCase()] = h.attr;
+            }
+          });
+        } catch {}
+
+        // Parse fresh from OpenDota API
+        const res = await fetch('https://api.opendota.com/api/constants/heroes');
+        const rawH = await res.json();
+        let list: any[] = Object.values(rawH || {}).map((h: any) => {
+          const name: string = h.name || '';
+          const short = name.replace(/^npc_dota_hero_/, '');
+          const en = h.localized_name || short;
+          let attr = h.primary_attr || 'str';
+          if (attr === 'all') attr = 'uni';
+          // prefer local attr if we have it (api may report differently)
+          if (attrMap[short]) attr = attrMap[short];
+          const ru = ruMap[short] || ruMap[en.toLowerCase()] || en;
+          return { en, ru, short, attr };
+        });
+        list.sort((a: any, b: any) => a.en.localeCompare(b.en));
         setHeroesData(list);
         setCurrentMode(mode as any);
         return list;
       } catch {
-        const fb = getFallbackHeroes();
-        setHeroesData(fb);
-        setCurrentMode(mode as any);
-        return fb;
+        // Fallback to local json snapshot
+        try {
+          const res = await fetch('/data/heroes.json');
+          const d = await res.json();
+          const list = d.heroes || [];
+          setHeroesData(list);
+          setCurrentMode(mode as any);
+          return list;
+        } catch {
+          const fb = getFallbackHeroes();
+          setHeroesData(fb);
+          setCurrentMode(mode as any);
+          return fb;
+        }
       }
     } else if (mode === 'items') {
-      // Simple client fetch for items (no heavy filtering for Vercel simplicity)
       try {
         const res = await fetch('https://api.opendota.com/api/constants/items');
         const raw = await res.json();
         const list = Object.keys(raw)
-          .filter(k => !k.startsWith('item_recipe_') && !k.startsWith('recipe_') && raw[k].dname)
-          .slice(0, 100)
+          .filter(k => {
+            const it = raw[k];
+            if (!it || !it.dname) return false;
+            if (k.startsWith('item_recipe_') || k.startsWith('recipe_')) return false;
+
+            const key = k.replace(/^item_/, '');
+            const dnameLower = (it.dname || '').toLowerCase();
+
+            // User-requested exclusions for items (drum + table)
+            const exactExclude = [
+              'ofrenda',           // Beloved Memory
+              'furion_gold_bag',   // Bag of Gold
+              'madstone_bundle',
+              'ofrenda_pledge',    // Forebearer's Fortune
+              'ofrenda_shovel',    // Scrying Shovel
+              'mutation_tombstone' // Tombstone
+            ];
+            if (exactExclude.includes(key)) return false;
+
+            // Everything with "river vial" in name
+            if (dnameLower.includes('river vial') || key.includes('river_painter')) return false;
+
+            // All tier tokens
+            if (/^tier\d*_token$/.test(key) || (dnameLower.includes('tier') && dnameLower.includes('token'))) return false;
+
+            return true;
+          })
           .map(k => ({
             en: raw[k].dname,
             ru: raw[k].dname,
-            short: k.replace('item_', ''),
+            short: k.replace(/^item_/, ''),
             attr: 'item'
           }));
         setHeroesData(list);
@@ -167,8 +231,81 @@ const App: React.FC = () => {
         const res = await fetch('https://api.opendota.com/api/constants/abilities');
         const raw = await res.json();
         const list = Object.keys(raw)
-          .filter(k => raw[k].dname && k.includes('_') && !k.includes('special_bonus'))
-          .slice(0, 50)
+          .filter(k => {
+            const a = raw[k];
+            if (!a || !a.dname || !k.includes('_') || k.includes('special_bonus')) return false;
+            const bad = ['creep_', 'neutral_', 'roshan', 'courier', 'filler_', 'dummy_', 'seasonal_', 'necronomicon_', 'forged_spirit', 'spirit_bear', 'eidolon', 'beastmaster_boar', 'lycan_wolf', 'warlock_golem', 'broodmother_spider', 'enigma_eidolon', 'wisp_', 'tusk_frozen', 'phoenix_', 'arc_warden_tempest', 'monkey_king_furarmy', 'dark_willow_creature', 'morphling_replicate', 'naga_', 'meepo_', 'spectre_haunt', 'venomancer_', 'shadow_shaman_serpent', 'shadow_demon_disruption', 'obsidian_destroyer_astral', 'chen_', 'enchantress_', 'furion_', 'keeper_of_the_light_', 'oracle_', 'techies_', 'tinker_', 'visage_', 'clinkz_', 'drow_', 'hoodwink_', 'marci_', 'primal_beast_', 'muerta_', 'ringmaster_', 'backdoor_', 'ancient_', 'siege_', 'healing_ward', 'plague_ward', 'death_ward', 'serpent_ward'];
+            if (bad.some(b => k.includes(b))) return false;
+
+            // User-requested ability exclusions (for drum + table)
+            const excludeAbilities = [
+              'abyssal_underlord_abyssal_horde',
+              'morphling_accumulation',
+              'miniboss_alleviation',
+              'lycan_apex_predator',
+              'frogmen_arm_of_the_deep',
+              'rattletrap_armor_power',
+              'invoker_attribute_bonus',
+              'ursa_bear_down',
+              'lone_druid_bear_necessities',
+              'bounty_hunter_big_game_hunter',
+              'warlock_black_grimoire',
+              'juggernaut_bladeform',
+              'huskar_blood_magic',
+              'tidehunter_blubber',
+              'queenofpain_bondage',
+              'snapfire_boomstick',
+              'bristleback_brawlers_grit',
+              'berserker_troll_break',
+              'dawnbreaker_break_of_dawn',
+              'snapfire_buckshot',
+              'gyrocopter_chop_shop',
+              'leshrac_chronoptic_nourishment',
+              'bounty_hunter_cutpurse',
+              'terrorblade_dark_unity',
+              'mars_dauntless',
+              'furbolg_enrage_damage',
+              'furbolg_enrage_attack_speed',
+              'leshrac_defilement',
+              'doom_bringer_devils_bargain',
+              'faceless_void_distortion_field',
+              'jakiro_double_trouble',
+              'brewmaster_drunken_brawler',
+              'brewmaster_drunken_brawler_brew_up',
+              'juggernaut_duelist',
+              'windrunner_easy_breezy',
+              'morphling_ebb',
+              'morphling_ebb_and_flow',
+              'largo_encore',
+              'winter_wyvern_essence_of_the_blueheart',
+              'enigma_event_horizon',
+              'shredder_exposure_therapy',
+              'morphling_flow',
+              'miniboss_fortification',
+              'chaos_knight_fundamental_forging',
+              'storm_spirit_galvanized',
+              'lone_druid_gift_bearer',
+              'enigma_gravity_well',
+              'witch_doctor_gris_gris',
+              'plus_guild_banner',
+              'batrider_sticky_napalm_application_damage',
+              'abyssal_underling_archer_aoe'
+            ];
+            if (excludeAbilities.includes(k)) return false;
+
+            const dnameLower = (a.dname || '').toLowerCase();
+
+            // всё что имеет в названии "death throe"
+            if (dnameLower.includes('death throe') || k.includes('death_throe')) return false;
+
+            // всё что имеет в названии "eldritch"
+            if (dnameLower.includes('eldritch') || k.includes('eldritch')) return false;
+
+            // archer aura (any remaining)
+            if (dnameLower.includes('archer aura') || k.includes('archer_aoe')) return false;
+
+            return true;
+          })
           .map(k => ({
             en: raw[k].dname,
             ru: raw[k].dname,
@@ -205,6 +342,8 @@ const App: React.FC = () => {
   function getFallbackAbilities() {
     return [
       {"en":"Meat Hook","ru":"Meat Hook","short":"pudge_meat_hook","attr":"ability"},
+      {"en":"Rot","ru":"Rot","short":"pudge_rot","attr":"ability"},
+      {"en":"Dismember","ru":"Dismember","short":"pudge_dismember","attr":"ability"},
       {"en":"Sun Strike","ru":"Sun Strike","short":"invoker_sun_strike","attr":"ability"},
       {"en":"Blink","ru":"Blink","short":"antimage_blink","attr":"ability"}
     ];
@@ -1531,7 +1670,7 @@ const App: React.FC = () => {
             </div>
             <div className="flex items-center gap-x-3 text-sm">
               <div className="text-xs px-3 py-1 rounded bg-[#111] border border-[#4a3728] tabular-nums">
-                <span>{Math.max(0, (heroesData.length||126) - eliminatedHeroes.size)}</span> / <span>{heroesData.length || 126}</span>
+                <span>{Math.max(0, (heroesData.length||0) - eliminatedHeroes.size)}</span> / <span>{heroesData.length || 0}</span>
               </div>
               <button onClick={resetEliminated} className="text-xs px-3 py-1 rounded border border-[#4a3728] hover:border-red-500/60 hover:text-red-400 flex items-center gap-x-1">
                 <i className="fa-solid fa-undo text-[10px]"></i><span>СБРОСИТЬ</span>
