@@ -312,9 +312,12 @@ const App: React.FC = () => {
             short: k,
             attr: 'ability'
           }));
-        setHeroesData(list);
+
+        // Only keep abilities that have a real icon (skip any that would fall back to pudge placeholder)
+        const validated = await filterValidAbilityIcons(list);
+        setHeroesData(validated);
         setCurrentMode(mode as any);
-        return list;
+        return validated;
       } catch {
         const list = getFallbackAbilities();
         setHeroesData(list);
@@ -347,6 +350,55 @@ const App: React.FC = () => {
       {"en":"Sun Strike","ru":"Sun Strike","short":"invoker_sun_strike","attr":"ability"},
       {"en":"Blink","ru":"Blink","short":"antimage_blink","attr":"ability"}
     ];
+  }
+
+  // Filter abilities to only those whose icon actually loads (prevents pudge_lg.png placeholder in table)
+  async function filterValidAbilityIcons(abilities: any[]): Promise<any[]> {
+    if (!abilities || abilities.length === 0) return abilities;
+
+    const CACHE_KEY = 'dota_valid_ability_shorts_v1';
+    const allShorts = abilities.map(a => a.short);
+
+    // Try cache first for instant filtering
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const validShorts: string[] = JSON.parse(cached);
+        const cachedSet = new Set(validShorts);
+        // If most of current list is covered by cache, use it (fast path)
+        const fromCache = abilities.filter(a => cachedSet.has(a.short));
+        if (fromCache.length > 0 && fromCache.length >= Math.floor(allShorts.length * 0.7)) {
+          return fromCache;
+        }
+      }
+    } catch {}
+
+    const valid: any[] = [];
+    const CONCURRENCY = 10;
+
+    const checkIcon = (item: any): Promise<boolean> =>
+      new Promise((resolve) => {
+        const url = getEntryImage(item.short, 'abilities');
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = url;
+      });
+
+    for (let i = 0; i < abilities.length; i += CONCURRENCY) {
+      const batch = abilities.slice(i, i + CONCURRENCY);
+      const results = await Promise.all(batch.map(checkIcon));
+      batch.forEach((item, idx) => {
+        if (results[idx]) valid.push(item);
+      });
+    }
+
+    // Save shorts to cache for next time
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(valid.map(v => v.short)));
+    } catch {}
+
+    return valid;
   }
 
   // Build strips (port of buildHeroStrip / buildLetterStrip)
@@ -1293,21 +1345,7 @@ const App: React.FC = () => {
       {/* Subtle dark overlay to keep readability and Dota tavern feel */}
       <div className="fixed inset-0 bg-black/50 z-[-1]" />
 
-      {/* Wooden sides - exact */}
-      <div className="wood-side wood-left hidden lg:block" aria-hidden="true">
-        <div className="wood-rivet" style={{top:'18%'}}></div>
-        <div className="wood-rivet" style={{top:'42%'}}></div>
-        <div className="wood-rivet" style={{top:'66%'}}></div>
-        <div className="wood-rivet" style={{top:'89%'}}></div>
-      </div>
-      <div className="wood-side wood-right hidden lg:block" aria-hidden="true">
-        <div className="wood-rivet" style={{top:'18%'}}></div>
-        <div className="wood-rivet" style={{top:'42%'}}></div>
-        <div className="wood-rivet" style={{top:'66%'}}></div>
-        <div className="wood-rivet" style={{top:'89%'}}></div>
-      </div>
-
-      {/* NAV - exact */}
+      {/* NAV - exact (top frame only, side frames removed) */}
       <nav className="tavern-header sticky top-0 z-50 shadow-lg relative">
         <div className="header-rivet" style={{left:'28px',top:'26px'}}></div>
         <div className="header-rivet" style={{left:'64px',top:'26px'}}></div>
