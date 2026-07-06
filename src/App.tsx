@@ -1,94 +1,135 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { createGlobalStyle } from 'styled-components';
 
-// Types
-interface SpinResult {
-  hero: string;
-  hero_ru?: string;
-  hero_en?: string;
-  short: string;
-  attr: string;
-  attr_label: string;
-  color: string;
-  image: string;
-  letter: string;
-  multiplier?: number;   // 1 | 2 | 3 | 4  (Ogre Magi Multicast style)
-}
+import { SpinResult, HistoryEntry } from './types';
+import { getEntryImage, getAttrColor } from './utils';
+import { Language, t, getAlphabet, getModeWord, getModePlural, getAttrLabel } from './i18n';
 
-interface HistoryEntry {
-  hero: string;
-  letter: string;
-  text?: string;
-  short?: string;
-  attr?: string;
-  color?: string;
-  image?: string;
-  ts: number;
-}
+// Components
+import MainMenu from './components/MainMenu';
+import RoleMenu from './components/RoleMenu';
+import RoomLobby from './components/RoomLobby';
+import LeaderView from './components/LeaderView';
+import GuesserView from './components/GuesserView';
+import HowToModal from './components/HowToModal';
+import ConfirmModal from './components/ConfirmModal';
+import RoomListModal from './components/RoomListModal';
+import Background from './components/Background';
+import Nav from './components/Nav';
+import LoadingOverlay from './components/LoadingOverlay';
 
-interface RoomInfo {
-  code: string;
-  created?: number;
-  players?: number;
-}
+// Hooks
+import { useAudio } from './hooks/useAudio';
+import { useReels } from './hooks/useReels';
+import { useData } from './hooks/useData';
+import { useRoom } from './hooks/useRoom';
+import { useElimination } from './hooks/useElimination';
+import { useHistory } from './hooks/useHistory';
+import { useMulticast } from './hooks/useMulticast';
+import { useModals } from './hooks/useModals';
+import { useSpin } from './hooks/useSpin';
 
 // Global styles (minimal - most in index.html)
 const GlobalStyle = createGlobalStyle``;
 
-// Helper: get image url
-function getEntryImage(short: string, mode: string): string {
-  if (mode === 'items') return `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${short}_lg.png`;
-  if (mode === 'abilities') return `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/abilities/${short}.png`;
-  return `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${short}_lg.png`;
-}
-
-function getAttrColor(attr: string): string {
-  const colors: Record<string, string> = {
-    'str': '#f97316', 'agi': '#22c55e', 'int': '#a855f7', 'uni': '#eab308',
-    'item': '#60a5fa', 'neutral': '#a78bfa', 'ability': '#67e8f9'
-  };
-  return colors[attr] || '#71717a';
-}
-
 const App: React.FC = () => {
-  // State mirroring original variables
-  const [heroesData, setHeroesData] = useState<any[]>([]);
-  const [currentMode, setCurrentMode] = useState<'heroes' | 'items' | 'abilities'>('heroes');
+  // All state first
+  const [language, setLanguage] = useState<Language>(() => {
+    try {
+      const saved = localStorage.getItem('dota_bukva_lang') as Language;
+      return saved === 'en' || saved === 'ru' ? saved : 'ru';
+    } catch {
+      return 'ru';
+    }
+  });
+  const [showLangMenu, setShowLangMenu] = useState(false);
+
+  // Core states
   const [currentRole, setCurrentRole] = useState<'leader' | 'guesser' | null>(null);
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
   const [isRoomLeader, setIsRoomLeader] = useState(false);
-
   const [isSpinning, setIsSpinning] = useState(false);
   const [lastResult, setLastResult] = useState<SpinResult | null>(null);
-  const [isLoadingData, setIsLoadingData] = useState(false);
-  const [isTableImagesLoading, setIsTableImagesLoading] = useState(false);
-  const pendingTableImagesRef = React.useRef(new Set<string>());
-  const loadingTimeoutRef = React.useRef<number | null>(null);
-
-  // Multicast / multiplier display (Ogre Magi style)
-  const [multicastLevel, setMulticastLevel] = useState(0); // current shown x level during sequence
-  const [currentMultiplier, setCurrentMultiplier] = useState(1);
-  const [sparks, setSparks] = useState<{id: string, tx: number, ty: number, delay: number, size: number}[]>([]); // yellow sparks for higher multipliers
-
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [eliminatedHeroes, setEliminatedHeroes] = useState<Set<string>>(new Set());
-
   const [currentGuesserSort, setCurrentGuesserSort] = useState<'az' | 'za' | 'str' | 'agi' | 'int' | 'uni'>('az');
   const [guesserSearch, setGuesserSearch] = useState('');
-
-  // Room state
   const [roomPlayers, setRoomPlayers] = useState(1);
   const [lobbyStatus, setLobbyStatus] = useState('');
   const [gameStarted, setGameStarted] = useState(false);
+  // Background and screen state (kept minimal)
 
-  // Personal CD
-  const [myFreeElims, setMyFreeElims] = useState(3);
-  const [myLastElim, setMyLastElim] = useState(0);
-  const [elimCD, setElimCD] = useState(0);
+  const languageRef = useRef(language);
+  useEffect(() => { languageRef.current = language; }, [language]);
 
-  // Modals
-  const [showHowto, setShowHowto] = useState(false);
-  const [confirmModal, setConfirmModal] = useState<{ show: boolean; title: string; message: string; onConfirm?: () => void }>({ show: false, title: '', message: '' });
+  const loadingTimeoutRef = React.useRef<number | null>(null);
+
+  // Data
+  const data = useData();
+  const { 
+    heroesData, 
+    currentMode,
+    isLoadingData, 
+    isTableImagesLoading, 
+    pendingTableImagesRef, 
+    setIsTableImagesLoading,
+    setIsLoadingData,
+    loadData: loadDataHook,
+    setHeroesData,
+    setCurrentMode 
+  } = data;
+
+  // Hooks (state provided by hooks)
+  const audio = useAudio();
+  const { playSpinSounds, playDing, playMulticastSound } = audio;
+  const reels = useReels({ heroesData, language, currentMode });
+
+
+
+  const multicast = useMulticast(playMulticastSound);
+  const { 
+    multicastLevel, setMulticastLevel, 
+    currentMultiplier, setCurrentMultiplier, 
+    sparks, setSparks,
+    triggerMulticastSequence, resetMulticast 
+  } = multicast;
+
+
+
+  const historyHook = useHistory();
+  const { history, setHistory, logSpin, clearHistory: clearHistoryHook } = historyHook;
+
+  const spinHook = useSpin({
+    language,
+    currentMode,
+    heroesData,
+    currentRoom,
+    isRoomLeader,
+    reels,
+    audio,
+    setIsSpinning,
+    setLastResult,
+    setCurrentMultiplier,
+    setMulticastLevel,
+    setSparks,
+    setHistory,
+    launchConfetti: () => {},
+  });
+  const { spin: spinFromHook } = spinHook;
+
+  const modals = useModals();
+  const { 
+    showHowto, setShowHowto,
+    confirmModal, setConfirmModal,
+    showRoomListModal, setShowRoomListModal,
+    roomsList, setRoomsList,
+    joinCodeInput, setJoinCodeInput,
+    showConfirm, hideConfirm, showHostingDonation, showRoomInvite, closeRoomListModal 
+  } = modals;
+
+  // room declared earlier
+
+
+  // elimination after room
+
 
   const BG_STORAGE_KEY = 'dota_bukva_background_index';
 
@@ -114,8 +155,39 @@ const App: React.FC = () => {
   });
   const [activeVideo, setActiveVideo] = useState(0); // 0 or 1 for which video element is currently visible
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const videoARef = useRef<HTMLVideoElement>(null);
-  const videoBRef = useRef<HTMLVideoElement>(null);
+
+  const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
+  const room = useRoom({
+    language,
+    currentMode,
+    API_BASE: API_BASE,
+    loadData: loadDataHook,
+    setCurrentRoom,
+    setIsRoomLeader,
+    setRoomPlayers,
+    setLobbyStatus,
+    setGameStarted,
+    setLastResult,
+    setEliminatedHeroes: () => {},
+    setMyFreeElims: () => {},
+    setMyLastElim: () => {},
+    setCurrentRole,
+    stopElimCD: () => {},
+    startElimCD: () => {},
+    handleGameStartedFromWS: () => {
+      setGameStarted(true);
+      if (isRoomLeader) {
+        setCurrentRole('leader');
+      } else {
+        setCurrentRole('guesser');
+        setMyFreeElims(3);
+        setMyLastElim(0);
+      }
+      loadDataHook(currentMode);
+    },
+    landReelResult: (result: any) => setLastResult(result),
+  });
 
   // Persist background index to localStorage
   useEffect(() => {
@@ -124,270 +196,21 @@ const App: React.FC = () => {
     } catch {}
   }, [currentBgIndex]);
 
-  // Initialize the first background on mount (respects saved index)
+  // Persist language
   useEffect(() => {
-    const firstVideo = videoARef.current;
-    if (firstVideo) {
-      firstVideo.src = backgroundVideos[currentBgIndex];
-      firstVideo.play().catch(() => {});
-    }
-  }, []);
+    try {
+      localStorage.setItem('dota_bukva_lang', language);
+    } catch {}
+  }, [language]);
+
+  // Background init is now handled inside Background component
 
   // Room list modal state
-  const [showRoomListModal, setShowRoomListModal] = useState(false);
-  const [roomsList, setRoomsList] = useState<any[]>([]);
-  const [joinCodeInput, setJoinCodeInput] = useState('');
+  // modals state in hook
 
-  // Refs for reels (DOM manipulation for animations to match original exactly)
-  const heroStripRef = useRef<HTMLDivElement>(null);
-  const letterStripRef = useRef<HTMLDivElement>(null);
-  const heroReelRef = useRef<HTMLDivElement>(null);
-  const letterReelRef = useRef<HTMLDivElement>(null);
 
   const roomSocketRef = useRef<WebSocket | null>(null);
   const elimCDIntervalRef = useRef<number | null>(null);
-
-  // Load data (exact same endpoints)
-  const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-
-  const loadData = useCallback(async (mode: string) => {
-    setIsLoadingData(true);
-    // If API base is set, try backend first (for custom backend)
-    if (API_BASE) {
-      let endpoint = `${API_BASE}/api/heroes`;
-      let key = 'heroes';
-      if (mode === 'items') { endpoint = `${API_BASE}/api/items`; key = 'items'; }
-      else if (mode === 'abilities') { endpoint = `${API_BASE}/api/abilities`; key = 'abilities'; }
-
-      try {
-        const res = await fetch(endpoint);
-        if (res.ok) {
-          const data = await res.json();
-          const list = data[key] || data.heroes || data.items || data.abilities || [];
-          setHeroesData(list);
-          setCurrentMode(mode as any);
-          setIsLoadingData(false);
-          return list;
-        }
-      } catch (e) {
-        console.warn('Backend fetch failed, using client-side data');
-      }
-    }
-
-    // Client-side data loading (works on Vercel without backend)
-    if (mode === 'heroes') {
-      try {
-        // Build ru+attr map from bundled snapshot (preserve good Russian names and canonical attrs)
-        let ruMap: Record<string, string> = {};
-        let attrMap: Record<string, string> = {};
-        try {
-          const ruRes = await fetch('/data/heroes.json');
-          const ruD = await ruRes.json();
-          (ruD.heroes || []).forEach((h: any) => {
-            if (h.short) {
-              ruMap[h.short] = h.ru || h.en;
-              if (h.attr) attrMap[h.short] = h.attr;
-            }
-            if (h.en) {
-              ruMap[h.en.toLowerCase()] = h.ru || h.en;
-              if (h.attr) attrMap[h.en.toLowerCase()] = h.attr;
-            }
-          });
-        } catch {}
-
-        // Parse fresh from OpenDota API
-        const res = await fetch('https://api.opendota.com/api/constants/heroes');
-        const rawH = await res.json();
-        let list: any[] = Object.values(rawH || {}).map((h: any) => {
-          const name: string = h.name || '';
-          const short = name.replace(/^npc_dota_hero_/, '');
-          const en = h.localized_name || short;
-          let attr = h.primary_attr || 'str';
-          if (attr === 'all') attr = 'uni';
-          // prefer local attr if we have it (api may report differently)
-          if (attrMap[short]) attr = attrMap[short];
-          const ru = ruMap[short] || ruMap[en.toLowerCase()] || en;
-          return { en, ru, short, attr };
-        });
-        list.sort((a: any, b: any) => a.en.localeCompare(b.en));
-        setHeroesData(list);
-        setCurrentMode(mode as any);
-        setIsLoadingData(false);
-        return list;
-      } catch {
-        // Fallback to local json snapshot
-        try {
-          const res = await fetch('/data/heroes.json');
-          const d = await res.json();
-          const list = d.heroes || [];
-          setHeroesData(list);
-          setCurrentMode(mode as any);
-          setIsLoadingData(false);
-          return list;
-        } catch {
-          const fb = getFallbackHeroes();
-          setHeroesData(fb);
-          setCurrentMode(mode as any);
-          setIsLoadingData(false);
-          return fb;
-        }
-      }
-    } else if (mode === 'items') {
-      try {
-        const res = await fetch('https://api.opendota.com/api/constants/items');
-        const raw = await res.json();
-        const list = Object.keys(raw)
-          .filter(k => {
-            const it = raw[k];
-            if (!it || !it.dname) return false;
-            if (k.startsWith('item_recipe_') || k.startsWith('recipe_')) return false;
-
-            const key = k.replace(/^item_/, '');
-            const dnameLower = (it.dname || '').toLowerCase();
-
-            // User-requested exclusions for items (drum + table)
-            const exactExclude = [
-              'ofrenda',           // Beloved Memory
-              'furion_gold_bag',   // Bag of Gold
-              'madstone_bundle',
-              'ofrenda_pledge',    // Forebearer's Fortune
-              'ofrenda_shovel',    // Scrying Shovel
-              'mutation_tombstone' // Tombstone
-            ];
-            if (exactExclude.includes(key)) return false;
-
-            // Everything with "river vial" in name
-            if (dnameLower.includes('river vial') || key.includes('river_painter')) return false;
-
-            // All tier tokens
-            if (/^tier\d*_token$/.test(key) || (dnameLower.includes('tier') && dnameLower.includes('token'))) return false;
-
-            return true;
-          })
-          .map(k => ({
-            en: raw[k].dname,
-            ru: raw[k].dname,
-            short: k.replace(/^item_/, ''),
-            attr: 'item'
-          }));
-        setHeroesData(list);
-        setCurrentMode(mode as any);
-        setIsLoadingData(false);
-        return list;
-      } catch {
-        setHeroesData([]);
-        setCurrentMode(mode as any);
-        setIsLoadingData(false);
-        return [];
-      }
-    } else if (mode === 'abilities') {
-      try {
-        const res = await fetch('https://api.opendota.com/api/constants/abilities');
-        const raw = await res.json();
-        const list = Object.keys(raw)
-          .filter(k => {
-            const a = raw[k];
-            if (!a || !a.dname || !k.includes('_') || k.includes('special_bonus')) return false;
-            const bad = ['creep_', 'neutral_', 'roshan', 'courier', 'filler_', 'dummy_', 'seasonal_', 'necronomicon_', 'forged_spirit', 'spirit_bear', 'eidolon', 'beastmaster_boar', 'lycan_wolf', 'warlock_golem', 'broodmother_spider', 'enigma_eidolon', 'wisp_', 'tusk_frozen', 'phoenix_', 'arc_warden_tempest', 'monkey_king_furarmy', 'dark_willow_creature', 'morphling_replicate', 'naga_', 'meepo_', 'spectre_haunt', 'venomancer_', 'shadow_shaman_serpent', 'shadow_demon_disruption', 'obsidian_destroyer_astral', 'chen_', 'enchantress_', 'furion_', 'keeper_of_the_light_', 'oracle_', 'techies_', 'tinker_', 'visage_', 'clinkz_', 'drow_', 'hoodwink_', 'marci_', 'primal_beast_', 'muerta_', 'ringmaster_', 'backdoor_', 'ancient_', 'siege_', 'healing_ward', 'plague_ward', 'death_ward', 'serpent_ward'];
-            if (bad.some(b => k.includes(b))) return false;
-
-            // User-requested ability exclusions (for drum + table)
-            const excludeAbilities = [
-              'abyssal_underlord_abyssal_horde',
-              'morphling_accumulation',
-              'miniboss_alleviation',
-              'lycan_apex_predator',
-              'frogmen_arm_of_the_deep',
-              'rattletrap_armor_power',
-              'invoker_attribute_bonus',
-              'ursa_bear_down',
-              'lone_druid_bear_necessities',
-              'bounty_hunter_big_game_hunter',
-              'warlock_black_grimoire',
-              'juggernaut_bladeform',
-              'huskar_blood_magic',
-              'tidehunter_blubber',
-              'queenofpain_bondage',
-              'snapfire_boomstick',
-              'bristleback_brawlers_grit',
-              'berserker_troll_break',
-              'dawnbreaker_break_of_dawn',
-              'snapfire_buckshot',
-              'gyrocopter_chop_shop',
-              'leshrac_chronoptic_nourishment',
-              'bounty_hunter_cutpurse',
-              'terrorblade_dark_unity',
-              'mars_dauntless',
-              'furbolg_enrage_damage',
-              'furbolg_enrage_attack_speed',
-              'leshrac_defilement',
-              'doom_bringer_devils_bargain',
-              'faceless_void_distortion_field',
-              'jakiro_double_trouble',
-              'brewmaster_drunken_brawler',
-              'brewmaster_drunken_brawler_brew_up',
-              'juggernaut_duelist',
-              'windrunner_easy_breezy',
-              'morphling_ebb',
-              'morphling_ebb_and_flow',
-              'largo_encore',
-              'winter_wyvern_essence_of_the_blueheart',
-              'enigma_event_horizon',
-              'shredder_exposure_therapy',
-              'morphling_flow',
-              'miniboss_fortification',
-              'chaos_knight_fundamental_forging',
-              'storm_spirit_galvanized',
-              'lone_druid_gift_bearer',
-              'enigma_gravity_well',
-              'witch_doctor_gris_gris',
-              'plus_guild_banner',
-              'batrider_sticky_napalm_application_damage',
-              'abyssal_underling_archer_aoe'
-            ];
-            if (excludeAbilities.includes(k)) return false;
-
-            const dnameLower = (a.dname || '').toLowerCase();
-
-            // всё что имеет в названии "death throe"
-            if (dnameLower.includes('death throe') || k.includes('death_throe')) return false;
-
-            // всё что имеет в названии "eldritch"
-            if (dnameLower.includes('eldritch') || k.includes('eldritch')) return false;
-
-            // archer aura (any remaining)
-            if (dnameLower.includes('archer aura') || k.includes('archer_aoe')) return false;
-
-            return true;
-          })
-          .map(k => ({
-            en: raw[k].dname,
-            ru: raw[k].dname,
-            short: k,
-            attr: 'ability'
-          }));
-
-        // Only keep abilities that have a real icon (skip any that would fall back to pudge placeholder)
-        const validated = await filterValidAbilityIcons(list);
-        setHeroesData(validated);
-        setCurrentMode(mode as any);
-        setIsLoadingData(false);
-        return validated;
-      } catch {
-        const list = getFallbackAbilities();
-        setHeroesData(list);
-        setCurrentMode(mode as any);
-        setIsLoadingData(false);
-        return list;
-      }
-    }
-
-    const fb = getFallbackHeroes();
-    setHeroesData(fb);
-    setCurrentMode(mode as any);
-    setIsLoadingData(false);
-    return fb;
-  }, []);
 
   function getFallbackHeroes() {
     return [
@@ -399,50 +222,13 @@ const App: React.FC = () => {
     ];
   }
 
-  function getFallbackAbilities() {
-    return [
-      {"en":"Meat Hook","ru":"Meat Hook","short":"pudge_meat_hook","attr":"ability"},
-      {"en":"Rot","ru":"Rot","short":"pudge_rot","attr":"ability"},
-      {"en":"Dismember","ru":"Dismember","short":"pudge_dismember","attr":"ability"},
-      {"en":"Sun Strike","ru":"Sun Strike","short":"invoker_sun_strike","attr":"ability"},
-      {"en":"Blink","ru":"Blink","short":"antimage_blink","attr":"ability"}
-    ];
-  }
-
   const changeBackground = () => {
     if (isTransitioning) return;
-
     const nextIndex = (currentBgIndex + 1) % backgroundVideos.length;
-    const currentActive = activeVideo;
-    const nextActive = 1 - currentActive;
-
-    const nextVideo = nextActive === 0 ? videoARef.current : videoBRef.current;
-    if (!nextVideo) return;
-
     setIsTransitioning(true);
-
-    // Prepare the next video
-    nextVideo.src = backgroundVideos[nextIndex];
-    nextVideo.load();
-
-    nextVideo.oncanplay = () => {
-      nextVideo.play().catch(() => {});
-      nextVideo.oncanplay = null;
-
-      // Start the crossfade
-      setActiveVideo(nextActive);
-      setCurrentBgIndex(nextIndex);
-
-      // End transition after CSS duration
-      setTimeout(() => {
-        setIsTransitioning(false);
-        // Pause the now hidden video to save resources
-        const oldVideo = currentActive === 0 ? videoARef.current : videoBRef.current;
-        if (oldVideo) {
-          oldVideo.pause();
-        }
-      }, 700);
-    };
+    setActiveVideo(1 - activeVideo);
+    setCurrentBgIndex(nextIndex);
+    setTimeout(() => setIsTransitioning(false), 700);
   };
 
   // Filter abilities to only those whose icon actually loads (prevents pudge_lg.png placeholder in table)
@@ -494,73 +280,27 @@ const App: React.FC = () => {
     return valid;
   }
 
-  // Build strips (port of buildHeroStrip / buildLetterStrip)
-  const buildHeroStrip = useCallback(() => {
-    const strip = heroStripRef.current;
-    if (!strip || !heroesData.length) return;
-    strip.innerHTML = '';
-    const duplicates = 15;
-    for (let d = 0; d < duplicates; d++) {
-      heroesData.forEach((hero, idx) => {
-        const item = document.createElement('div');
-        item.className = `slot-item text-white flex items-center gap-x-3`;
-        item.dataset.heroRu = hero.ru;
-        item.dataset.heroEn = hero.en;
-        item.dataset.idx = String(idx);
-        const color = getAttrColor(hero.attr);
-        item.innerHTML = `
-          <div class="flex items-center gap-x-3 w-full">
-            <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${color}"></div>
-            <span class="font-semibold truncate">${hero.en}</span>
-          </div>`;
-        strip.appendChild(item);
-      });
-    }
-    (strip as any).dataset.itemCount = String(heroesData.length);
-    (strip as any).dataset.duplicates = String(duplicates);
-  }, [heroesData]);
-
-  const buildLetterStrip = useCallback(() => {
-    const strip = letterStripRef.current;
-    if (!strip) return;
-    strip.innerHTML = '';
-    const letters = "АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЮЯ".split('');
-    const duplicates = 20;
-    for (let d = 0; d < duplicates; d++) {
-      letters.forEach(letter => {
-        const item = document.createElement('div');
-        item.className = `slot-item text-white flex items-center justify-center font-display`;
-        item.dataset.letter = letter;
-        item.textContent = letter;
-        strip.appendChild(item);
-      });
-    }
-    (strip as any).dataset.itemCount = String(letters.length);
-    (strip as any).dataset.duplicates = String(duplicates);
-  }, []);
-
-  // Rebuild strips when data or mode changes (for leader reels)
+  // Rebuild strips when data, mode or language changes (delegated to useReels hook)
   useEffect(() => {
     if (heroesData.length > 0) {
-      // Only rebuild when in leader view context
       setTimeout(() => {
-        buildHeroStrip();
-        buildLetterStrip();
+        reels.buildHeroStrip();
+        reels.buildLetterStrip();
       }, 30);
     }
-  }, [heroesData, buildHeroStrip, buildLetterStrip]);
+  }, [heroesData, reels.buildHeroStrip, reels.buildLetterStrip, language]);
 
   // Init: load data, history, URL room
   useEffect(() => {
     (async () => {
-      const list = await loadData('heroes');
+      const list = await loadDataHook('heroes');
       if (!list.length) {
         const fb = getFallbackHeroes();
         setHeroesData(fb);
       }
       // Initial random transform for strips (like original)
       setTimeout(() => {
-        const h = heroStripRef.current; const l = letterStripRef.current;
+        const h = reels.heroStripRef.current; const l = reels.letterStripRef.current;
         if (h) h.style.transition = 'none';
         if (l) l.style.transition = 'none';
         if (h) h.style.transform = `translateY(-${Math.floor(Math.random()*9)*78 + 30}px)`;
@@ -605,52 +345,8 @@ const App: React.FC = () => {
     })();
   }, []);
 
-  // Audio helpers (exact port)
-  let audioCtx: AudioContext | null = null;
-  function getAudioContext() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    return audioCtx;
-  }
-  function playTick(volume = 0.08) {
-    try {
-      const ctx = getAudioContext();
-      const osc = ctx.createOscillator(); const gain = ctx.createGain(); const filter = ctx.createBiquadFilter();
-      osc.type = 'square'; osc.frequency.value = 620 + Math.random() * 80;
-      filter.type = 'lowpass'; filter.frequency.value = 1400; gain.gain.value = volume;
-      osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
-      osc.start();
-      setTimeout(() => { gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.035); setTimeout(() => osc.stop(), 50); }, 4);
-    } catch {}
-  }
-  function playSpinSounds(totalDuration: number) {
-    const tickInterval = 38; let elapsed = 0;
-    const iv = setInterval(() => {
-      if (elapsed > totalDuration + 80) { clearInterval(iv); return; }
-      const progress = elapsed / totalDuration;
-      const vol = Math.max(0.015, 0.09 * (1 - progress * 0.7));
-      playTick(vol);
-      elapsed += tickInterval;
-    }, tickInterval);
-  }
-  function playDing() {
-    try {
-      const ctx = getAudioContext();
-      const osc = ctx.createOscillator(); const gain = ctx.createGain(); const filter = ctx.createBiquadFilter();
-      osc.type = 'sine'; osc.frequency.value = 780; filter.type = 'lowpass'; filter.frequency.value = 2200;
-      gain.gain.value = 0.35;
-      osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination); osc.start();
-      setTimeout(() => { gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.65); setTimeout(() => osc.stop(), 720); }, 90);
-    } catch {}
-  }
+  // Audio from hook (declared above)
 
-  // Multicast sounds (Ogre Magi style)
-  function playMulticastSound(level: number) {
-    try {
-      const audio = new Audio(`/sounds/x${level}.mp3`);
-      audio.volume = 0.9;
-      audio.play().catch(() => {});
-    } catch (e) {}
-  }
 
   // Yellow sparks effect - more intense for higher multipliers
   function emitSparks(count = 8, intensity = 1) {
@@ -674,51 +370,8 @@ const App: React.FC = () => {
     }, 900);
   }
 
-  // Show the flashy multicast text with sequential animation (like Ogre Magi)
-  function triggerMulticastSequence(multi: number) {
-    if (!multi || multi < 1) multi = 1;
+  // triggerMulticastSequence from useMulticast hook
 
-    setMulticastLevel(0);
-    setSparks([]); // clear previous sparks
-
-    // x1 always shows first
-    setTimeout(() => {
-      setMulticastLevel(1);
-      playMulticastSound(1);
-      emitSparks(6, 0.8); // more noticeable even on x1
-    }, 50);
-
-    if (multi >= 2) {
-      setTimeout(() => {
-        setMulticastLevel(2);
-        playMulticastSound(2);
-        emitSparks(14, 1.3);
-      }, 480);
-    }
-    if (multi >= 3) {
-      setTimeout(() => {
-        setMulticastLevel(3);
-        playMulticastSound(3);
-        emitSparks(22, 1.8); // intense
-      }, 480 * 2);
-    }
-    if (multi >= 4) {
-      setTimeout(() => {
-        setMulticastLevel(4);
-        playMulticastSound(4);
-        emitSparks(32, 2.5); // very intense
-        // extra bursts for x4
-        setTimeout(() => emitSparks(18, 2.0), 120);
-        setTimeout(() => emitSparks(14, 1.7), 280);
-      }, 480 * 3);
-    }
-
-    // Keep the final level visible for a moment, then optionally hide or leave
-    const keepTime = multi >= 3 ? 1600 : 900;
-    setTimeout(() => {
-      // We leave it visible until next spin or result is shown
-    }, 480 * (multi - 1) + keepTime);
-  }
 
   // Confetti (exact)
   function launchConfetti(count = 40) {
@@ -748,280 +401,9 @@ const App: React.FC = () => {
     draw();
   }
 
-  // Animate reel (core fidelity - ported from original animateReel)
-  async function animateReel(strip: HTMLDivElement, targetIndex: number, duration: number, isLetter: boolean): Promise<void> {
-    return new Promise((resolve) => {
-      const items = Array.from(strip.children) as HTMLElement[];
-      if (!items.length) { resolve(); return; }
-      let safeIndex = Math.max(0, Math.min(targetIndex, items.length - 1));
-      const targetItem = items[safeIndex];
-      const itemHeightActual = targetItem.offsetHeight || (isLetter ? 110 : 78);
-      const windowEl = strip.parentElement as HTMLElement;
-      const windowHeightActual = windowEl.clientHeight || 236;
+  // Spin logic moved to useSpin hook
+  const spin = spinFromHook;
 
-      const leftC = windowEl.querySelector('.reel-cylinder.left .cylinder-strip') as HTMLElement;
-      const rightC = windowEl.querySelector('.reel-cylinder.right .cylinder-strip') as HTMLElement;
-
-      let currentY = 0;
-      const ct = strip.style.transform;
-      const m = ct && ct.match(/translateY\(-?([\d.]+)px\)/);
-      if (m) currentY = parseFloat(m[1]);
-
-      const contentCenter = targetItem.offsetTop + itemHeightActual / 2;
-      const targetOffset = contentCenter - windowHeightActual / 2;
-
-      const originalCount = parseInt((strip as any).dataset.itemCount || (isLetter ? '26' : '126'));
-      const cycleHeight = originalCount * itemHeightActual;
-      const fullRotations = isLetter ? 8 : 6;
-      const rotationDistance = fullRotations * cycleHeight;
-      const finalTranslate = targetOffset + rotationDistance;
-
-      items.forEach(it => it.classList.add('spinning'));
-
-      const anim = strip.animate([
-        { transform: `translateY(-${currentY}px)` },
-        { transform: `translateY(-${finalTranslate}px)` }
-      ], { duration, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' });
-
-      if (leftC) leftC.animate([{transform:`translateY(-${currentY}px)`},{transform:`translateY(-${finalTranslate}px)`}], {duration, easing:'cubic-bezier(0.22, 1, 0.36, 1)', fill:'forwards'});
-      if (rightC) rightC.animate([{transform:`translateY(-${currentY}px)`},{transform:`translateY(-${finalTranslate}px)`}], {duration, easing:'cubic-bezier(0.22, 1, 0.36, 1)', fill:'forwards'});
-
-      anim.onfinish = () => {
-        items.forEach(it => it.classList.remove('spinning'));
-        const baseDuplicate = 2;
-        const relativeIdx = safeIndex % originalCount;
-        const baseItemIdx = relativeIdx + baseDuplicate * originalCount;
-        const baseItem = items[baseItemIdx] || targetItem;
-        const baseContentCenter = baseItem.offsetTop + (baseItem.offsetHeight || itemHeightActual) / 2;
-        const snapY = baseContentCenter - windowHeightActual / 2;
-
-        strip.style.transition = 'none';
-        strip.style.transform = `translateY(-${snapY}px)`;
-        if (leftC) { leftC.style.transition = 'none'; leftC.style.transform = `translateY(-${snapY}px)`; }
-        if (rightC) { rightC.style.transition = 'none'; rightC.style.transform = `translateY(-${snapY}px)`; }
-
-        void strip.offsetWidth;
-        strip.style.transition = 'transform 420ms cubic-bezier(0.23, 1, 0.32, 1)';
-
-        items.forEach(it => it.classList.remove('reel-landed'));
-        const landed = items[baseItemIdx] || baseItem;
-        if (landed) {
-          landed.classList.add('reel-landed');
-          setTimeout(() => landed.classList.remove('reel-landed'), 850);
-        }
-        resolve();
-      };
-    });
-  }
-
-  function findHeroIndexInStrip(strip: HTMLDivElement, targetName: string): number {
-    const items = Array.from(strip.children) as HTMLElement[];
-    const itemCount = parseInt((strip as any).dataset.itemCount || '0');
-    const dups = parseInt((strip as any).dataset.duplicates || '15');
-    const mid = Math.floor(dups / 2);
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].dataset.heroEn === targetName || items[i].dataset.heroRu === targetName) {
-        const dupIdx = Math.floor(i / itemCount);
-        if (dupIdx === mid || dupIdx === mid-1) return i;
-      }
-    }
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].dataset.heroEn === targetName || items[i].dataset.heroRu === targetName) return i;
-    }
-    return 0;
-  }
-  function findLetterIndexInStrip(strip: HTMLDivElement, targetLetter: string): number {
-    const items = Array.from(strip.children) as HTMLElement[];
-    const itemCount = parseInt((strip as any).dataset.itemCount || '26');
-    const dups = parseInt((strip as any).dataset.duplicates || '20');
-    const mid = Math.floor(dups / 2);
-    for (let i=0; i<items.length; i++) {
-      if (items[i].dataset.letter === targetLetter) {
-        const d = Math.floor(i / itemCount);
-        if (d >= mid-1) return i;
-      }
-    }
-    for (let i=0; i<items.length; i++) if (items[i].dataset.letter === targetLetter) return i;
-    return 0;
-  }
-
-  // landReelResult + showResult
-  async function landReelResult(result: SpinResult) {
-    setIsSpinning(true);
-    const heroStrip = heroStripRef.current;
-    const letterStrip = letterStripRef.current;
-    const hReel = heroReelRef.current;
-    const lReel = letterReelRef.current;
-
-    if (hReel) hReel.classList.remove('reel-waiting-spin');
-    if (lReel) lReel.classList.remove('reel-waiting-spin');
-
-    const multi = result.multiplier || 1;
-    setCurrentMultiplier(multi);
-
-    if (!heroStrip || !letterStrip) {
-      showResult(result);
-      setIsSpinning(false);
-      return;
-    }
-
-    const hIdx = findHeroIndexInStrip(heroStrip, result.hero || result.hero_en || '');
-    const lIdx = findLetterIndexInStrip(letterStrip, result.letter);
-
-    // Base durations + extra time for higher multipliers (x2/x3/x4 feel much longer)
-    let hd = 2650 + Math.random() * 400;
-    let ld = 1950 + Math.random() * 300;
-
-    if (multi === 2) {
-      hd += 1350;
-      ld += 1100;
-    } else if (multi === 3) {
-      hd += 2600;
-      ld += 2100;
-    } else if (multi === 4) {
-      hd += 4200;
-      ld += 3400;
-    }
-
-    // Trigger the multicast visual + sounds BEFORE or as reels slow down
-    triggerMulticastSequence(multi);
-
-    playSpinSounds(Math.max(hd, ld));
-
-    await Promise.all([
-      animateReel(heroStrip, hIdx, hd, false),
-      animateReel(letterStrip, lIdx, ld, true)
-    ]);
-    await new Promise(r => setTimeout(r, 180));
-
-    showResult(result);
-
-    if (!currentRoom || isRoomLeader) {
-      logSpin(result);
-    }
-
-    setIsSpinning(false);
-    if (Math.random() > 0.65) launchConfetti(28);
-    playDing();
-
-    // Hide multicast display after result is shown
-    setTimeout(() => {
-      setMulticastLevel(0);
-      setSparks([]);
-    }, 1400);
-  }
-
-  function showResult(result: SpinResult) {
-    setLastResult(result);
-    logSpin(result);
-  }
-
-  function logSpin(result: SpinResult) {
-    const heroName = result.hero || result.hero_en || result.hero_ru || '';
-    if (!heroName || !result.letter) return;
-    const entry: HistoryEntry = {
-      hero: heroName, letter: result.letter, short: result.short,
-      attr: result.attr, color: result.color, image: result.image, ts: Date.now()
-    };
-    setHistory(prev => {
-      const next = [entry, ...prev.filter(h => !(h.hero === entry.hero && h.letter === entry.letter))].slice(0, 30);
-      localStorage.setItem('dota_bukva_history', JSON.stringify(next));
-      return next;
-    });
-  }
-
-  function clearHistory() {
-    showConfirm('Очистить всю историю?', 'Очистить историю', () => {
-      localStorage.removeItem('dota_bukva_history');
-      setHistory([]);
-    });
-  }
-
-  // Spin function (exact behavior)
-  async function spin() {
-    if (isSpinning) return;
-
-    setMulticastLevel(0);
-    setCurrentMultiplier(1);
-
-    // ROOM LEADER SPIN: send via WS, start waiting visual
-    if (currentRoom && roomSocketRef.current) {
-      setIsSpinning(true);
-      const hReel = heroReelRef.current; const lReel = letterReelRef.current;
-      if (hReel) hReel.classList.add('reel-waiting-spin');
-      if (lReel) lReel.classList.add('reel-waiting-spin');
-      sendRoomMessage({ type: 'spin', mode: currentMode });
-      return;
-    }
-
-    setIsSpinning(true);
-
-    // hide result card
-    setLastResult(null);
-
-    let result: SpinResult;
-    try {
-      const res = await fetch(`${API_BASE}/api/spin?mode=${encodeURIComponent(currentMode)}`);
-      result = await res.json();
-    } catch {
-      const fb = heroesData.length ? heroesData : getFallbackHeroes();
-      const entry = fb[Math.floor(Math.random() * fb.length)];
-      const letters = "АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЮЯ".split('');
-      const fimg = (currentMode === 'items')
-        ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/items/${entry.short}_lg.png`
-        : (currentMode === 'abilities')
-          ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/abilities/${entry.short}.png`
-          : `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/${entry.short}_lg.png`;
-
-      // Client fallback multiplier
-      const r = Math.random();
-      const fbMulti = r < 0.40 ? 1 : (r < 0.70 ? 2 : (r < 0.85 ? 3 : 4));
-
-      result = {
-        hero: entry.en, hero_ru: entry.ru, hero_en: entry.en,
-        short: entry.short,
-        attr: entry.attr || (currentMode === 'abilities' ? 'ability' : 'item'),
-        attr_label: currentMode === 'items' ? 'ПРЕДМЕТ' : (currentMode === 'abilities' ? 'СПОСОБНОСТЬ' : (entry.attr === 'str' ? 'СИЛА' : entry.attr === 'agi' ? 'ЛОВКОСТЬ' : 'ИНТЕЛЛЕКТ')),
-        color: getAttrColor(entry.attr || 'str'),
-        image: fimg,
-        letter: letters[Math.floor(Math.random()*letters.length)],
-        multiplier: fbMulti
-      };
-    }
-
-    const multi = result.multiplier || 1;
-    setCurrentMultiplier(multi);
-
-    const hs = heroStripRef.current; const ls = letterStripRef.current;
-    const hT = findHeroIndexInStrip(hs!, result.hero || result.hero_en || '');
-    const lT = findLetterIndexInStrip(ls!, result.letter);
-
-    let hd = 2650 + Math.random() * 400;
-    let ld = 1950 + Math.random() * 300;
-    if (multi === 2) { hd += 1350; ld += 1100; }
-    else if (multi === 3) { hd += 2600; ld += 2100; }
-    else if (multi === 4) { hd += 4200; ld += 3400; }
-
-    triggerMulticastSequence(multi);
-    playSpinSounds(Math.max(hd, ld));
-
-    await Promise.all([animateReel(hs!, hT, hd, false), animateReel(ls!, lT, ld, true)]);
-    await new Promise(r => setTimeout(r, 180));
-
-    showResult(result);
-
-    setTimeout(() => {
-      setMulticastLevel(0);
-      setSparks([]);
-    }, 1400);
-    logSpin(result);
-
-    setIsSpinning(false);
-    if (Math.random() > 0.65) launchConfetti(28);
-    playDing();
-  }
-
-  // Guesser grid logic (exact)
   function getSortedHeroes() {
     let list = [...heroesData];
     const m = currentMode;
@@ -1034,11 +416,7 @@ const App: React.FC = () => {
     return list;
   }
 
-  function renderGuesserGrid(filter = '', target = 'hero-grid', readonly = false) {
-    // We render in JSX below, this function is used for imperative update in some cases
-    // For React we will use derived state.
-  }
-
+  // Elimination logic moved to useElimination hook
   const handleTableImageLoad = (short: string) => {
     const pending = pendingTableImagesRef.current;
     if (pending.has(short)) {
@@ -1049,178 +427,56 @@ const App: React.FC = () => {
     }
   };
 
-  const toggleEliminated = (short: string) => {
-    if (currentRoom && roomSocketRef.current) {
-      if (currentRole !== 'guesser') return;
-      const now = Date.now() / 1000;
-      if (myFreeElims <= 0 && now - myLastElim < 25) return;
-
-      sendRoomMessage({ type: 'eliminate', short });
-
-      setEliminatedHeroes(prev => {
-        const n = new Set(prev);
-        n.add(short);
-        return n;
-      });
-
-      let newFree = myFreeElims;
-      let newLast = myLastElim;
-      if (myFreeElims > 0) newFree--;
-      else newLast = now;
-      setMyFreeElims(newFree);
-      setMyLastElim(newLast);
-      updateFreeElimsVisual(newFree);
-      if (newFree <= 0) {
-        const rem = Math.max(0, 25 - (Date.now()/1000 - newLast));
-        if (rem > 0) startElimCD(rem);
-      }
-      return;
-    }
-
-    setEliminatedHeroes(prev => {
-      const next = new Set(prev);
-      if (next.has(short)) next.delete(short); else next.add(short);
-      localStorage.setItem('dota_bukva_eliminated', JSON.stringify(Array.from(next)));
-      return next;
-    });
+  const setGuesserSort = (s: any) => {
+    setCurrentGuesserSort(s);
   };
 
-  function updateGuesserStatsLocal(total: number, elim: number) {
-    // handled in render
-  }
+  // startElimCD defined earlier
+  // stopElimCD and startElimCD defined earlier for useRoom hook
 
-  function resetEliminated() {
-    const msg = currentMode === 'items' ? 'Сбросить все вычеркнутые предметы?' : (currentMode === 'abilities' ? 'Сбросить все вычеркнутые способности?' : 'Сбросить все вычеркнутые герои?');
-    showConfirm(msg, 'Сброс вычеркнутых', () => {
-      setEliminatedHeroes(new Set());
-      localStorage.setItem('dota_bukva_eliminated', '[]');
-    });
-  }
-
-  function setGuesserSort(s: any) {
-    setCurrentGuesserSort(s);
-  }
-
-  // Free elims UI
-  function updateFreeElimsVisual(free: number) {
-    // React state driven
-  }
-
-  function startElimCD(secs: number) {
-    if (elimCDIntervalRef.current) clearInterval(elimCDIntervalRef.current);
-    setElimCD(Math.ceil(secs));
-    elimCDIntervalRef.current = window.setInterval(() => {
-      setElimCD(prev => {
-        const n = prev - 1;
-        if (n <= 0) {
-          if (elimCDIntervalRef.current) { clearInterval(elimCDIntervalRef.current); elimCDIntervalRef.current = null; }
-          return 0;
-        }
-        return n;
-      });
-    }, 1000);
-  }
-  function stopElimCD() {
-    if (elimCDIntervalRef.current) clearInterval(elimCDIntervalRef.current);
-    elimCDIntervalRef.current = null;
-    setElimCD(0);
-  }
-
-  // WS room - exact replication of connect + handle
-  function connectToRoomWS(code: string, role = 'guesser') {
-    // WebSocket disabled for Vercel deployment (no persistent server)
-    if (API_BASE || window.location.hostname.includes('vercel.app') || import.meta.env.PROD) {
-      // WebSocket / real-time rooms disabled for Vercel / production
-      // Client-side demo mode (localStorage rooms) is used instead.
-      return;
-    }
-    if (roomSocketRef.current) {
-      try { roomSocketRef.current.close(); } catch {}
-    }
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${proto}//${location.host}/ws/room/${code}?role=${role}`;
-    const ws = new WebSocket(url);
-    roomSocketRef.current = ws;
-
-    ws.onopen = () => {
-      setLobbyStatus(role === 'leader' ? 'Вы ведущий. Соединение установлено. Нажмите «Начать игру», когда все подключатся.' : 'Вы отгадывающий. Соединение установлено. Ожидайте, пока ведущий начнёт игру.');
-    };
-    ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data);
-        handleRoomMessage(msg);
-      } catch {}
-    };
-    ws.onclose = () => {
-      roomSocketRef.current = null;
-      // simple retry omitted for brevity, matches original retry logic can be added
-    };
-  }
-
-  function sendRoomMessage(data: any) {
-    if (roomSocketRef.current && roomSocketRef.current.readyState === WebSocket.OPEN) {
-      roomSocketRef.current.send(JSON.stringify(data));
-    }
-  }
-
-  function handleRoomMessage(msg: any) {
-    if (msg.type === 'spin_result' && msg.result) {
-      if (isRoomLeader || currentRole === 'leader') {
-        landReelResult(msg.result);
-      } else {
-        setLastResult(msg.result);
-      }
-    }
-    if (msg.type === 'state' && msg.current_spin) {
-      setLastResult(msg.current_spin);
-    }
-    if ((msg.type === 'state' || msg.type === 'eliminated_update') && msg.eliminated) {
-      const newElim = new Set<string>(msg.eliminated);
-      setEliminatedHeroes(newElim);
-    }
-    if (msg.type === 'game_started') {
-      handleGameStartedFromWS();
-    }
-    if (msg.type === 'state' && msg.game_started) {
-      handleGameStartedFromWS();
-    }
-    if (msg.type === 'elim_personal') {
-      setMyFreeElims(msg.free_elims || 0);
-      setMyLastElim(msg.last_elim_time || 0);
-      stopElimCD();
-      if ((msg.free_elims || 0) <= 0 && msg.last_elim_time) {
-        const rem = Math.max(0, 25 - (Date.now()/1000 - msg.last_elim_time));
-        if (rem > 0) startElimCD(rem);
-      }
-    }
-    if (msg.players !== undefined) {
-      setRoomPlayers(msg.players);
-    }
-  }
-
-  function handleGameStartedFromWS() {
-    setGameStarted(true);
-    if (isRoomLeader) {
-      setCurrentRole('leader');
-      // load data + build
-      loadData(currentMode).then(() => {});
-    } else {
-      setCurrentRole('guesser');
-      setMyFreeElims(3); setMyLastElim(0);
-      loadData(currentMode).then(() => {});
-    }
-  }
+  const connectToRoomWS = room.connectToRoomWS || (() => {});
+  const sendRoomMessage = room.sendRoomMessage || (() => {});
+  const handleRoomMessage = room.handleRoomMessage || (() => {});
+  const handleGameStartedFromWS = room.handleGameStartedFromWS || (() => {});
 
   // Navigation / screen switching (exact hide/show + history)
   const [screen, setScreen] = useState<'main-menu' | 'role-menu' | 'room-lobby' | 'leader-view' | 'guesser-view'>('main-menu');
 
+  const [myFreeElims, setMyFreeElims] = useState(3);
+  const [myLastElim, setMyLastElim] = useState(0);
+  const [eliminatedHeroes, setEliminatedHeroes] = useState<Set<string>>(new Set());
+  const [elimCD, setElimCD] = useState(0);
+
+  const toggleEliminated = (short: string) => {
+    setEliminatedHeroes(prev => {
+      const next = new Set(prev);
+      if (next.has(short)) next.delete(short); else next.add(short);
+      return next;
+    });
+  };
+
+  const resetEliminatedFn = () => {
+    setEliminatedHeroes(new Set());
+  };
+
+  // Refresh translated lobby status when language changes
+  useEffect(() => {
+    if (screen === 'room-lobby' && currentRoom) {
+      const leader = isRoomLeader;
+      const newStatus = leader 
+        ? t(language, 'room.statusLeaderConnect') 
+        : t(language, 'room.statusGuesserConnect');
+      setLobbyStatus(newStatus);
+    }
+  }, [language, screen, currentRoom, isRoomLeader]);
+
   // Ensure correct data for the reel when mode or leader context changes
   useEffect(() => {
     if ((screen === 'leader-view' || currentRole === 'leader') && currentMode) {
-      loadData(currentMode).then(() => {
+      loadDataHook(currentMode).then(() => {
         setTimeout(() => {
-          buildHeroStrip();
-          buildLetterStrip();
+          reels.buildHeroStrip();
+          reels.buildLetterStrip();
         }, 20);
       });
     }
@@ -1233,7 +489,7 @@ const App: React.FC = () => {
     }
     if (s === 'leader-view') {
       // rebuild reels
-      setTimeout(() => { buildHeroStrip(); buildLetterStrip(); }, 60);
+      setTimeout(() => { reels.buildHeroStrip(); reels.buildLetterStrip(); }, 60);
     }
   }
 
@@ -1247,9 +503,9 @@ const App: React.FC = () => {
     setCurrentRole('leader');
     localStorage.setItem('dota_bukva_role', 'leader');
     switchToScreen('leader-view');
-    await loadData(currentMode);
+    await loadDataHook(currentMode);
     setTimeout(() => {
-      buildHeroStrip(); buildLetterStrip();
+      reels.buildHeroStrip(); reels.buildLetterStrip();
     }, 50);
     updateNavRoleVisual();
     if (currentRoom) connectToRoomWS(currentRoom, 'leader');
@@ -1258,7 +514,7 @@ const App: React.FC = () => {
     setCurrentRole('guesser');
     localStorage.setItem('dota_bukva_role', 'guesser');
     switchToScreen('guesser-view');
-    await loadData(currentMode);
+    await loadDataHook(currentMode);
     updateNavRoleVisual();
     if (currentRoom) {
       connectToRoomWS(currentRoom, 'guesser');
@@ -1277,131 +533,24 @@ const App: React.FC = () => {
     switchToScreen('role-menu');
   }
 
-  // Room flows
-  async function createRoom() {
-    try {
-      const res = await fetch(`${API_BASE}/api/rooms/create`, { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentRoom(data.code);
-        setIsRoomLeader(true);
-        const my = JSON.parse(localStorage.getItem('dota_bukva_my_rooms') || '[]');
-        if (!my.includes(data.code)) { my.push(data.code); localStorage.setItem('dota_bukva_my_rooms', JSON.stringify(my)); }
-        updateNavRoomVisual();
-        showRoomLobby(data.code, true);
-        connectToRoomWS(data.code, 'leader');
-        // invite popup
-        setTimeout(() => showRoomInvite(data.code), 600);
-      }
-    } catch {
-      // fallback client demo room
-      const code = generateClientRoomCode();
-      setCurrentRoom(code); setIsRoomLeader(true);
-      let roomsL = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
-      roomsL = roomsL.filter((r:any)=>r.code!==code); roomsL.unshift({code, created: Date.now()});
-      localStorage.setItem('dota_bukva_rooms', JSON.stringify(roomsL));
-      const my = JSON.parse(localStorage.getItem('dota_bukva_my_rooms')||'[]'); if(!my.includes(code)){my.push(code);localStorage.setItem('dota_bukva_my_rooms',JSON.stringify(my));}
-      showRoomLobby(code, true);
-    }
-  }
+  // Room flows now from hook
+  const createRoom = room.createRoom;
+  const generateClientRoomCode = room.generateClientRoomCode;
+  const showRoomList = () => room.showRoomList(setRoomsList, setJoinCodeInput, setShowRoomListModal);
+  // close from modals
 
-  function generateClientRoomCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let c = ''; for(let i=0;i<6;i++) c += chars[Math.floor(Math.random()*chars.length)]; return c;
-  }
-
-  async function showRoomList() {
-    let rooms: any[] = [];
-    try {
-      const res = await fetch(`${API_BASE}/api/rooms`);
-      if (res.ok) {
-        const data = await res.json();
-        rooms = data.rooms || [];
-      } else {
-        throw new Error('backend not available');
-      }
-    } catch {
-      rooms = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
-    }
-    setRoomsList(rooms);
-    setJoinCodeInput('');
-    setShowRoomListModal(true);
-  }
-
-  function closeRoomListModal() {
-    setShowRoomListModal(false);
-    setJoinCodeInput('');
-  }
-
-  function joinRoom(code: string) {
-    const c = code.toUpperCase();
-    setCurrentRoom(c);
-    const my = JSON.parse(localStorage.getItem('dota_bukva_my_rooms') || '[]');
-    const leader = my.includes(c);
-    setIsRoomLeader(leader);
-    if (!leader) { setMyFreeElims(3); setMyLastElim(0); }
-    showRoomLobby(c, leader);
-    connectToRoomWS(c, leader ? 'leader' : 'guesser');
-
-    // Close room list modal if it's open
-    closeRoomListModal();
-  }
-
-  function showRoomLobby(code: string, leader: boolean) {
-    setCurrentRoom(code);
-    setIsRoomLeader(leader);
-    setScreen('room-lobby');
-    setLobbyStatus(leader ? 'Вы ведущий. Подключаемся к комнате...' : 'Вы отгадывающий. Подключаемся к комнате...');
-  }
-
-  function startGameFromLobby() {
-    if (!isRoomLeader) return;
-    sendRoomMessage({ type: 'start_game' });
-    handleGameStartedFromWS();
-  }
-
-  function handleGameStartedFromLobby() {
-    // called from state
-  }
-
-  function leaveRoom() {
-    if (roomSocketRef.current) { try { roomSocketRef.current.close(); } catch{} roomSocketRef.current = null; }
-    setCurrentRoom(null); setIsRoomLeader(false); setScreen('main-menu');
-  }
+  const joinRoom = (code: string) => room.joinRoom(code, closeRoomListModal);
+  const showRoomLobby = room.showRoomLobby;
+  const startGameFromLobby = room.startGameFromLobby;
+  const leaveRoom = room.leaveRoom;
 
   function updateNavRoomVisual() {
     // The nav room badge is rendered in JSX below
   }
   function updateNavRoleVisual() { /* handled in render */ }
 
-  function showHostingDonation() {
-    setConfirmModal({
-      show: true,
-      title: 'Мультиплеер в разработке',
-      message: 'СОБИРАЮ ДОНАТЫ НА ХОСТ @mrmdkkkk',
-      onConfirm: () => setConfirmModal({show:false, title:'', message:''})
-    });
-  }
+  // modals functions from hook
 
-  function showRoomInvite(code: string) {
-    const link = `${window.location.origin}/?room=${code}`;
-    setConfirmModal({
-      show: true,
-      title: 'Комната создана',
-      message: `Код: ${code}\n\nСсылка: ${link}`,
-      onConfirm: () => { navigator.clipboard?.writeText(link); setConfirmModal({show:false,title:'',message:''}); }
-    });
-  }
-
-  function showConfirm(message: string, title: string, onYes?: () => void) {
-    setConfirmModal({ show: true, title, message, onConfirm: onYes });
-  }
-
-  function hideConfirm(confirmed: boolean) {
-    const cb = confirmModal.onConfirm;
-    setConfirmModal({ show: false, title: '', message: '' });
-    if (confirmed && cb) cb();
-  }
 
   // Render helpers for grid
   const filteredSorted = React.useMemo(() => {
@@ -1504,581 +653,147 @@ const App: React.FC = () => {
     <>
       <GlobalStyle />
 
-      {/* Background looped video - two layers for smooth crossfade */}
-      <video
-        ref={videoARef}
-        src={activeVideo === 0 ? backgroundVideos[currentBgIndex] : undefined}
-        className={`fixed inset-0 w-full h-full object-cover z-[-2] transition-opacity duration-700 ${activeVideo === 0 ? 'opacity-100' : 'opacity-0'}`}
-        autoPlay
-        loop
-        muted
-        playsInline
-      />
-      <video
-        ref={videoBRef}
-        src={activeVideo === 1 ? backgroundVideos[currentBgIndex] : undefined}
-        className={`fixed inset-0 w-full h-full object-cover z-[-2] transition-opacity duration-700 ${activeVideo === 1 ? 'opacity-100' : 'opacity-0'}`}
-        autoPlay
-        loop
-        muted
-        playsInline
+      {/* Background videos component */}
+      <Background
+        currentBgIndex={currentBgIndex}
+        activeVideo={activeVideo}
+        isTransitioning={isTransitioning}
+        backgroundVideos={backgroundVideos}
+        onChangeBackground={changeBackground}
       />
 
-      {/* Subtle dark overlay to keep readability and Dota tavern feel */}
-      <div className="fixed inset-0 bg-black/50 z-[-1]" />
-
-      {/* NAV - exact (top frame only, side frames removed) */}
-      <nav className="tavern-header sticky top-0 z-50 shadow-lg relative">
-        <div className="header-rivet" style={{left:'28px',top:'26px'}}></div>
-        <div className="header-rivet" style={{left:'64px',top:'26px'}}></div>
-        <div className="header-rivet" style={{right:'28px',top:'26px'}}></div>
-        <div className="header-rivet" style={{right:'64px',top:'26px'}}></div>
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          {/* Left logo area - Dota style frame with orange accent */}
-          <div className="flex items-center">
-            <div 
-              onClick={() => { setScreen('main-menu'); }} 
-              className="logo-frame flex items-center gap-x-2.5 cursor-pointer px-3 py-1.5 rounded-sm"
-            >
-              <img 
-                src="/images/canvas.png" 
-                alt="Dota Bukva" 
-                className="w-10 h-10 object-contain" 
-              />
-              <span className="font-display text-xl font-semibold tracking-tighter text-[#f0c060]">DOTA-BUKVA</span>
-            </div>
-          </div>
-
-          {/* Right side controls in Dota-like frame */}
-          <div className="controls-frame flex items-center gap-x-1 px-2 py-1 rounded-sm text-sm">
-            {currentRole && (
-              <div 
-                id="nav-role" 
-                onClick={showRoleMenu} 
-                className="flex items-center gap-x-1.5 px-3 py-0.5 rounded border border-[#444] hover:border-[#c23c2a] cursor-pointer text-xs bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors"
-              >
-                <span className="font-medium text-[#e0d2b0]">{currentRole === 'leader' ? 'ВЕДУЩИЙ' : 'ОТГАДЫВАЮЩИЙ'}</span>
-                <span className="text-[#c23c2a] text-[10px] tracking-widest">СМЕНИТЬ</span>
-              </div>
-            )}
-            
-            <div 
-              onClick={() => setShowHowto(true)} 
-              className="flex items-center gap-x-1.5 px-3 py-0.5 rounded border border-[#444] hover:border-[#c23c2a] cursor-pointer text-xs bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors text-[#d4af37]"
-            >
-              <i className="fa-solid fa-question-circle text-sm"></i>
-              <span className="hidden sm:inline font-medium tracking-widest">КАК ИГРАТЬ</span>
-            </div>
-
-            {currentRoom && (
-              <div 
-                id="nav-room-badge" 
-                onClick={() => { const l = `${window.location.origin}/?room=${currentRoom}`; navigator.clipboard?.writeText(l); }} 
-                className="flex items-center gap-x-1.5 px-3 py-0.5 text-xs rounded border border-[#444] bg-[#1f1f1f] cursor-pointer hover:bg-[#2a2a2a]"
-              >
-                <span className="font-mono text-[#f0c060] tracking-[2px]">{currentRoom}</span>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); leaveRoom(); }} 
-                  className="text-[#888] hover:text-white ml-1 text-[10px] leading-none"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
+      {/* NAV */}
+      <Nav
+        language={language}
+        currentRole={currentRole}
+        currentRoom={currentRoom}
+        showLangMenu={showLangMenu}
+        onShowRoleMenu={showRoleMenu}
+        onShowHowto={() => setShowHowto(true)}
+        onLeaveRoom={leaveRoom}
+        onToggleLangMenu={() => setShowLangMenu(!showLangMenu)}
+        onChangeLanguage={(lang) => {
+          setLanguage(lang);
+          setShowLangMenu(false);
+        }}
+        onLogoClick={() => {
+          setCurrentRoom(null);
+          setIsRoomLeader(false);
+          setCurrentRole(null);
+          setGameStarted(false);
+          setLastResult(null);
+          setScreen('main-menu');
+        }}
+      />
 
       {/* MAIN MENU */}
       {screen === 'main-menu' && (
-        <div id="main-menu" className="max-w-5xl mx-auto px-5 pt-12 pb-12">
-          <div className="text-center mb-10">
-            <div className="flex justify-center mb-6">
-              <img 
-                src="/images/canvas.png" 
-                alt="Dota Bukva" 
-                className="w-28 h-28 object-contain drop-shadow-lg" 
-              />
-            </div>
-            <h1 className="font-display text-6xl sm:text-7xl font-bold tracking-tighter text-white">DOTA-BUKVA</h1>
-            <p className="mt-2 text-zinc-400 text-lg">Крути. Описывай. Отгадывай.</p>
-          </div>
-
-          <div className="max-w-md mx-auto space-y-4">
-            <div onClick={startNormalMode} className="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
-              <div className="flex items-center gap-4">
-                <i className="fa-solid fa-gamepad text-3xl text-[#d4af37]"></i>
-                <div>
-                  <div className="font-display text-2xl tracking-tight text-white">Обычный режим</div>
-                  <div className="text-sm text-zinc-400 mt-0.5">Играть без комнаты (классика)</div>
-                </div>
-              </div>
-            </div>
-
-            <div onClick={showHostingDonation} className="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
-              <div className="flex items-center gap-4">
-                <i className="fa-solid fa-plus text-3xl text-[#d4af37] group-hover:rotate-90 transition-transform"></i>
-                <div>
-                  <div className="font-display text-2xl tracking-tight text-white">Создать комнату</div>
-                  <div className="text-sm text-zinc-400 mt-0.5">Сгенерировать код и пригласить друзей</div>
-                </div>
-              </div>
-            </div>
-
-            <div onClick={showRoomList} className="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
-              <div className="flex items-center gap-4">
-                <i className="fa-solid fa-list text-3xl text-[#d4af37]"></i>
-                <div>
-                  <div className="font-display text-2xl tracking-tight text-white">Список комнат</div>
-                  <div className="text-sm text-zinc-400 mt-0.5">Присоединиться к существующей комнате</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div id="papich-phrase" onClick={() => { /* random phrase load */ }} className="text-center mt-8 text-[11px] text-zinc-500 tracking-wider cursor-pointer">
-            VERSION 1.0 • МУЛЬТИПЛЕЕР ЕЩЁ В РАЗРАБОТКЕ
-          </div>
-        </div>
+        <MainMenu
+          language={language}
+          onStartNormal={startNormalMode}
+          onCreateRoom={() => showHostingDonation((key) => t(language, key))}
+          onShowRooms={showRoomList}
+        />
       )}
 
       {/* ROLE MENU */}
       {screen === 'role-menu' && (
-        <div id="role-menu" className="max-w-5xl mx-auto px-5 pt-8 pb-12">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-x-2 text-[#d4af37] text-xs tracking-[4px] font-semibold mb-3">
-              <i className="fa-solid fa-users"></i>
-              <span>ИГРА В КОМПАНИИ</span>
-            </div>
-            <h1 className="font-display text-5xl sm:text-6xl font-bold tracking-tighter text-white">Выбери роль</h1>
-            <p className="mt-2 text-zinc-400 text-[15px]">Один ведущий крутит и даёт подсказки. Остальные вычёркивают героев.</p>
-
-            {/* Mode switch exact */}
-            <div className="mt-4 mb-2">
-              <div className="text-[10px] text-zinc-500 tracking-[1.5px] mb-1">РЕЖИМ</div>
-              <div className="inline-grid grid-cols-3 rounded-2xl border border-[#4a3728] overflow-hidden text-sm">
-                <button onClick={() => loadData('heroes')} className={`px-4 py-1.5 font-medium text-center ${currentMode==='heroes' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'}`}>Герои</button>
-                <button onClick={() => loadData('items')} className={`px-4 py-1.5 font-medium text-center ${currentMode==='items' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'} border-l border-[#4a3728]`}>Предметы</button>
-                <button onClick={() => loadData('abilities')} className={`px-4 py-1.5 font-medium text-center ${currentMode==='abilities' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'} border-l border-[#4a3728]`}>Способности</button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto">
-            <div onClick={enterLeader} className="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-xs tracking-[2.5px] text-[#c23c2a] font-bold">ДЛЯ ВЕДУЩЕГО</div>
-                  <div className="font-display text-4xl tracking-[-1.5px] mt-1 group-hover:text-[#f0c060] transition-colors text-white">Ведущий</div>
-                </div>
-                <img 
-                  src="/images/canvas.png" 
-                  alt="" 
-                  className="w-8 h-8 object-contain group-hover:scale-110 transition-transform" 
-                />
-              </div>
-              <div className="mt-5 text-[15px] text-zinc-300">Открывается барабан с <span>{currentMode === 'items' ? 'предметом' : currentMode === 'abilities' ? 'способностью' : 'героем'}</span> и буквой.<br />Ты видишь комбинацию и даёшь описание остальным.</div>
-              <div className="mt-5 inline-flex items-center text-xs font-semibold tracking-widest text-[#d4af37]">ОТКРЫТЬ БАРАБАН <i className="fa-solid fa-arrow-right ml-2"></i></div>
-            </div>
-
-            <div onClick={enterGuesser} className="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-xs tracking-[2.5px] text-emerald-400 font-bold">ДЛЯ ОТГАДЫВАЮЩИХ</div>
-                  <div className="font-display text-4xl tracking-[-1.5px] mt-1 group-hover:text-[#f0c060] transition-colors text-white">Отгадывающий</div>
-                </div>
-                <i className="fa-solid fa-th-large text-4xl text-[#d4af37] group-hover:scale-110 transition-transform"></i>
-              </div>
-              <div className="mt-5 text-[15px] text-zinc-300">Большая таблица всех <span>{currentMode==='items'?'предметов':currentMode==='abilities'?'способностей':'героев'}</span> Dota 2.<br />Кликай по иконкам — они становятся серыми (вычеркнуты).</div>
-              <div className="mt-5 inline-flex items-center text-xs font-semibold tracking-widest text-[#d4af37]">ОТКРЫТЬ ТАБЛИЦУ <i className="fa-solid fa-arrow-right ml-2"></i></div>
-            </div>
-          </div>
-        </div>
+        <RoleMenu
+          language={language}
+          currentMode={currentMode}
+          onLoadMode={(mode) => loadDataHook(mode)}
+          onEnterLeader={enterLeader}
+          onEnterGuesser={enterGuesser}
+        />
       )}
 
       {/* ROOM LOBBY */}
       {screen === 'room-lobby' && currentRoom && (
-        <div id="room-lobby" className="max-w-3xl mx-auto px-5 pt-8 pb-12">
-          <div className="text-center mb-6">
-            <div className="text-[#d4af37] text-xs tracking-[3px] mb-1">КОМНАТА</div>
-            <div className="font-mono text-4xl text-[#f0c060] tracking-[4px] cursor-pointer" onClick={() => { const l = `${location.origin}/?room=${currentRoom}`; navigator.clipboard.writeText(l); }}>{currentRoom}</div>
-          </div>
-
-          <div className="dota-card rounded-2xl p-6 border-2 border-[#4a3728] max-w-md mx-auto">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <div className="text-sm text-zinc-400">Игроков подключено</div>
-                <div className="text-2xl font-semibold text-white">{roomPlayers}</div>
-              </div>
-              <div className={`px-3 py-1 text-xs rounded-full border font-medium ${isRoomLeader ? 'border-[#c23c2a] text-[#f0c060]' : 'border-emerald-400 text-emerald-400'}`}>
-                {isRoomLeader ? 'Ведущий' : 'Отгадывающий'}
-              </div>
-            </div>
-
-            <div className="text-[#e0d2b0] text-sm mb-6 min-h-[40px]">{lobbyStatus}</div>
-
-            {isRoomLeader && (
-              <button id="lobby-start-btn" onClick={startGameFromLobby} className="w-full h-11 bg-[#c23c2a] hover:bg-[#e04a38] text-white font-semibold rounded-xl border border-[#d4af37]">
-                НАЧАТЬ ИГРУ
-              </button>
-            )}
-            {!isRoomLeader && <div className="text-center text-xs text-zinc-500">Ожидайте, пока ведущий начнёт игру...</div>}
-          </div>
-        </div>
+        <RoomLobby
+          language={language}
+          roomCode={currentRoom}
+          roomPlayers={roomPlayers}
+          isLeader={isRoomLeader}
+          lobbyStatus={lobbyStatus}
+          onStartGame={startGameFromLobby}
+          onLeave={leaveRoom}
+        />
       )}
 
-      {/* LEADER VIEW - exact structure */}
+      {/* LEADER VIEW */}
       {screen === 'leader-view' && (
-        <div id="leader-view">
-          <div className="max-w-5xl mx-auto px-5 pt-4 pb-4">
-            <div className="max-w-[860px] mx-auto">
-              <div className="relative mb-6">
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                  {/* HERO / ITEM / ABILITY REEL */}
-                  <div className="lg:col-span-3">
-                    <div className="flex items-center mb-2 px-1">
-                      <div className="section-title flex items-center gap-x-2">
-                        <i className="fa-solid fa-user-ninja"></i>
-                        <span>{currentMode === 'items' ? 'ПРЕДМЕТ' : currentMode === 'abilities' ? 'СПОСОБНОСТЬ' : 'ГЕРОЙ'}</span>
-                      </div>
-                    </div>
-                    <div id="hero-reel" ref={heroReelRef} className="slot-window h-[236px] relative cursor-pointer" onClick={() => !isSpinning && spin()}>
-                      <div id="hero-strip" ref={heroStripRef} className="slot-strip"></div>
-                      <div className="reel-cylinder left"><div className="cylinder-strip"></div></div>
-                      <div className="reel-cylinder right"><div className="cylinder-strip"></div></div>
-                      <div className="reel-shadow"></div>
-                      <div className="reel-lens absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-24px)] h-[78px] rounded-xl pointer-events-none z-20"></div>
-                    </div>
-                  </div>
-
-                  {/* LETTER REEL */}
-                  <div className="lg:col-span-2">
-                    <div className="flex items-center justify-between mb-2 px-1">
-                      <div className="section-title flex items-center gap-x-2"><i className="fa-solid fa-font"></i><span>БУКВА</span></div>
-                    </div>
-                    <div id="letter-reel" ref={letterReelRef} className="slot-window h-[236px] relative cursor-pointer" onClick={() => !isSpinning && spin()}>
-                      <div id="letter-strip" ref={letterStripRef} className="slot-strip letter-strip"></div>
-                      <div className="reel-cylinder left"><div className="cylinder-strip"></div></div>
-                      <div className="reel-cylinder right"><div className="cylinder-strip"></div></div>
-                      <div className="reel-shadow"></div>
-                      <div className="reel-lens absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-32px)] h-[110px] rounded-2xl pointer-events-none z-20"></div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Multicast numbers overlaid directly IN FRONT OF the drums on a higher layer */}
-                {multicastLevel > 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[60]">
-                    <div className="relative">
-                      {/* The x text - plain, no box/border/background */}
-                      <div 
-                        className={`
-                          multicast-text font-display text-[5.5rem] sm:text-[6rem] font-black tracking-[-5px] 
-                          transition-all duration-100
-                          ${multicastLevel >= 3 ? 'scale-125' : 'scale-100'}
-                          level-${multicastLevel}
-                        `}
-                        style={{
-                          color: multicastLevel >= 4 
-                            ? '#ff6b6b' 
-                            : (multicastLevel >= 3 ? '#ff9f43' : '#f0c060'),
-                          textShadow: multicastLevel >= 4 
-                            ? '0 0 12px #ff6b6b, 0 0 28px #ff4500, 0 0 45px #d4af37, 2px 3px 6px rgba(0,0,0,0.95)' 
-                            : (multicastLevel >= 3 
-                              ? '0 0 12px #ff9f43, 0 0 26px #ff6b00, 0 0 38px #d4af37, 2px 3px 6px rgba(0,0,0,0.9)' 
-                              : '0 0 10px #d4af37, 0 0 22px #8b6914, 2px 3px 5px rgba(0,0,0,0.9)'),
-                          animation: multicastLevel === 4 ? 'multicast-pop 0.18s ease, multicast-pulse 1.2s ease-in-out infinite' : 'multicast-pop 0.22s ease'
-                        }}
-                      >
-                        x{multicastLevel}
-                      </div>
-
-                      {/* Dynamic sparks - more intense for higher x */}
-                      {sparks.map((spark) => (
-                        <div
-                          key={spark.id}
-                          className="spark"
-                          style={{
-                            '--tx': `${spark.tx}px` as any,
-                            '--ty': `${spark.ty}px` as any,
-                            left: '50%',
-                            top: '50%',
-                            width: `${spark.size * 1.2}px`,
-                            height: `${spark.size * 1.2}px`,
-                            animationDelay: `${spark.delay}ms`,
-                            background: multicastLevel >= 4 ? '#ffeb3b' : (multicastLevel >= 3 ? '#ffd700' : '#f0c060'),
-                            boxShadow: multicastLevel >= 3 
-                              ? '0 0 10px #ff8c00, 0 0 18px #ff4500' 
-                              : '0 0 8px #f0c060, 0 0 14px #d4af37'
-                          } as any}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-center mb-1">
-                <button id="spin-btn" onClick={spin} disabled={isSpinning} className="spin-button group flex items-center justify-center gap-x-2 px-8 h-9 text-base font-semibold tracking-tighter bg-gradient-to-b from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white rounded-2xl shadow-xl shadow-red-950/50 border border-red-500/30 disabled:opacity-70">
-                  <i className={`fa-solid fa-dice text-lg ${isSpinning ? 'fa-spin' : ''}`}></i>
-                  <span className="font-display tracking-[3px]">{isSpinning ? 'КРУТИМ...' : (lastResult ? 'КРУТИТЬ ЕЩЁ' : 'КРУТИТЬ')}</span>
-                </button>
-              </div>
-
-              {/* RESULT CARD */}
-              {lastResult && (
-                <div id="result-card" className="flex-shrink-0 dota-card rounded p-3 border-2 border-[#4a3728] text-sm">
-                  <div className="flex flex-col md:flex-row gap-6 items-start">
-                    <div className="flex items-center gap-x-4 flex-1">
-                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#d4af37] flex-shrink-0">
-                        <img src={lastResult.image} alt="" className="w-full h-full object-cover" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-display text-[#f0c060] text-4xl leading-none tracking-tighter">{lastResult.hero}</div>
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0 text-center md:text-right">
-                      <div className="text-[10px] tracking-[3px] font-bold text-[#d4af37] mb-1">НА БУКВУ</div>
-                      <div className="font-display text-4xl leading-none text-[#f0c060]">{lastResult.letter}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* HISTORY */}
-              <div className="flex-shrink-0 mt-1 text-xs">
-                <div className="flex items-center justify-between mb-0.5 px-1 border-b border-[#4a3728] pb-1">
-                  <div className="section-title text-[10px]">ИСТОРИЯ СПИНОВ</div>
-                  <button onClick={clearHistory} className="text-[10px] text-[#d4af37] hover:text-white flex items-center gap-x-1 transition-colors border border-[#4a3728] px-2 py-0.5 rounded hover:bg-[#1a1a1a]">
-                    <i className="fa-solid fa-trash text-[8px]"></i><span>ОЧИСТИТЬ</span>
-                  </button>
-                </div>
-                <div id="history-list" className="dota-card rounded border border-[#4a3728] divide-y divide-[#4a3728] overflow-auto text-[10px] max-h-48">
-                  {history.length === 0 && <div className="px-2 py-1 text-center text-[#d4af37]">ПУСТО. КРУТИ — РЕЗУЛЬТАТЫ ЗДЕСЬ.</div>}
-                  {history.map((h, idx) => (
-                    <div key={idx} onClick={() => setLastResult({ hero: h.hero, hero_en: h.hero, short: h.short || '', attr: h.attr || '', attr_label: '', color: h.color || '', image: h.image || '', letter: h.letter })} className="history-item px-5 py-[13px] flex items-start gap-3 text-sm cursor-pointer">
-                      <div className="flex-1">
-                        <div className="flex items-baseline gap-x-2">
-                          <span className="font-semibold text-white">{h.hero}</span>
-                          <span className="font-mono text-red-400 text-base leading-none pt-0.5">{h.letter}</span>
-                          <span className="text-[10px] text-zinc-500 ml-auto">{new Date(h.ts).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Leader read-only table */}
-            {currentRoom && isRoomLeader && (
-              <div className="mt-8">
-                <div className="section-title flex items-center gap-x-2 mb-2"><i className="fa-solid fa-th-large"></i><span>ТАБЛИЦА ОТГАДЫВАЮЩИХ (просмотр)</span></div>
-                <div id="leader-guesser-grid" className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
-                  {filteredSorted.map((h: any) => (
-                    <div key={h.short} className={`hero-cell readonly ${eliminatedHeroes.has(h.short) ? 'eliminated' : ''}`}>
-                      <div className="img-wrap"><img src={getEntryImage(h.short, currentMode)} alt="" /></div>
-                      <div className="hero-label">{h.en}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <LeaderView
+          language={language}
+          heroReelRef={reels.heroReelRef}
+          letterReelRef={reels.letterReelRef}
+          heroStripRef={reels.heroStripRef}
+          letterStripRef={reels.letterStripRef}
+          currentMode={currentMode}
+          isSpinning={isSpinning}
+          lastResult={lastResult}
+          history={history}
+          multicastLevel={multicastLevel}
+          sparks={sparks}
+          currentRoom={currentRoom}
+          isRoomLeader={isRoomLeader}
+          eliminatedHeroes={eliminatedHeroes}
+          filteredSorted={filteredSorted}
+          onSpin={spin}
+          onClearHistory={() => clearHistoryHook(showConfirm)}
+          onSelectHistory={(r) => setLastResult(r)}
+        />
       )}
 
-      {/* GUESSER VIEW - exact */}
+      {/* GUESSER VIEW */}
       {screen === 'guesser-view' && (
-        <div id="guesser-view" className="max-w-6xl mx-auto px-4 pt-3 pb-8">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <div className="section-title flex items-center gap-x-2">
-              <i className="fa-solid fa-th-large"></i>
-              <span>{currentMode === 'items' ? 'ТАБЛИЦА ПРЕДМЕТОВ — ВЫЧЁРКИВАЙ' : currentMode === 'abilities' ? 'ТАБЛИЦА СПОСОБНОСТЕЙ — ВЫЧЁРКИВАЙ' : 'ТАБЛИЦА ГЕРОЕВ — ВЫЧЁРКИВАЙ'}</span>
-            </div>
-            <div className="flex items-center gap-x-3 text-sm">
-              <div className="text-xs px-3 py-1 rounded bg-[#111] border border-[#4a3728] tabular-nums">
-                <span>{Math.max(0, (heroesData.length||0) - eliminatedHeroes.size)}</span> / <span>{heroesData.length || 0}</span>
-              </div>
-              <button onClick={resetEliminated} className="text-xs px-3 py-1 rounded border border-[#4a3728] hover:border-red-500/60 hover:text-red-400 flex items-center gap-x-1">
-                <i className="fa-solid fa-undo text-[10px]"></i><span>СБРОСИТЬ</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Free / CD */}
-          {currentRoom && (
-            <div className="px-1 mb-1 flex gap-4 text-xs">
-              <div className={myFreeElims > 0 ? 'text-emerald-400' : 'hidden'}>Бесплатных вычёркиваний: <span className="font-bold">{myFreeElims}</span></div>
-              {elimCD > 0 && <div className="text-red-400"><i className="fa-solid fa-clock mr-1"></i> КД до следующего: <span className="font-mono font-bold">{elimCD}</span>с</div>}
-            </div>
-          )}
-
-          {/* Search */}
-          <div className="mb-3 px-1">
-            <div className="relative max-w-md">
-              <i className="fa-solid fa-search absolute left-3 top-2.5 text-zinc-500"></i>
-              <input value={guesserSearch} onChange={e => setGuesserSearch(e.target.value)} placeholder="Поиск..." className="w-full bg-[#111111] border border-[#4a3728] focus:border-[#d4af37] text-sm pl-9 pr-3 py-2 rounded outline-none placeholder:text-zinc-600" />
-            </div>
-          </div>
-
-          {/* Sorts */}
-          <div className="mb-3 px-1 flex items-center gap-x-2 flex-wrap">
-            <span className="text-[#d4af37] text-xs font-semibold tracking-[1.5px] mr-1">СОРТИРОВКА:</span>
-            {currentMode === 'heroes' && ['az','za','str','agi','int','uni'].map(s => (
-              <button key={s} onClick={() => setGuesserSort(s as any)} className={`sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded ${currentGuesserSort===s ? 'active' : ''}`}>{s==='az'?'А → Я':s==='za'?'Я → А':s.toUpperCase()}</button>
-            ))}
-            {(currentMode !== 'heroes') && ['az','za'].map(s => (
-              <button key={s} onClick={() => setGuesserSort(s as any)} className={`sort-btn px-2.5 py-0.5 text-[11px] border border-[#4a3728] rounded ${currentGuesserSort===s ? 'active' : ''}`}>{s==='az'?'А → Я':'Я → А'}</button>
-            ))}
-          </div>
-
-          <div id="hero-grid" className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
-            {filteredSorted.map((h: any) => (
-              <div
-                key={h.short}
-                data-short={h.short}
-                onClick={() => toggleEliminated(h.short)}
-                className={`hero-cell ${eliminatedHeroes.has(h.short) ? 'eliminated' : ''} ${!h._match ? 'search-dimmed' : ''}`}
-              >
-                <div className="img-wrap">
-                  <img 
-                    src={getEntryImage(h.short, currentMode)} 
-                    alt={h.en} 
-                    loading="eager" 
-                    onLoad={() => handleTableImageLoad(h.short)}
-                    onError={(e:any) => {
-                      e.target.src='https://cdn.cloudflare.steamstatic.com/apps/dota2/images/heroes/pudge_lg.png';
-                      handleTableImageLoad(h.short);
-                    }} 
-                  />
-                </div>
-                <div className="hero-label" title={h.ru}>{h.en}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <GuesserView
+          language={language}
+          currentMode={currentMode}
+          eliminatedHeroes={eliminatedHeroes}
+          currentGuesserSort={currentGuesserSort}
+          guesserSearch={guesserSearch}
+          myFreeElims={myFreeElims}
+          elimCD={elimCD || 0}
+          currentRoom={currentRoom}
+          filteredSorted={filteredSorted}
+          totalCount={heroesData.length}
+          onSetGuesserSort={(s) => setGuesserSort(s)}
+          onSearchChange={setGuesserSearch}
+          onToggleEliminated={toggleEliminated}
+          onResetEliminated={resetEliminatedFn}
+          onImageLoad={handleTableImageLoad}
+        />
       )}
 
-      {/* Full-screen loading overlay for барабан and таблицы */}
-      {(() => {
-        const isDrumLoading = isLoadingData && screen === 'leader-view';
-        const isTableLoading = screen === 'guesser-view' && (isLoadingData || isTableImagesLoading);
-        return (isDrumLoading || isTableLoading) && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90] flex flex-col items-center justify-center">
-            <div className="w-10 h-10 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin mb-4"></div>
-            <div className="text-[#d4af37] text-sm tracking-[3px] font-semibold">ЗАГРУЗКА</div>
-          </div>
-        );
-      })()}
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        language={language}
+        isLoadingData={isLoadingData}
+        isTableImagesLoading={isTableImagesLoading}
+        screen={screen}
+      />
 
-      {/* HOW TO MODAL - exact */}
-      {showHowto && (
-        <div id="howto-modal" onClick={() => setShowHowto(false)} className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-5">
-          <div onClick={e=>e.stopPropagation()} className="dota-card max-w-lg w-full rounded p-7 border-2 border-[#4a3728]">
-            <div className="flex justify-between items-center mb-4 border-b border-[#4a3728] pb-3">
-              <div className="font-display text-xl tracking-[2px] text-[#d4af37]">КАК ИГРАТЬ</div>
-              <button onClick={() => setShowHowto(false)} className="text-2xl leading-none text-[#d4af37] hover:text-white">×</button>
-            </div>
-            <div className="space-y-5 text-[15px] text-[#e0d2b0]">
-              <div className="flex gap-4"><div className="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">1</div><div>В начале игры каждый выбирает роль: <span className="font-medium text-[#d4af37]">Ведущий</span> или <span className="font-medium text-[#d4af37]">Отгадывающий</span>.</div></div>
-              <div className="flex gap-4"><div className="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">2</div><div>Ведущий крутит барабан и получает <span className="font-medium text-[#d4af37]">героя + букву</span>. Даёт описание, начиная с этой буквы.</div></div>
-              <div className="flex gap-4"><div className="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">3</div><div>Отгадывающие в таблице кликают по иконкам — они становятся <span className="font-medium text-[#d4af37]">серыми</span> (вычеркиваются).</div></div>
-            </div>
-            <button onClick={() => setShowHowto(false)} className="mt-6 w-full h-11 bg-[#c23c2a] hover:bg-[#e04a38] text-white font-semibold rounded border border-[#d4af37] tracking-widest">ПОНЯТНО, ПОГНАЛИ!</button>
-          </div>
-        </div>
-      )}
+      {/* HOW TO MODAL */}
+      <HowToModal language={language} open={showHowto} onClose={() => setShowHowto(false)} />
 
-      {/* CONFIRM MODAL - exact animated */}
-      {confirmModal.show && (
-        <div id="confirm-modal" onClick={() => hideConfirm(false)} className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[120] flex items-center justify-center p-5 show">
-          <div onClick={e=>e.stopPropagation()} id="confirm-modal-card" className="dota-card max-w-sm w-full rounded-2xl p-6 border-2 border-[#4a3728] transition-all duration-200 scale-100 opacity-1">
-            <div className="font-display text-xl tracking-[2px] text-[#d4af37] mb-3">{confirmModal.title}</div>
-            <div className="text-[#e0d2b0] text-[15px] mb-6 leading-snug whitespace-pre-line">{confirmModal.message}</div>
-            <div className="flex gap-3">
-              <button onClick={() => hideConfirm(false)} className="flex-1 h-10 text-sm font-medium rounded-xl border border-[#4a3728] hover:bg-[#1a1a1a]">ОТМЕНА</button>
-              <button onClick={() => hideConfirm(true)} className="flex-1 h-10 text-sm font-semibold rounded-xl bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] text-white">ДА</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* CONFIRM MODAL */}
+      <ConfirmModal 
+        language={language}
+        show={confirmModal.show} 
+        title={confirmModal.title} 
+        message={confirmModal.message} 
+        onConfirm={hideConfirm} 
+      />
 
-      {/* ROOM LIST MODAL - exact replica of original */}
-      {showRoomListModal && (
-        <div 
-          className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[130] flex items-center justify-center p-5"
-          onClick={(e) => { if (e.target === e.currentTarget) closeRoomListModal(); }}
-        >
-          <div 
-            className="dota-card max-w-md w-full rounded-2xl p-6 border-2 border-[#4a3728]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <div className="font-display text-xl tracking-[2px] text-[#d4af37]">Список комнат</div>
-              <button onClick={closeRoomListModal} className="text-2xl leading-none text-[#d4af37] hover:text-white">×</button>
-            </div>
+      {/* ROOM LIST MODAL */}
+      <RoomListModal 
+        language={language}
+        open={showRoomListModal} 
+        rooms={roomsList} 
+        onClose={closeRoomListModal} 
+        onJoin={joinRoom} 
+      />
 
-            {roomsList.length === 0 ? (
-              <div className="text-zinc-400 text-sm py-4">Пока нет комнат. Создайте свою или введите код.</div>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-auto">
-                {roomsList.map((room, idx) => {
-                  const time = room.created 
-                    ? new Date(room.created * 1000 || room.created).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) 
-                    : '';
-                  return (
-                    <div 
-                      key={idx}
-                      onClick={() => joinRoom(room.code)}
-                      className="flex justify-between items-center p-3 rounded-xl border border-[#4a3728] hover:border-[#d4af37] cursor-pointer"
-                    >
-                      <div>
-                        <span className="font-mono text-lg text-[#f0c060]">{room.code}</span>
-                      </div>
-                      <div className="text-xs text-zinc-500">{time}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="mt-4 pt-4 border-t border-[#4a3728]">
-              <div className="text-xs text-zinc-400 mb-2">Или введи код комнаты:</div>
-              <div className="flex gap-2">
-                <input 
-                  value={joinCodeInput}
-                  onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                  maxLength={8} 
-                  placeholder="ABCDEF" 
-                  className="flex-1 bg-[#111] border border-[#4a3728] px-3 py-2 rounded text-center font-mono tracking-widest uppercase"
-                />
-                <button 
-                  onClick={() => {
-                    const code = joinCodeInput.trim();
-                    if (code.length >= 4) {
-                      joinRoom(code);
-                    }
-                  }} 
-                  className="px-4 bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] rounded text-sm"
-                >
-                  Войти
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Background change button - bottom right */}
-      <button
-        onClick={changeBackground}
-        disabled={isTransitioning}
-        className="fixed bottom-4 right-4 z-[95] w-9 h-9 bg-black/70 hover:bg-black/90 text-[#d4af37] border border-[#444] hover:border-[#d4af37] rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 disabled:opacity-50"
-        title="Сменить фон"
-      >
-        <i className="fa-solid fa-sync text-base"></i>
-      </button>
     </>
   );
 };
