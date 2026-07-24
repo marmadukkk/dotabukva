@@ -7,7 +7,10 @@ interface NavProps {
   currentRoom: string | null;
   showLangMenu: boolean;
   showSettingsMenu: boolean;
-  volume: number;
+  musicVolume: number;
+  sfxVolume: number;
+  musicTrack: number;
+  musicTrackCount: number;
   multicastEnabled: boolean;
   isBgTransitioning: boolean;
   onShowRoleMenu: () => void;
@@ -17,7 +20,9 @@ interface NavProps {
   onChangeLanguage: (lang: Language) => void;
   onToggleSettingsMenu: () => void;
   onCloseSettingsMenu: () => void;
-  onVolumeChange: (volume: number) => void;
+  onMusicVolumeChange: (volume: number) => void;
+  onSfxVolumeChange: (volume: number) => void;
+  onCycleMusicTrack: () => void;
   onToggleMulticast: () => void;
   onChangeBackground: () => void;
   onLogoClick?: () => void;
@@ -29,7 +34,10 @@ const Nav: React.FC<NavProps> = ({
   currentRoom,
   showLangMenu,
   showSettingsMenu,
-  volume,
+  musicVolume,
+  sfxVolume,
+  musicTrack,
+  musicTrackCount,
   multicastEnabled,
   isBgTransitioning,
   onShowRoleMenu,
@@ -39,7 +47,9 @@ const Nav: React.FC<NavProps> = ({
   onChangeLanguage,
   onToggleSettingsMenu,
   onCloseSettingsMenu,
-  onVolumeChange,
+  onMusicVolumeChange,
+  onSfxVolumeChange,
+  onCycleMusicTrack,
   onToggleMulticast,
   onChangeBackground,
   onLogoClick,
@@ -63,13 +73,12 @@ const Nav: React.FC<NavProps> = ({
     };
   }, [showSettingsMenu, onCloseSettingsMenu]);
 
-  const volumePercent = Math.round(volume * 100);
-  const volumeIcon =
-    volume <= 0
-      ? 'fa-volume-xmark'
-      : volume < 0.4
-        ? 'fa-volume-low'
-        : 'fa-volume-high';
+  const musicPercent = Math.round(musicVolume * 100);
+  const sfxPercent = Math.round(sfxVolume * 100);
+  const musicIcon =
+    musicVolume <= 0 ? 'fa-volume-xmark' : musicVolume < 0.4 ? 'fa-volume-low' : 'fa-music';
+  const sfxIcon =
+    sfxVolume <= 0 ? 'fa-volume-xmark' : sfxVolume < 0.4 ? 'fa-volume-low' : 'fa-volume-high';
 
   return (
     <nav className="tavern-header sticky top-0 z-50 shadow-lg relative">
@@ -162,29 +171,71 @@ const Nav: React.FC<NavProps> = ({
                   {t(language, 'nav.settings').toUpperCase()}
                 </div>
 
-                {/* Volume */}
+                {/* Music volume */}
                 <div className="px-3 py-3 border-b border-[#333]">
                   <div className="flex items-center justify-between mb-2">
                     <label className="flex items-center gap-2 text-[#e0d2b0] text-xs font-medium">
-                      <i className={`fa-solid ${volumeIcon} text-[#d4af37] w-4 text-center`}></i>
-                      {t(language, 'nav.volume')}
+                      <i className={`fa-solid ${musicIcon} text-[#d4af37] w-4 text-center`}></i>
+                      {t(language, 'nav.volumeMusic')}
                     </label>
-                    <span className="text-[#888] text-[11px] tabular-nums w-8 text-right">{volumePercent}%</span>
+                    <span className="text-[#888] text-[11px] tabular-nums w-8 text-right">{musicPercent}%</span>
                   </div>
                   <input
                     type="range"
                     min={0}
                     max={100}
                     step={1}
-                    value={volumePercent}
-                    onChange={(e) => onVolumeChange(Number(e.target.value) / 100)}
+                    value={musicPercent}
+                    onChange={(e) => onMusicVolumeChange(Number(e.target.value) / 100)}
                     className="settings-volume-slider w-full h-1.5 rounded-full appearance-none cursor-pointer"
                     style={{
-                      background: `linear-gradient(to right, #d4af37 0%, #d4af37 ${volumePercent}%, #333 ${volumePercent}%, #333 100%)`,
+                      background: `linear-gradient(to right, #d4af37 0%, #d4af37 ${musicPercent}%, #333 ${musicPercent}%, #333 100%)`,
                     }}
-                    aria-label={t(language, 'nav.volume')}
+                    aria-label={t(language, 'nav.volumeMusic')}
                   />
                 </div>
+
+                {/* SFX volume */}
+                <div className="px-3 py-3 border-b border-[#333]">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="flex items-center gap-2 text-[#e0d2b0] text-xs font-medium">
+                      <i className={`fa-solid ${sfxIcon} text-[#d4af37] w-4 text-center`}></i>
+                      {t(language, 'nav.volumeSfx')}
+                    </label>
+                    <span className="text-[#888] text-[11px] tabular-nums w-8 text-right">{sfxPercent}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={sfxPercent}
+                    onChange={(e) => onSfxVolumeChange(Number(e.target.value) / 100)}
+                    className="settings-volume-slider w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #d4af37 0%, #d4af37 ${sfxPercent}%, #333 ${sfxPercent}%, #333 100%)`,
+                    }}
+                    aria-label={t(language, 'nav.volumeSfx')}
+                  />
+                </div>
+
+                {/* Soundtrack cycle */}
+                <button
+                  type="button"
+                  onClick={onCycleMusicTrack}
+                  className="w-full text-left px-3 py-3 border-b border-[#333] hover:bg-[#2a2a2a] flex items-center gap-2.5 text-[#e0d2b0] transition-colors"
+                >
+                  <i className="fa-solid fa-compact-disc text-[#d4af37] w-4 text-center"></i>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium">{t(language, 'nav.soundtrack')}</div>
+                    <div className="text-[10px] text-[#888] mt-0.5">
+                      {t(language, 'nav.soundtrackN').replace('{n}', String(musicTrack + 1))}
+                      {' · '}
+                      {musicTrack + 1}/{musicTrackCount}
+                    </div>
+                  </div>
+                  <i className="fa-solid fa-sync text-[10px] text-[#666]"></i>
+                </button>
 
                 {/* Multicast toggle */}
                 <button
