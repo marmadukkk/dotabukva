@@ -15,6 +15,7 @@ import HowToModal from './components/HowToModal';
 import ConfirmModal from './components/ConfirmModal';
 import RoomListModal from './components/RoomListModal';
 import Background from './components/Background';
+import DisclaimerOverlay from './components/DisclaimerOverlay';
 import Nav from './components/Nav';
 import LoadingOverlay from './components/LoadingOverlay';
 
@@ -64,6 +65,24 @@ const App: React.FC = () => {
     return true; // on by default
   });
 
+  const [disclaimerEnabled, setDisclaimerEnabled] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dota_bukva_disclaimer');
+      if (saved === '0' || saved === 'false') return false;
+      if (saved === '1' || saved === 'true') return true;
+    } catch {}
+    return true; // show on startup by default
+  });
+
+  // Visible while the 5s intro plays (only if enabled at launch)
+  const [showDisclaimer, setShowDisclaimer] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dota_bukva_disclaimer');
+      if (saved === '0' || saved === 'false') return false;
+    } catch {}
+    return true;
+  });
+
   // Core states
   const [currentRole, setCurrentRole] = useState<'leader' | 'guesser' | null>(null);
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
@@ -111,6 +130,7 @@ const App: React.FC = () => {
     playDing,
     playMulticastSound,
     playMulticastToggleSound,
+    playDisclaimerSound,
   } = audio;
   const reels = useReels({ heroesData, language, currentMode });
 
@@ -232,6 +252,13 @@ const App: React.FC = () => {
       localStorage.setItem('dota_bukva_multicast', multicastEnabled ? '1' : '0');
     } catch {}
   }, [multicastEnabled]);
+
+  // Persist startup disclaimer preference
+  useEffect(() => {
+    try {
+      localStorage.setItem('dota_bukva_disclaimer', disclaimerEnabled ? '1' : '0');
+    } catch {}
+  }, [disclaimerEnabled]);
 
   // Background init is now handled inside Background component
 
@@ -690,6 +717,14 @@ const App: React.FC = () => {
         backgroundVideos={BACKGROUND_VIDEOS}
       />
 
+      {/* Startup educational disclaimer */}
+      {showDisclaimer && (
+        <DisclaimerOverlay
+          onPlaySound={playDisclaimerSound}
+          onDone={() => setShowDisclaimer(false)}
+        />
+      )}
+
       {/* NAV */}
       <Nav
         language={language}
@@ -702,6 +737,7 @@ const App: React.FC = () => {
         musicTrack={musicTrack}
         musicTrackCount={musicTrackCount}
         multicastEnabled={multicastEnabled}
+        disclaimerEnabled={disclaimerEnabled}
         isBgTransitioning={isTransitioning}
         onShowRoleMenu={showRoleMenu}
         onShowHowto={() => setShowHowto(true)}
@@ -727,6 +763,7 @@ const App: React.FC = () => {
           setMulticastEnabled(next);
           playMulticastToggleSound(next);
         }}
+        onToggleDisclaimer={() => setDisclaimerEnabled((v) => !v)}
         onChangeBackground={changeBackground}
         onLogoClick={() => {
           setCurrentRoom(null);

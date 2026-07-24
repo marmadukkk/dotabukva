@@ -12,6 +12,7 @@ interface NavProps {
   musicTrack: number;
   musicTrackCount: number;
   multicastEnabled: boolean;
+  disclaimerEnabled: boolean;
   isBgTransitioning: boolean;
   onShowRoleMenu: () => void;
   onShowHowto: () => void;
@@ -24,6 +25,7 @@ interface NavProps {
   onSfxVolumeChange: (volume: number) => void;
   onCycleMusicTrack: () => void;
   onToggleMulticast: () => void;
+  onToggleDisclaimer: () => void;
   onChangeBackground: () => void;
   onLogoClick?: () => void;
 }
@@ -39,6 +41,7 @@ const Nav: React.FC<NavProps> = ({
   musicTrack,
   musicTrackCount,
   multicastEnabled,
+  disclaimerEnabled,
   isBgTransitioning,
   onShowRoleMenu,
   onShowHowto,
@@ -51,6 +54,7 @@ const Nav: React.FC<NavProps> = ({
   onSfxVolumeChange,
   onCycleMusicTrack,
   onToggleMulticast,
+  onToggleDisclaimer,
   onChangeBackground,
   onLogoClick,
 }) => {
@@ -259,6 +263,33 @@ const Nav: React.FC<NavProps> = ({
                     <span
                       className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[#f0c060] shadow transition-transform ${
                         multicastEnabled ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </span>
+                </button>
+
+                {/* Startup disclaimer toggle */}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={disclaimerEnabled}
+                  onClick={onToggleDisclaimer}
+                  className="w-full text-left px-3 py-3 border-b border-[#333] hover:bg-[#2a2a2a] flex items-center gap-2.5 transition-colors"
+                >
+                  <i className="fa-solid fa-circle-exclamation text-[#d4af37] w-4 text-center"></i>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-[#e0d2b0]">{t(language, 'nav.disclaimer')}</div>
+                    <div className="text-[10px] text-[#888] mt-0.5 leading-snug">{t(language, 'nav.disclaimerDesc')}</div>
+                  </div>
+                  <span
+                    className={`relative flex-shrink-0 w-9 h-5 rounded-full transition-colors ${
+                      disclaimerEnabled ? 'bg-[#c23c2a]' : 'bg-[#333]'
+                    }`}
+                    aria-hidden
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[#f0c060] shadow transition-transform ${
+                        disclaimerEnabled ? 'translate-x-4' : 'translate-x-0'
                       }`}
                     />
                   </span>
