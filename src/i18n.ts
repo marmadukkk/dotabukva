@@ -19,6 +19,8 @@ const dict: Record<Language, Record<string, string>> = {
     'nav.soundtrackN': 'Тема {n}',
     'nav.multicast': 'Multicast',
     'nav.multicastDesc': 'Шанс x2 / x3 / x4 при спине',
+    'nav.disclaimer': 'Дисклеймер при запуске',
+    'nav.disclaimerDesc': 'Показывать предупреждение 5 сек',
     'nav.changeBg': 'Сменить фон',
 
     // Main Menu
@@ -138,6 +140,8 @@ const dict: Record<Language, Record<string, string>> = {
     'nav.soundtrackN': 'Theme {n}',
     'nav.multicast': 'Multicast',
     'nav.multicastDesc': 'Chance of x2 / x3 / x4 on spin',
+    'nav.disclaimer': 'Startup disclaimer',
+    'nav.disclaimerDesc': 'Show warning for 5 seconds',
     'nav.changeBg': 'Change background',
 
     // Main Menu

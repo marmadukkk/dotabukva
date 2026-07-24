@@ -276,6 +276,10 @@ export function useAudio() {
     playSfxFile(enabled ? 'yess' : 'noo', 0.95);
   }, [playSfxFile]);
 
+  const playDisclaimerSound = useCallback(() => {
+    playSfxFile('/sounds/disclaimer.mp3', 0.9);
+  }, [playSfxFile]);
+
   return {
     /** @deprecated use sfxVolume — kept as alias for any leftover callers */
     volume: sfxVolume,
@@ -293,5 +297,6 @@ export function useAudio() {
     playDing,
     playMulticastSound,
     playMulticastToggleSound,
+    playDisclaimerSound,
   };
 }
