@@ -3,9 +3,7 @@ import React, { useRef, useEffect } from 'react';
 interface BackgroundProps {
   currentBgIndex: number;
   activeVideo: number;
-  isTransitioning: boolean;
   backgroundVideos: string[];
-  onChangeBackground: () => void;
 }
 
 /** True if the video element is already pointing at the given path (handles absolute currentSrc). */
@@ -34,9 +32,7 @@ function loadAndPlay(video: HTMLVideoElement, path: string) {
 const Background: React.FC<BackgroundProps> = ({
   currentBgIndex,
   activeVideo,
-  isTransitioning,
   backgroundVideos,
-  onChangeBackground,
 }) => {
   const videoARef = useRef<HTMLVideoElement>(null);
   const videoBRef = useRef<HTMLVideoElement>(null);
@@ -99,16 +95,6 @@ const Background: React.FC<BackgroundProps> = ({
 
       {/* Subtle dark overlay */}
       <div className="fixed inset-0 bg-black/50 z-[-1]" />
-
-      {/* Background change button */}
-      <button
-        onClick={onChangeBackground}
-        disabled={isTransitioning}
-        className="fixed bottom-4 right-4 z-[95] w-9 h-9 bg-black/70 hover:bg-black/90 text-[#d4af37] border border-[#444] hover:border-[#d4af37] rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 disabled:opacity-50"
-        title="Сменить фон"
-      >
-        <i className="fa-solid fa-sync text-base"></i>
-      </button>
     </>
   );
 };

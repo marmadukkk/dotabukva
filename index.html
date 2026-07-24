@@ -666,6 +666,34 @@
             z-index: 3;
         }
 
+        /* Settings volume slider */
+        .settings-volume-slider {
+            outline: none;
+        }
+        .settings-volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #f0c060;
+            border: 2px solid #1a1a1a;
+            box-shadow: 0 0 0 1px #d4af37;
+            cursor: pointer;
+        }
+        .settings-volume-slider::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #f0c060;
+            border: 2px solid #1a1a1a;
+            box-shadow: 0 0 0 1px #d4af37;
+            cursor: pointer;
+        }
+        .settings-volume-slider::-moz-range-track {
+            background: transparent;
+        }
+
         /* ===== RESPONSIVE / ADAPTIVE FOR TAVERN DESIGN ELEMENTS ===== */
         @media (max-width: 1023px) {
             /* Hide decorative roundels on header on tablets and below (they only make sense on wide screens) */

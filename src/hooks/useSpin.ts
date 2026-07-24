@@ -19,6 +19,8 @@ interface UseSpinProps {
   setHistory: React.Dispatch<React.SetStateAction<HistoryEntry[]>>;
   launchConfetti: (count?: number) => void;
   logSpinExternal?: (result: SpinResult) => void;
+  /** When false, spins never roll x2/x3/x4 and multicast FX are skipped. */
+  multicastEnabled?: boolean;
 }
 
 export function useSpin({
@@ -36,6 +38,7 @@ export function useSpin({
   launchConfetti,
   currentMode = 'heroes',
   heroesData = [],
+  multicastEnabled = true,
 }: UseSpinProps & { currentMode?: any; heroesData?: any[] }) {
   const { playSpinSounds, playDing, playMulticastSound } = audio;
 
@@ -182,7 +185,9 @@ export function useSpin({
       const fimg = getEntryImage(entry.short, currentMode);
 
       const r = Math.random();
-      const fbMulti = r < 0.40 ? 1 : (r < 0.70 ? 2 : (r < 0.85 ? 3 : 4));
+      const fbMulti = !multicastEnabled
+        ? 1
+        : (r < 0.40 ? 1 : (r < 0.70 ? 2 : (r < 0.85 ? 3 : 4)));
 
       result = {
         hero: entry.en, hero_ru: entry.ru, hero_en: entry.en,
@@ -196,7 +201,9 @@ export function useSpin({
       };
     }
 
-    const multi = result.multiplier || 1;
+    // Honour the settings toggle even if API returned a higher multiplier
+    const multi = multicastEnabled ? (result.multiplier || 1) : 1;
+    if (!multicastEnabled) result = { ...result, multiplier: 1 };
     setCurrentMultiplier(multi);
 
     const hs = reels.heroStripRef.current;
@@ -210,7 +217,9 @@ export function useSpin({
     else if (multi === 3) { hd += 2600; ld += 2100; }
     else if (multi === 4) { hd += 4200; ld += 3400; }
 
-    triggerMulticastSequence(multi);
+    if (multicastEnabled) {
+      triggerMulticastSequence(multi);
+    }
     playSpinSounds(Math.max(hd, ld));
 
     await Promise.all([reels.animateReel(hs!, hT, hd, false), reels.animateReel(ls!, lT, ld, true)]);
@@ -227,7 +236,7 @@ export function useSpin({
       setMulticastLevel(0);
       setSparks([]);
     }, 1400);
-  }, [language, currentMode, heroesData, currentRoom, reels, audio]);
+  }, [language, currentMode, heroesData, currentRoom, reels, audio, multicastEnabled]);
 
   // Helper for fallback (duplicated from useData for independence)
   function getFallbackHeroes() {
