@@ -9,6 +9,8 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+    <!-- Preload default BGM so it can resume immediately after reload -->
+    <link rel="preload" href="/sounds/menutheme.m4a" as="audio" type="audio/mp4">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&amp;display=swap');
         
@@ -755,6 +757,199 @@
 </head>
 <body class="text-white dota-bg min-h-screen bg-transparent">
     <div id="root"></div>
+    <!--
+      Background music bootstrap (runs before React).
+      Keeps a single looped player, saves position + wall-clock time so after
+      reload we seek to (savedPos + elapsed) and avoid restarting from 0.
+      True zero-gap across unload is impossible in browsers; this minimizes the break.
+    -->
+    <script>
+    (function () {
+      var BGM_KEY = 'dota_bukva_bgm';
+      var MUSIC_VOL_KEY = 'dota_bukva_music_volume';
+      var LEGACY_VOL_KEY = 'dota_bukva_volume';
+      var TRACK_KEY = 'dota_bukva_music_track';
+      var TRACKS = [
+        '/sounds/menutheme.m4a',
+        '/sounds/menutheme2.m4a',
+        '/sounds/menutheme3.m4a',
+        '/sounds/menutheme4.m4a'
+      ];
+      /** Peak gain applied on top of the music slider (0..1). */
+      var BGM_BASE = 0.55;
+
+      function clampTrack(i) {
+        var n = TRACKS.length;
+        i = Math.floor(Number(i) || 0);
+        return ((i % n) + n) % n;
+      }
+
+      function readTrackIndex() {
+        try {
+          var raw = localStorage.getItem(TRACK_KEY);
+          if (raw !== null) return clampTrack(parseInt(raw, 10));
+        } catch (e) {}
+        return 0;
+      }
+
+      function readMusicVolume() {
+        try {
+          var raw = localStorage.getItem(MUSIC_VOL_KEY);
+          if (raw === null) raw = localStorage.getItem(LEGACY_VOL_KEY);
+          var n = parseFloat(raw != null ? raw : '0.55');
+          return isNaN(n) ? 0.55 : Math.max(0, Math.min(1, n));
+        } catch (e) {
+          return 0.55;
+        }
+      }
+
+      function loadState() {
+        try {
+          return JSON.parse(sessionStorage.getItem(BGM_KEY) || '{}') || {};
+        } catch (e) {
+          return {};
+        }
+      }
+
+      function saveState(partial) {
+        try {
+          var prev = loadState();
+          var next = {};
+          for (var k in prev) next[k] = prev[k];
+          for (var k2 in partial) next[k2] = partial[k2];
+          next.wall = Date.now();
+          next.track = currentTrack;
+          sessionStorage.setItem(BGM_KEY, JSON.stringify(next));
+        } catch (e) {}
+      }
+
+      var currentTrack = readTrackIndex();
+      var skipResumeOnce = false;
+
+      var audio = new Audio();
+      audio.src = TRACKS[currentTrack];
+      audio.loop = true;
+      audio.preload = 'auto';
+      audio.setAttribute('playsinline', '');
+      audio.setAttribute('webkit-playsinline', '');
+
+      function applyVolume() {
+        var music = readMusicVolume();
+        audio.volume = Math.max(0, Math.min(1, music * BGM_BASE));
+        return music;
+      }
+      applyVolume();
+
+      function resumePosition() {
+        if (skipResumeOnce) {
+          skipResumeOnce = false;
+          try { audio.currentTime = 0; } catch (e) {}
+          return;
+        }
+        var st = loadState();
+        if (typeof st.track === 'number' && st.track !== currentTrack) {
+          try { audio.currentTime = 0; } catch (e) {}
+          return;
+        }
+        if (typeof st.pos !== 'number' || typeof st.wall !== 'number') return;
+        var d = audio.duration;
+        if (!d || !isFinite(d) || d <= 0) return;
+        var elapsed = (Date.now() - st.wall) / 1000;
+        var t = (st.pos + elapsed) % d;
+        if (t < 0) t += d;
+        try {
+          audio.currentTime = t;
+        } catch (e) {}
+      }
+
+      function tryPlay() {
+        if (readMusicVolume() <= 0) {
+          audio.pause();
+          return Promise.resolve();
+        }
+        applyVolume();
+        return audio.play().catch(function () {
+          /* autoplay blocked until user gesture */
+        });
+      }
+
+      audio.addEventListener('loadedmetadata', function () {
+        resumePosition();
+        tryPlay();
+      });
+
+      // If metadata already cached (fast reload), seek immediately
+      if (audio.readyState >= 1) {
+        resumePosition();
+      }
+      tryPlay();
+
+      // Persist position often so reload lands near the continuous timeline
+      setInterval(function () {
+        if (!audio.paused && !audio.ended) {
+          saveState({ pos: audio.currentTime, playing: true });
+        }
+      }, 250);
+
+      function flush() {
+        saveState({ pos: audio.currentTime || 0, playing: !audio.paused });
+      }
+      window.addEventListener('pagehide', flush);
+      window.addEventListener('beforeunload', flush);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') flush();
+        else tryPlay();
+      });
+
+      // Unlock / restart after browser autoplay block
+      function unlock() {
+        tryPlay();
+      }
+      ['pointerdown', 'keydown', 'touchstart', 'click'].forEach(function (ev) {
+        document.addEventListener(ev, unlock, true);
+      });
+
+      function setTrack(index, opts) {
+        var next = clampTrack(index);
+        var force = opts && opts.force;
+        if (!force && next === currentTrack) return currentTrack;
+        flush();
+        currentTrack = next;
+        try { localStorage.setItem(TRACK_KEY, String(currentTrack)); } catch (e) {}
+        skipResumeOnce = true;
+        saveState({ pos: 0, playing: true, track: currentTrack });
+        audio.src = TRACKS[currentTrack];
+        try { audio.load(); } catch (e) {}
+        tryPlay();
+        return currentTrack;
+      }
+
+      window.__dotaBgm = {
+        audio: audio,
+        BGM_BASE: BGM_BASE,
+        TRACKS: TRACKS,
+        getTrackIndex: function () { return currentTrack; },
+        setTrack: setTrack,
+        cycleTrack: function () {
+          return setTrack(currentTrack + 1);
+        },
+        setMusicVolume: function (music) {
+          var m = Math.max(0, Math.min(1, music));
+          try { localStorage.setItem(MUSIC_VOL_KEY, String(m)); } catch (e) {}
+          audio.volume = Math.max(0, Math.min(1, m * BGM_BASE));
+          if (m <= 0) {
+            audio.pause();
+          } else if (audio.paused) {
+            tryPlay();
+          }
+        },
+        ensurePlaying: function () {
+          return tryPlay();
+        },
+        saveNow: flush
+      };
+    })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

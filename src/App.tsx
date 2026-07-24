@@ -99,7 +99,19 @@ const App: React.FC = () => {
 
   // Hooks (state provided by hooks)
   const audio = useAudio();
-  const { volume, setVolume, playSpinSounds, playDing, playMulticastSound } = audio;
+  const {
+    sfxVolume,
+    musicVolume,
+    musicTrack,
+    musicTrackCount,
+    setSfxVolume,
+    setMusicVolume,
+    cycleMusicTrack,
+    playSpinSounds,
+    playDing,
+    playMulticastSound,
+    playMulticastToggleSound,
+  } = audio;
   const reels = useReels({ heroesData, language, currentMode });
 
 
@@ -685,7 +697,10 @@ const App: React.FC = () => {
         currentRoom={currentRoom}
         showLangMenu={showLangMenu}
         showSettingsMenu={showSettingsMenu}
-        volume={volume}
+        musicVolume={musicVolume}
+        sfxVolume={sfxVolume}
+        musicTrack={musicTrack}
+        musicTrackCount={musicTrackCount}
         multicastEnabled={multicastEnabled}
         isBgTransitioning={isTransitioning}
         onShowRoleMenu={showRoleMenu}
@@ -704,8 +719,14 @@ const App: React.FC = () => {
           setShowLangMenu(false);
         }}
         onCloseSettingsMenu={() => setShowSettingsMenu(false)}
-        onVolumeChange={setVolume}
-        onToggleMulticast={() => setMulticastEnabled((v) => !v)}
+        onMusicVolumeChange={setMusicVolume}
+        onSfxVolumeChange={setSfxVolume}
+        onCycleMusicTrack={cycleMusicTrack}
+        onToggleMulticast={() => {
+          const next = !multicastEnabled;
+          setMulticastEnabled(next);
+          playMulticastToggleSound(next);
+        }}
         onChangeBackground={changeBackground}
         onLogoClick={() => {
           setCurrentRoom(null);
