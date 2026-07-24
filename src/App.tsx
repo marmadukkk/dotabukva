@@ -29,6 +29,17 @@ import { useMulticast } from './hooks/useMulticast';
 import { useModals } from './hooks/useModals';
 import { useSpin } from './hooks/useSpin';
 
+const BG_STORAGE_KEY = 'dota_bukva_background_index';
+
+/** Stable list — must live outside the component so Background does not re-load on every re-render. */
+const BACKGROUND_VIDEOS = [
+  '/videos/background.mp4',
+  '/videos/background2.mp4',
+  '/videos/background3.mp4',
+  '/videos/background4.mp4',
+  '/videos/background5.mp4',
+];
+
 // Global styles (minimal - most in index.html)
 const GlobalStyle = createGlobalStyle``;
 
@@ -131,22 +142,12 @@ const App: React.FC = () => {
   // elimination after room
 
 
-  const BG_STORAGE_KEY = 'dota_bukva_background_index';
-
-  const backgroundVideos = [
-    '/videos/background.mp4',
-    '/videos/background2.mp4',
-    '/videos/background3.mp4',
-    '/videos/background4.mp4',
-    '/videos/background5.mp4',
-  ];
-
   const [currentBgIndex, setCurrentBgIndex] = useState(() => {
     try {
       const saved = localStorage.getItem(BG_STORAGE_KEY);
       if (saved !== null) {
         const parsed = parseInt(saved, 10);
-        if (!isNaN(parsed) && parsed >= 0 && parsed < backgroundVideos.length) {
+        if (!isNaN(parsed) && parsed >= 0 && parsed < BACKGROUND_VIDEOS.length) {
           return parsed;
         }
       }
@@ -224,7 +225,7 @@ const App: React.FC = () => {
 
   const changeBackground = () => {
     if (isTransitioning) return;
-    const nextIndex = (currentBgIndex + 1) % backgroundVideos.length;
+    const nextIndex = (currentBgIndex + 1) % BACKGROUND_VIDEOS.length;
     setIsTransitioning(true);
     setActiveVideo(1 - activeVideo);
     setCurrentBgIndex(nextIndex);
@@ -658,7 +659,7 @@ const App: React.FC = () => {
         currentBgIndex={currentBgIndex}
         activeVideo={activeVideo}
         isTransitioning={isTransitioning}
-        backgroundVideos={backgroundVideos}
+        backgroundVideos={BACKGROUND_VIDEOS}
         onChangeBackground={changeBackground}
       />
 
