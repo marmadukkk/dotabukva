@@ -11,6 +11,10 @@ const dict: Record<Language, Record<string, string>> = {
     'nav.howto': 'КАК ИГРАТЬ',
     'nav.change': 'СМЕНИТЬ',
     'nav.loading': 'ЗАГРУЗКА',
+    'nav.settings': 'Настройки',
+    'nav.volume': 'Громкость',
+    'nav.multicast': 'Multicast',
+    'nav.multicastDesc': 'Шанс x2 / x3 / x4 при спине',
     'nav.changeBg': 'Сменить фон',
 
     // Main Menu
@@ -21,7 +25,7 @@ const dict: Record<Language, Record<string, string>> = {
     'main.createDesc': 'Сгенерировать код и пригнать друзей',
     'main.rooms': 'Список комнат',
     'main.roomsDesc': 'Присоединиться к существующей комнате',
-    'main.version': 'VERSION 1.0 • МУЛЬТИПЛЕЕР ЕЩЁ В РАЗРАБОТКЕ',
+    'main.version': 'VERSION 1.1 • МУЛЬТИПЛЕЕР ГОТОВ К РЕЛИЗУ',
 
     // Role Menu
     'role.title': 'Выбери роль',
@@ -122,6 +126,10 @@ const dict: Record<Language, Record<string, string>> = {
     'nav.howto': 'HOW TO PLAY',
     'nav.change': 'CHANGE',
     'nav.loading': 'LOADING',
+    'nav.settings': 'Settings',
+    'nav.volume': 'Volume',
+    'nav.multicast': 'Multicast',
+    'nav.multicastDesc': 'Chance of x2 / x3 / x4 on spin',
     'nav.changeBg': 'Change background',
 
     // Main Menu
@@ -132,7 +140,7 @@ const dict: Record<Language, Record<string, string>> = {
     'main.createDesc': 'Generate a code and invite friends',
     'main.rooms': 'Room List',
     'main.roomsDesc': 'Join an existing room',
-    'main.version': 'VERSION 1.0 • MULTIPLAYER STILL IN DEVELOPMENT',
+    'main.version': 'VERSION 1.1 • MULTIPLAYER READY FOR RELEASE',
 
     // Role Menu
     'role.title': 'Choose your role',

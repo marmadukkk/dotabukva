@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Language, t } from '../i18n';
 
 interface NavProps {
@@ -6,11 +6,20 @@ interface NavProps {
   currentRole: 'leader' | 'guesser' | null;
   currentRoom: string | null;
   showLangMenu: boolean;
+  showSettingsMenu: boolean;
+  volume: number;
+  multicastEnabled: boolean;
+  isBgTransitioning: boolean;
   onShowRoleMenu: () => void;
   onShowHowto: () => void;
   onLeaveRoom: () => void;
   onToggleLangMenu: () => void;
   onChangeLanguage: (lang: Language) => void;
+  onToggleSettingsMenu: () => void;
+  onCloseSettingsMenu: () => void;
+  onVolumeChange: (volume: number) => void;
+  onToggleMulticast: () => void;
+  onChangeBackground: () => void;
   onLogoClick?: () => void;
 }
 
@@ -19,13 +28,49 @@ const Nav: React.FC<NavProps> = ({
   currentRole,
   currentRoom,
   showLangMenu,
+  showSettingsMenu,
+  volume,
+  multicastEnabled,
+  isBgTransitioning,
   onShowRoleMenu,
   onShowHowto,
   onLeaveRoom,
   onToggleLangMenu,
   onChangeLanguage,
+  onToggleSettingsMenu,
+  onCloseSettingsMenu,
+  onVolumeChange,
+  onToggleMulticast,
+  onChangeBackground,
   onLogoClick,
 }) => {
+  const settingsRef = useRef<HTMLDivElement>(null);
+
+  // Close settings when clicking outside
+  useEffect(() => {
+    if (!showSettingsMenu) return;
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      const el = settingsRef.current;
+      if (el && !el.contains(e.target as Node)) {
+        onCloseSettingsMenu();
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+    };
+  }, [showSettingsMenu, onCloseSettingsMenu]);
+
+  const volumePercent = Math.round(volume * 100);
+  const volumeIcon =
+    volume <= 0
+      ? 'fa-volume-xmark'
+      : volume < 0.4
+        ? 'fa-volume-low'
+        : 'fa-volume-high';
+
   return (
     <nav className="tavern-header sticky top-0 z-50 shadow-lg relative">
       <div className="header-rivet" style={{left:'28px',top:'26px'}}></div>
@@ -92,6 +137,91 @@ const Nav: React.FC<NavProps> = ({
                   className={`w-full text-left px-4 py-2 hover:bg-[#2a2a2a] flex items-center gap-2 ${language === 'en' ? 'text-[#f0c060]' : 'text-[#e0d2b0]'}`}
                 >
                   🇬🇧 English
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Settings gear */}
+          <div className="relative" ref={settingsRef}>
+            <button
+              onClick={onToggleSettingsMenu}
+              className={`flex items-center justify-center w-8 h-7 rounded border cursor-pointer text-xs transition-colors ${
+                showSettingsMenu
+                  ? 'border-[#d4af37] bg-[#2a2a2a] text-[#f0c060]'
+                  : 'border-[#444] bg-[#1f1f1f] hover:border-[#c23c2a] hover:bg-[#2a2a2a] text-[#d4af37]'
+              }`}
+              aria-label={t(language, 'nav.settings')}
+              title={t(language, 'nav.settings')}
+            >
+              <i className="fa-solid fa-gear text-sm"></i>
+            </button>
+            {showSettingsMenu && (
+              <div className="absolute right-0 mt-1 z-[200] w-64 rounded-xl border border-[#4a3728] bg-[#1a1a1a] shadow-xl overflow-hidden text-sm">
+                <div className="px-3 py-2 border-b border-[#333] text-[10px] tracking-widest text-[#888] font-medium">
+                  {t(language, 'nav.settings').toUpperCase()}
+                </div>
+
+                {/* Volume */}
+                <div className="px-3 py-3 border-b border-[#333]">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="flex items-center gap-2 text-[#e0d2b0] text-xs font-medium">
+                      <i className={`fa-solid ${volumeIcon} text-[#d4af37] w-4 text-center`}></i>
+                      {t(language, 'nav.volume')}
+                    </label>
+                    <span className="text-[#888] text-[11px] tabular-nums w-8 text-right">{volumePercent}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={volumePercent}
+                    onChange={(e) => onVolumeChange(Number(e.target.value) / 100)}
+                    className="settings-volume-slider w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #d4af37 0%, #d4af37 ${volumePercent}%, #333 ${volumePercent}%, #333 100%)`,
+                    }}
+                    aria-label={t(language, 'nav.volume')}
+                  />
+                </div>
+
+                {/* Multicast toggle */}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={multicastEnabled}
+                  onClick={onToggleMulticast}
+                  className="w-full text-left px-3 py-3 border-b border-[#333] hover:bg-[#2a2a2a] flex items-center gap-2.5 transition-colors"
+                >
+                  <i className="fa-solid fa-bolt text-[#d4af37] w-4 text-center"></i>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-[#e0d2b0]">{t(language, 'nav.multicast')}</div>
+                    <div className="text-[10px] text-[#888] mt-0.5 leading-snug">{t(language, 'nav.multicastDesc')}</div>
+                  </div>
+                  <span
+                    className={`relative flex-shrink-0 w-9 h-5 rounded-full transition-colors ${
+                      multicastEnabled ? 'bg-[#c23c2a]' : 'bg-[#333]'
+                    }`}
+                    aria-hidden
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[#f0c060] shadow transition-transform ${
+                        multicastEnabled ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </span>
+                </button>
+
+                {/* Change background */}
+                <button
+                  onClick={onChangeBackground}
+                  disabled={isBgTransitioning}
+                  className="w-full text-left px-3 py-3 hover:bg-[#2a2a2a] flex items-center gap-2.5 text-[#e0d2b0] disabled:opacity-50 transition-colors"
+                >
+                  <i className="fa-solid fa-image text-[#d4af37] w-4 text-center"></i>
+                  <span className="text-xs font-medium">{t(language, 'nav.changeBg')}</span>
+                  <i className="fa-solid fa-sync text-[10px] text-[#666] ml-auto"></i>
                 </button>
               </div>
             )}

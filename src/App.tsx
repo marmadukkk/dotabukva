@@ -54,6 +54,15 @@ const App: React.FC = () => {
     }
   });
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [multicastEnabled, setMulticastEnabled] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dota_bukva_multicast');
+      if (saved === '0' || saved === 'false') return false;
+      if (saved === '1' || saved === 'true') return true;
+    } catch {}
+    return true; // on by default
+  });
 
   // Core states
   const [currentRole, setCurrentRole] = useState<'leader' | 'guesser' | null>(null);
@@ -90,7 +99,7 @@ const App: React.FC = () => {
 
   // Hooks (state provided by hooks)
   const audio = useAudio();
-  const { playSpinSounds, playDing, playMulticastSound } = audio;
+  const { volume, setVolume, playSpinSounds, playDing, playMulticastSound } = audio;
   const reels = useReels({ heroesData, language, currentMode });
 
 
@@ -123,6 +132,7 @@ const App: React.FC = () => {
     setSparks,
     setHistory,
     launchConfetti: () => {},
+    multicastEnabled,
   });
   const { spin: spinFromHook } = spinHook;
 
@@ -203,6 +213,13 @@ const App: React.FC = () => {
       localStorage.setItem('dota_bukva_lang', language);
     } catch {}
   }, [language]);
+
+  // Persist multicast toggle
+  useEffect(() => {
+    try {
+      localStorage.setItem('dota_bukva_multicast', multicastEnabled ? '1' : '0');
+    } catch {}
+  }, [multicastEnabled]);
 
   // Background init is now handled inside Background component
 
@@ -658,9 +675,7 @@ const App: React.FC = () => {
       <Background
         currentBgIndex={currentBgIndex}
         activeVideo={activeVideo}
-        isTransitioning={isTransitioning}
         backgroundVideos={BACKGROUND_VIDEOS}
-        onChangeBackground={changeBackground}
       />
 
       {/* NAV */}
@@ -669,14 +684,29 @@ const App: React.FC = () => {
         currentRole={currentRole}
         currentRoom={currentRoom}
         showLangMenu={showLangMenu}
+        showSettingsMenu={showSettingsMenu}
+        volume={volume}
+        multicastEnabled={multicastEnabled}
+        isBgTransitioning={isTransitioning}
         onShowRoleMenu={showRoleMenu}
         onShowHowto={() => setShowHowto(true)}
         onLeaveRoom={leaveRoom}
-        onToggleLangMenu={() => setShowLangMenu(!showLangMenu)}
+        onToggleLangMenu={() => {
+          setShowLangMenu((v) => !v);
+          setShowSettingsMenu(false);
+        }}
         onChangeLanguage={(lang) => {
           setLanguage(lang);
           setShowLangMenu(false);
         }}
+        onToggleSettingsMenu={() => {
+          setShowSettingsMenu((v) => !v);
+          setShowLangMenu(false);
+        }}
+        onCloseSettingsMenu={() => setShowSettingsMenu(false)}
+        onVolumeChange={setVolume}
+        onToggleMulticast={() => setMulticastEnabled((v) => !v)}
+        onChangeBackground={changeBackground}
         onLogoClick={() => {
           setCurrentRoom(null);
           setIsRoomLeader(false);
