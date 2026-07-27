@@ -70,6 +70,11 @@ const dict: Record<Language, Record<string, string>> = {
     'room.lanAlso': 'Также',
     'room.copyCode': 'Скопировать код',
     'room.copyLan': 'Скопировать IP:порт',
+    'room.copyLink': 'Скопировать ссылку на комнату',
+    'room.onlineHint': 'Онлайн-комната',
+    'room.onlineHowTo': 'Друзья заходят по коду или ссылке. Синхронизация через сервер (не LAN).',
+    'room.localHint': 'Локальная сессия (веб)',
+    'room.localHowTo': 'Все механики комнаты уже здесь. Онлайн-мультиплеер скоро — не через локальную сеть.',
 
     // Leader view
     'leader.spin': 'КРУТИТЬ',
@@ -126,6 +131,7 @@ const dict: Record<Language, Record<string, string>> = {
     'roomList.lanHost': 'IP хоста',
     'roomList.lanPort': 'Порт',
     'roomList.empty': 'Пока нет комнат. Создайте свою или введите код.',
+    'roomList.emptyWeb': 'Онлайн-список появится с сервером. Можно создать локальную сессию или ввести код.',
     'roomList.orEnter': 'Или введи код комнаты:',
     'roomList.placeholder': 'ABCDEF',
     'roomList.join': 'Войти',
@@ -204,6 +210,11 @@ const dict: Record<Language, Record<string, string>> = {
     'room.lanAlso': 'Also',
     'room.copyCode': 'Copy code',
     'room.copyLan': 'Copy IP:port',
+    'room.copyLink': 'Copy room link',
+    'room.onlineHint': 'Online room',
+    'room.onlineHowTo': 'Friends join by code or link. Sync via server (not LAN).',
+    'room.localHint': 'Local session (web)',
+    'room.localHowTo': 'Full room mechanics are ready. Online multiplayer coming — not via local network.',
 
     // Leader view
     'leader.spin': 'SPIN',
@@ -260,6 +271,7 @@ const dict: Record<Language, Record<string, string>> = {
     'roomList.lanHost': 'Host IP',
     'roomList.lanPort': 'Port',
     'roomList.empty': 'No rooms yet. Create one or enter a code.',
+    'roomList.emptyWeb': 'Online room list arrives with the server. Create a local session or enter a code.',
     'roomList.orEnter': 'Or enter room code:',
     'roomList.placeholder': 'ABCDEF',
     'roomList.join': 'Join',

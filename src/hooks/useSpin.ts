@@ -21,7 +21,7 @@ interface UseSpinProps {
   logSpinExternal?: (result: SpinResult) => void;
   /** When false, spins never roll x2/x3/x4 and multicast FX are skipped. */
   multicastEnabled?: boolean;
-  /** Broadcast spin result to LAN room (leader). */
+  /** Broadcast spin result to room peers (LAN / online). */
   sendRoomMessage?: (data: any) => void;
 }
 
@@ -231,7 +231,7 @@ export function useSpin({
       logSpin(result);
       setIsSpinning(false);
 
-      // LAN / room: broadcast result so guessers see the same outcome
+      // Room: broadcast spin so guessers sync (no-op if local/offline socket)
       if (currentRoom && isRoomLeader && sendRoomMessage) {
         sendRoomMessage({ type: 'spin_result', result });
       }

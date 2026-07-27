@@ -1,5 +1,6 @@
 import React from 'react';
 import { Language, t } from '../i18n';
+import type { MpTransport } from '../multiplayer';
 
 interface RoomLobbyProps {
   language: Language;
@@ -10,6 +11,8 @@ interface RoomLobbyProps {
   lanHost?: string | null;
   lanPort?: number | null;
   lanAddresses?: string[];
+  /** lan | online | local — web never uses LAN */
+  transport?: MpTransport;
   onStartGame: () => void;
   onLeave: () => void;
 }
@@ -23,6 +26,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
   lanHost,
   lanPort,
   lanAddresses = [],
+  transport = 'none',
   onStartGame,
   onLeave,
 }) => {
@@ -30,6 +34,8 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
   const primary = lanHost && lanHost !== '127.0.0.1' ? lanHost : (lanAddresses[0] || lanHost || '127.0.0.1');
   const joinHint = `${primary}:${port}`;
   const allIps = lanAddresses.length ? lanAddresses : (primary ? [primary] : []);
+  const showLan = transport === 'lan' && isLeader && allIps.length > 0;
+  const showOnlineHint = transport === 'online' || transport === 'local';
 
   const copyText = (text: string) => {
     try {
@@ -50,7 +56,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
           {roomCode}
         </div>
 
-        {isLeader && allIps.length > 0 && (
+        {showLan && (
           <div className="mt-4 space-y-2">
             <div className="text-[10px] tracking-[2px] text-zinc-500 uppercase">
               {t(language, 'room.lanHint')}
@@ -73,6 +79,27 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
             <p className="text-xs text-zinc-500 max-w-md mx-auto leading-relaxed">
               {t(language, 'room.lanHowTo')}
             </p>
+          </div>
+        )}
+
+        {showOnlineHint && (
+          <div className="mt-4 space-y-1 max-w-md mx-auto">
+            <div className="text-[10px] tracking-[2px] text-zinc-500 uppercase">
+              {t(language, transport === 'online' ? 'room.onlineHint' : 'room.localHint')}
+            </div>
+            <p className="text-xs text-zinc-500 leading-relaxed">
+              {t(language, transport === 'online' ? 'room.onlineHowTo' : 'room.localHowTo')}
+            </p>
+            {typeof window !== 'undefined' && (
+              <button
+                type="button"
+                data-sfx="button"
+                className="text-[11px] text-[#d4af37]/80 hover:text-[#d4af37] underline underline-offset-2"
+                onClick={() => copyText(`${window.location.origin}/?room=${roomCode}`)}
+              >
+                {t(language, 'room.copyLink')}
+              </button>
+            )}
           </div>
         )}
       </div>

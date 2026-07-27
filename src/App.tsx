@@ -29,6 +29,11 @@ import { useHistory } from './hooks/useHistory';
 import { useMulticast } from './hooks/useMulticast';
 import { useModals } from './hooks/useModals';
 import { useSpin } from './hooks/useSpin';
+import {
+  canEliminate,
+  applySuccessfulElim,
+  isElectronDesktop,
+} from './multiplayer';
 
 const BG_STORAGE_KEY = 'dota_bukva_background_index';
 
@@ -167,6 +172,7 @@ const App: React.FC = () => {
     playWarningSound,
     playBanSound,
     playUnbanSound,
+    playMipmapSound,
   } = audio;
   const reels = useReels({ heroesData, language, currentMode });
 
@@ -431,10 +437,15 @@ const App: React.FC = () => {
         // connect later after render
         setTimeout(() => {
           showRoomLobby(code, leader);
-          // Web deep-link only; desktop LAN uses explicit host IP join
-          if (!window.dotaDesktop?.isElectron) {
-            room.connectToRoomWS({ code, role: leader ? 'leader' : 'guesser' });
+          // Desktop LAN needs explicit host IP; web uses online/local transport
+          if (isElectronDesktop()) {
+            switchToScreen('room-lobby');
           } else {
+            room.connectToRoomWS({
+              code,
+              role: leader ? 'leader' : 'guesser',
+              transport: room.preferredTransport === 'online' ? 'online' : 'local',
+            });
             switchToScreen('room-lobby');
           }
         }, 200);
@@ -539,23 +550,60 @@ const App: React.FC = () => {
 
   const toggleEliminated = (short: string) => {
     const wasEliminated = eliminatedHeroes.has(short);
+    const inRoom = !!currentRoom;
+    const networked = inRoom && room.isNetworkRoom();
+
+    // Room guesser: free elims + CD (LAN / online / local session)
+    if (
+      inRoom &&
+      !wasEliminated &&
+      currentRole === 'guesser' &&
+      !canEliminate({ freeElims: myFreeElims, lastElimTime: myLastElim })
+    ) {
+      playMipmapSound();
+      return;
+    }
+    // Fallback: CD timer UI already ticking
+    if (
+      inRoom &&
+      !wasEliminated &&
+      currentRole === 'guesser' &&
+      myFreeElims <= 0 &&
+      elimCD > 0
+    ) {
+      playMipmapSound();
+      return;
+    }
+
     if (wasEliminated) playUnbanSound();
     else playBanSound();
 
-    // LAN room: sync bans via host
-    if (currentRoom && room.sendRoomMessage) {
+    // Room: same protocol as desktop (eliminate / uneliminate)
+    if (inRoom) {
       if (currentRole !== 'guesser' && currentRole !== 'leader') return;
+
       if (wasEliminated) {
-        room.sendRoomMessage({ type: 'uneliminate', short });
+        if (networked) room.sendRoomMessage({ type: 'uneliminate', short });
         setEliminatedHeroes((prev) => {
           const next = new Set(prev);
           next.delete(short);
           return next;
         });
-      } else {
-        if (currentRole === 'guesser' && myFreeElims <= 0 && elimCD > 0) return;
-        room.sendRoomMessage({ type: 'eliminate', short });
-        // Optimistic update; server will broadcast canonical list
+        return;
+      }
+
+      // eliminate
+      if (currentRole === 'guesser' || networked) {
+        if (networked) {
+          room.sendRoomMessage({ type: 'eliminate', short });
+        } else if (currentRole === 'guesser') {
+          // Local web session: apply free-elim / CD client-side (same rules as host)
+          const nextState = applySuccessfulElim({
+            freeElims: myFreeElims,
+            lastElimTime: myLastElim,
+          });
+          room.applyElimPersonal(nextState.freeElims, nextState.lastElimTime);
+        }
         setEliminatedHeroes((prev) => {
           const next = new Set(prev);
           next.add(short);
@@ -565,9 +613,11 @@ const App: React.FC = () => {
       return;
     }
 
+    // Solo (no room)
     setEliminatedHeroes((prev) => {
       const next = new Set(prev);
-      if (next.has(short)) next.delete(short); else next.add(short);
+      if (next.has(short)) next.delete(short);
+      else next.add(short);
       try {
         localStorage.setItem('dota_bukva_eliminated', JSON.stringify(Array.from(next)));
       } catch {}
@@ -576,8 +626,10 @@ const App: React.FC = () => {
   };
 
   const resetEliminatedFn = () => {
-    if (currentRoom && room.sendRoomMessage) {
-      room.sendRoomMessage({ type: 'reset_eliminated' });
+    if (currentRoom) {
+      if (room.isNetworkRoom()) {
+        room.sendRoomMessage({ type: 'reset_eliminated' });
+      }
     }
     setEliminatedHeroes(new Set());
     try {
@@ -882,13 +934,8 @@ const App: React.FC = () => {
           language={language}
           onStartNormal={startNormalMode}
           onCreateRoom={async () => {
-            // Desktop: real LAN host. Web: donation stub (online multiplayer WIP).
-            if (window.dotaDesktop?.isElectron) {
-              await createRoom();
-            } else {
-              playWarningSound();
-              showHostingDonation((key) => t(language, key));
-            }
+            // Desktop → LAN host. Web → full room mechanics (local / future online, not LAN).
+            await createRoom();
           }}
           onShowRooms={showRoomList}
         />
@@ -913,9 +960,10 @@ const App: React.FC = () => {
           roomPlayers={roomPlayers}
           isLeader={isRoomLeader}
           lobbyStatus={lobbyStatus}
-          lanHost={room.lanHost}
-          lanPort={room.lanPort}
-          lanAddresses={room.lanAddresses}
+          lanHost={room.transport === 'lan' ? room.lanHost : null}
+          lanPort={room.transport === 'lan' ? room.lanPort : null}
+          lanAddresses={room.transport === 'lan' ? room.lanAddresses : []}
+          transport={room.transport}
           onStartGame={startGameFromLobby}
           onLeave={leaveRoom}
         />
@@ -993,7 +1041,7 @@ const App: React.FC = () => {
         rooms={roomsList} 
         onClose={closeRoomListModal} 
         onJoin={joinRoom}
-        lanMode={!!window.dotaDesktop?.isElectron}
+        lanMode={isElectronDesktop()}
       />
 
     </>

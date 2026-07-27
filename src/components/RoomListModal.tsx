@@ -73,6 +73,7 @@ const RoomListModal: React.FC<RoomListModalProps> = ({
         {lanMode ? (
           <div className="space-y-3">
             <p className="text-xs text-zinc-400 leading-relaxed">{t(language, 'roomList.lanDesc')}</p>
+            {/* Desktop only — web uses code join / future online */}
             <div>
               <div className="text-[10px] tracking-wider text-zinc-500 mb-1 uppercase">
                 {t(language, 'roomList.lanHost')}
@@ -120,7 +121,9 @@ const RoomListModal: React.FC<RoomListModalProps> = ({
         ) : (
           <>
             {rooms.length === 0 ? (
-              <div className="text-zinc-400 text-sm py-4">{t(language, 'roomList.empty')}</div>
+              <div className="text-zinc-400 text-sm py-4">
+                {t(language, 'roomList.emptyWeb')}
+              </div>
             ) : (
               <div className="space-y-2 max-h-64 overflow-auto">
                 {rooms.map((room, idx) => {
