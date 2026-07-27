@@ -12,17 +12,31 @@ export interface NewsItem {
 /** Latest updates shown on the main menu (newest first). */
 export const NEWS_ITEMS: NewsItem[] = [
   {
-    id: '1.1.2-desktop',
+    id: '1.1-lan',
     date: '2026-07-27',
-    version: '1.1.2',
-    tag: { ru: 'Десктоп', en: 'Desktop' },
+    version: '1.1-desktop',
+    tag: { ru: 'LAN', en: 'LAN' },
     title: {
-      ru: 'Скоро альфа десктоп-версии',
-      en: 'Desktop alpha coming soon',
+      ru: 'Мультиплеер по локальной сети',
+      en: 'Local network multiplayer',
     },
     body: {
-      ru: 'Electron-сборка для Linux и Windows. Игра переносится на десктоп целиком.',
-      en: 'Electron build for Linux and Windows. The full game is moving to desktop.',
+      ru: 'Хост создаёт комнату, гости вводят IP (Wi‑Fi / Radmin). Общий спин и вычёркивания. Win + Linux.',
+      en: 'Host creates a room, guests enter IP (Wi‑Fi / Radmin). Shared spins and eliminations. Win + Linux.',
+    },
+  },
+  {
+    id: '1.0-desktop',
+    date: '2026-07-27',
+    version: '1.0-desktop',
+    tag: { ru: 'Десктоп', en: 'Desktop' },
+    title: {
+      ru: 'Первый десктоп-релиз',
+      en: 'First desktop release',
+    },
+    body: {
+      ru: 'Electron для Linux и Windows. Базовая игра без LAN-мультиплеера.',
+      en: 'Electron for Linux and Windows. Base game without LAN multiplayer.',
     },
   },
   {

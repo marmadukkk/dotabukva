@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { Language } from '../i18n';
 
 interface UseRoomProps {
@@ -16,19 +16,28 @@ interface UseRoomProps {
   setMyFreeElims: (elims: number) => void;
   setMyLastElim: (time: number) => void;
   setCurrentRole: (role: 'leader' | 'guesser' | null) => void;
-  setMyFreeElimsOnJoin?: (elims: number) => void;
   stopElimCD: () => void;
   startElimCD: (secs: number) => void;
   handleGameStartedFromWS: () => void;
   landReelResult?: (result: any) => void;
+  /** Optional: animate spin for remote results (leader view) */
+  onRemoteSpinResult?: (result: any) => void;
+}
+
+function isElectronDesktop(): boolean {
+  return !!(typeof window !== 'undefined' && window.dotaDesktop?.isElectron);
+}
+
+function generateClientRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c = '';
+  for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  return c;
 }
 
 export function useRoom(props: UseRoomProps) {
   const {
-    language,
-    currentMode,
     API_BASE,
-    loadData,
     setCurrentRoom,
     setIsRoomLeader,
     setRoomPlayers,
@@ -38,44 +47,18 @@ export function useRoom(props: UseRoomProps) {
     setEliminatedHeroes,
     setMyFreeElims,
     setMyLastElim,
-    setCurrentRole,
     stopElimCD,
     startElimCD,
     handleGameStartedFromWS,
     landReelResult,
+    onRemoteSpinResult,
   } = props;
 
   const roomSocketRef = useRef<WebSocket | null>(null);
-
-  const connectToRoomWS = useCallback((code: string, role = 'guesser') => {
-    // WebSocket disabled for Vercel deployment (no persistent server)
-    if (API_BASE || window.location.hostname.includes('vercel.app') || import.meta.env.PROD) {
-      return;
-    }
-    if (roomSocketRef.current) {
-      try { roomSocketRef.current.close(); } catch {}
-    }
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${proto}//${location.host}/ws/room/${code}?role=${role}`;
-    const ws = new WebSocket(url);
-    roomSocketRef.current = ws;
-
-    ws.onopen = () => {
-      const status = role === 'leader' 
-        ? 'Вы ведущий. Соединение установлено. Нажмите «Начать игру», когда все подключатся.' 
-        : 'Вы отгадывающий. Соединение установлено. Ожидайте, пока ведущий начнёт игру.';
-      setLobbyStatus(status);
-    };
-    ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data);
-        handleRoomMessage(msg);
-      } catch {}
-    };
-    ws.onclose = () => {
-      roomSocketRef.current = null;
-    };
-  }, [API_BASE, setLobbyStatus]);
+  const handleRoomMessageRef = useRef<(msg: any) => void>(() => {});
+  const [lanHost, setLanHost] = useState<string | null>(null);
+  const [lanPort, setLanPort] = useState<number | null>(null);
+  const [lanAddresses, setLanAddresses] = useState<string[]>([]);
 
   const sendRoomMessage = useCallback((data: any) => {
     if (roomSocketRef.current && roomSocketRef.current.readyState === WebSocket.OPEN) {
@@ -85,9 +68,9 @@ export function useRoom(props: UseRoomProps) {
 
   const handleRoomMessage = useCallback((msg: any) => {
     if (msg.type === 'spin_result' && msg.result) {
-      // This would need access to isRoomLeader / currentRole
-      // For now, delegate to parent via props if needed
-      if (landReelResult) {
+      if (onRemoteSpinResult) {
+        onRemoteSpinResult(msg.result);
+      } else if (landReelResult) {
         landReelResult(msg.result);
       } else {
         setLastResult(msg.result);
@@ -111,119 +94,215 @@ export function useRoom(props: UseRoomProps) {
       setMyLastElim(msg.last_elim_time || 0);
       stopElimCD();
       if ((msg.free_elims || 0) <= 0 && msg.last_elim_time) {
-        const rem = Math.max(0, 25 - (Date.now()/1000 - msg.last_elim_time));
+        const rem = Math.max(0, 25 - (Date.now() / 1000 - msg.last_elim_time));
         if (rem > 0) startElimCD(rem);
       }
     }
     if (msg.players !== undefined) {
       setRoomPlayers(msg.players);
     }
+    if (msg.type === 'error' && msg.message === 'wrong_room') {
+      setLobbyStatus('Неверный код комнаты.');
+    }
   }, [
-    setLastResult, 
-    setEliminatedHeroes, 
-    handleGameStartedFromWS, 
-    setMyFreeElims, 
-    setMyLastElim, 
-    stopElimCD, 
-    startElimCD, 
+    setLastResult,
+    setEliminatedHeroes,
+    handleGameStartedFromWS,
+    setMyFreeElims,
+    setMyLastElim,
+    stopElimCD,
+    startElimCD,
     setRoomPlayers,
-    landReelResult
+    landReelResult,
+    onRemoteSpinResult,
+    setLobbyStatus,
   ]);
 
-  const handleGameStartedFromWSLocal = useCallback(() => {
-    setGameStarted(true);
-    // The actual role setting and loadData is handled in parent
-  }, [setGameStarted]);
+  handleRoomMessageRef.current = handleRoomMessage;
 
-  function generateClientRoomCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let c = ''; 
-    for(let i = 0; i < 6; i++) c += chars[Math.floor(Math.random()*chars.length)]; 
-    return c;
-  }
+  const connectToRoomWS = useCallback((opts: {
+    code: string;
+    role?: string;
+    host?: string;
+    port?: number;
+  }) => {
+    const code = opts.code.toUpperCase();
+    const role = opts.role || 'guesser';
+    const electron = isElectronDesktop();
+
+    // Cloud / Vercel: WS disabled (no persistent server) — desktop LAN only for real sync
+    if (!electron && (API_BASE || window.location.hostname.includes('vercel.app') || import.meta.env.PROD)) {
+      setLobbyStatus('Мультиплеер по сети доступен в десктоп-версии (LAN).');
+      return;
+    }
+
+    if (roomSocketRef.current) {
+      try { roomSocketRef.current.close(); } catch {}
+    }
+
+    let url: string;
+    if (electron) {
+      const host = opts.host || '127.0.0.1';
+      const port = opts.port || 17432;
+      url = `ws://${host}:${port}/ws?role=${encodeURIComponent(role)}&room=${encodeURIComponent(code)}`;
+      setLanHost(host);
+      setLanPort(port);
+    } else {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      url = `${proto}//${location.host}/ws/room/${code}?role=${role}`;
+    }
+
+    const ws = new WebSocket(url);
+    roomSocketRef.current = ws;
+
+    ws.onopen = () => {
+      const status = role === 'leader'
+        ? 'Вы ведущий. Соединение установлено. Нажмите «Начать игру», когда все подключатся.'
+        : 'Вы отгадывающий. Соединение установлено. Ожидайте, пока ведущий начнёт игру.';
+      setLobbyStatus(status);
+    };
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        handleRoomMessageRef.current(msg);
+      } catch {}
+    };
+    ws.onerror = () => {
+      setLobbyStatus('Ошибка соединения. Проверьте IP хоста и что комната запущена.');
+    };
+    ws.onclose = () => {
+      roomSocketRef.current = null;
+    };
+  }, [API_BASE, setLobbyStatus]);
 
   const createRoom = useCallback(async () => {
+    // Desktop LAN host
+    if (isElectronDesktop() && window.dotaDesktop?.lan) {
+      setLobbyStatus('Запускаем хост в локальной сети...');
+      const info = await window.dotaDesktop.lan.startHost({});
+      if (!info || 'error' in info) {
+        setLobbyStatus(`Не удалось запустить LAN-хост: ${(info as any)?.error || 'unknown'}`);
+        return null;
+      }
+      const code = info.room;
+      setCurrentRoom(code);
+      setIsRoomLeader(true);
+      setLanAddresses(info.addresses || []);
+      setLanHost(info.primaryAddress);
+      setLanPort(info.port);
+
+      const my = JSON.parse(localStorage.getItem('dota_bukva_my_rooms') || '[]');
+      if (!my.includes(code)) {
+        my.push(code);
+        localStorage.setItem('dota_bukva_my_rooms', JSON.stringify(my));
+      }
+
+      setLobbyStatus('Вы ведущий. Подключаемся к комнате...');
+      connectToRoomWS({
+        code,
+        role: 'leader',
+        host: '127.0.0.1',
+        port: info.port,
+      });
+      return { code, lan: info };
+    }
+
+    // Remote API (if available)
     try {
       const res = await fetch(`${API_BASE}/api/rooms/create`, { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         setCurrentRoom(data.code);
         setIsRoomLeader(true);
-        
-        // Update local rooms list
         const my = JSON.parse(localStorage.getItem('dota_bukva_my_rooms') || '[]');
-        if (!my.includes(data.code)) { 
-          my.push(data.code); 
-          localStorage.setItem('dota_bukva_my_rooms', JSON.stringify(my)); 
+        if (!my.includes(data.code)) {
+          my.push(data.code);
+          localStorage.setItem('dota_bukva_my_rooms', JSON.stringify(my));
         }
-        
-        // Show lobby
         setLobbyStatus('Вы ведущий. Подключаемся к комнате...');
-        
-        connectToRoomWS(data.code, 'leader');
+        connectToRoomWS({ code: data.code, role: 'leader' });
+        return { code: data.code };
       }
-    } catch {
-      // fallback client demo room
-      const code = generateClientRoomCode();
-      setCurrentRoom(code); 
-      setIsRoomLeader(true);
-      
-      let roomsL = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
-      roomsL = roomsL.filter((r: any) => r.code !== code); 
-      roomsL.unshift({code, created: Date.now()});
-      localStorage.setItem('dota_bukva_rooms', JSON.stringify(roomsL));
-      
-      const my = JSON.parse(localStorage.getItem('dota_bukva_my_rooms') || '[]'); 
-      if(!my.includes(code)) {
-        my.push(code);
-        localStorage.setItem('dota_bukva_my_rooms', JSON.stringify(my));
-      }
-      
-      setLobbyStatus('Вы ведущий. Подключаемся к комнате...');
+    } catch {}
+
+    // Web fallback demo (local only, no real sync)
+    const code = generateClientRoomCode();
+    setCurrentRoom(code);
+    setIsRoomLeader(true);
+    let roomsL = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
+    roomsL = roomsL.filter((r: any) => r.code !== code);
+    roomsL.unshift({ code, created: Date.now() });
+    localStorage.setItem('dota_bukva_rooms', JSON.stringify(roomsL));
+    const my = JSON.parse(localStorage.getItem('dota_bukva_my_rooms') || '[]');
+    if (!my.includes(code)) {
+      my.push(code);
+      localStorage.setItem('dota_bukva_my_rooms', JSON.stringify(my));
     }
+    setLobbyStatus('Демо-комната (без сети). Для LAN используйте десктоп-версию.');
+    return { code, demo: true };
   }, [API_BASE, setCurrentRoom, setIsRoomLeader, setLobbyStatus, connectToRoomWS]);
 
-  const showRoomList = useCallback(async (setRoomsList: (rooms: any[]) => void, setJoinCodeInput: (val: string) => void, setShowModal: (show: boolean) => void) => {
+  const showRoomList = useCallback(async (
+    setRoomsList: (rooms: any[]) => void,
+    setJoinCodeInput: (val: string) => void,
+    setShowModal: (show: boolean) => void
+  ) => {
     let rooms: any[] = [];
-    try {
-      const res = await fetch(`${API_BASE}/api/rooms`);
-      if (res.ok) {
-        const data = await res.json();
-        rooms = data.rooms || [];
-      } else {
-        throw new Error('backend not available');
+    if (!isElectronDesktop()) {
+      try {
+        const res = await fetch(`${API_BASE}/api/rooms`);
+        if (res.ok) {
+          const data = await res.json();
+          rooms = data.rooms || [];
+        } else {
+          throw new Error('backend not available');
+        }
+      } catch {
+        rooms = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
       }
-    } catch {
-      rooms = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
     }
     setRoomsList(rooms);
     setJoinCodeInput('');
     setShowModal(true);
   }, [API_BASE]);
 
-  const joinRoom = useCallback((code: string, onCloseModal?: () => void) => {
-    const c = code.toUpperCase();
+  const joinRoom = useCallback((opts: { code: string; host?: string; port?: number }, onCloseModal?: () => void) => {
+    const c = opts.code.toUpperCase();
+    const electron = isElectronDesktop();
+    const host = opts.host || lanHost || '127.0.0.1';
+    const port = opts.port || lanPort || 17432;
+
     setCurrentRoom(c);
-    
+
     const my = JSON.parse(localStorage.getItem('dota_bukva_my_rooms') || '[]');
-    const leader = my.includes(c);
+    const leader = my.includes(c) && host === '127.0.0.1';
     setIsRoomLeader(leader);
-    
-    if (!leader) { 
-      // Reset personal elims for guesser
+
+    if (electron) {
+      setLanHost(host);
+      setLanPort(port);
     }
-    
-    setLobbyStatus(leader ? 'Вы ведущий. Подключаемся к комнате...' : 'Вы отгадывающий. Подключаемся к комнате...');
-    
-    connectToRoomWS(c, leader ? 'leader' : 'guesser');
+
+    setLobbyStatus(leader
+      ? 'Вы ведущий. Подключаемся к комнате...'
+      : 'Вы отгадывающий. Подключаемся к комнате...');
+
+    connectToRoomWS({
+      code: c,
+      role: leader ? 'leader' : 'guesser',
+      host: electron ? host : undefined,
+      port: electron ? port : undefined,
+    });
 
     if (onCloseModal) onCloseModal();
-  }, [setCurrentRoom, setIsRoomLeader, setLobbyStatus, connectToRoomWS]);
+  }, [setCurrentRoom, setIsRoomLeader, setLobbyStatus, connectToRoomWS, lanHost, lanPort]);
 
   const showRoomLobby = useCallback((code: string, leader: boolean) => {
     setCurrentRoom(code);
     setIsRoomLeader(leader);
-    setLobbyStatus(leader ? 'Вы ведущий. Подключаемся к комнате...' : 'Вы отгадывающий. Подключаемся к комнате...');
+    setLobbyStatus(leader
+      ? 'Вы ведущий. Подключаемся к комнате...'
+      : 'Вы отгадывающий. Подключаемся к комнате...');
   }, [setCurrentRoom, setIsRoomLeader, setLobbyStatus]);
 
   const startGameFromLobby = useCallback(() => {
@@ -231,16 +310,23 @@ export function useRoom(props: UseRoomProps) {
     handleGameStartedFromWS();
   }, [sendRoomMessage, handleGameStartedFromWS]);
 
-  const leaveRoom = useCallback(() => {
-    if (roomSocketRef.current) { 
+  const leaveRoom = useCallback(async () => {
+    if (roomSocketRef.current) {
       try { roomSocketRef.current.close(); } catch {}
-      roomSocketRef.current = null; 
+      roomSocketRef.current = null;
     }
-    setCurrentRoom(null); 
-    setIsRoomLeader(false); 
+    if (isElectronDesktop() && window.dotaDesktop?.lan) {
+      try { await window.dotaDesktop.lan.stopHost(); } catch {}
+    }
+    setCurrentRoom(null);
+    setIsRoomLeader(false);
     setGameStarted(false);
     setLobbyStatus('');
-  }, [setCurrentRoom, setIsRoomLeader, setGameStarted, setLobbyStatus]);
+    setLanHost(null);
+    setLanPort(null);
+    setLanAddresses([]);
+    setRoomPlayers(1);
+  }, [setCurrentRoom, setIsRoomLeader, setGameStarted, setLobbyStatus, setRoomPlayers]);
 
   return {
     roomSocketRef,
@@ -253,7 +339,11 @@ export function useRoom(props: UseRoomProps) {
     showRoomLobby,
     startGameFromLobby,
     leaveRoom,
-    handleGameStartedFromWS: handleGameStartedFromWSLocal,
     generateClientRoomCode,
+    lanHost,
+    lanPort,
+    lanAddresses,
+    setLanHost,
+    setLanPort,
   };
 }

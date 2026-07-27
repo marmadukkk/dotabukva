@@ -21,6 +21,8 @@ interface UseSpinProps {
   logSpinExternal?: (result: SpinResult) => void;
   /** When false, spins never roll x2/x3/x4 and multicast FX are skipped. */
   multicastEnabled?: boolean;
+  /** Broadcast spin result to LAN room (leader). */
+  sendRoomMessage?: (data: any) => void;
 }
 
 export function useSpin({
@@ -39,6 +41,7 @@ export function useSpin({
   currentMode = 'heroes',
   heroesData = [],
   multicastEnabled = true,
+  sendRoomMessage,
 }: UseSpinProps & { currentMode?: any; heroesData?: any[] }) {
   const { playSpinSounds, playDing, playMulticastSound, startSpinMusic, playSpinMusicEnd, stopSpinMusic } = audio;
 
@@ -160,13 +163,8 @@ export function useSpin({
     setMulticastLevel(0);
     setCurrentMultiplier(1);
 
-    // ROOM LEADER SPIN
-    if (currentRoom) {
-      setIsSpinning(true);
-      const hReel = reels.heroReelRef.current; 
-      const lReel = reels.letterReelRef.current;
-      if (hReel) hReel.classList.add('reel-waiting-spin');
-      if (lReel) lReel.classList.add('reel-waiting-spin');
+    // In a room only the leader spins; guests wait for broadcast
+    if (currentRoom && !isRoomLeader) {
       return;
     }
 
@@ -233,6 +231,11 @@ export function useSpin({
       logSpin(result);
       setIsSpinning(false);
 
+      // LAN / room: broadcast result so guessers see the same outcome
+      if (currentRoom && isRoomLeader && sendRoomMessage) {
+        sendRoomMessage({ type: 'spin_result', result });
+      }
+
       // 2) Let React commit the result card, then fire end SFX (non-blocking)
       requestAnimationFrame(() => {
         playSpinMusicEnd();
@@ -248,7 +251,7 @@ export function useSpin({
       stopSpinMusic();
       setIsSpinning(false);
     }
-  }, [language, currentMode, heroesData, currentRoom, reels, audio, multicastEnabled]);
+  }, [language, currentMode, heroesData, currentRoom, isRoomLeader, reels, audio, multicastEnabled, sendRoomMessage]);
 
   // Helper for fallback (duplicated from useData for independence)
   function getFallbackHeroes() {

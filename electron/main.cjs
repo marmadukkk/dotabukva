@@ -1,8 +1,8 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
-const { pathToFileURL } = require('url');
+const { createLanServer } = require('./lanServer.cjs');
 
 const isDev = !app.isPackaged;
 
@@ -10,6 +10,7 @@ const isDev = !app.isPackaged;
 let mainWindow = null;
 /** @type {http.Server | null} */
 let staticServer = null;
+const lanServer = createLanServer();
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -159,6 +160,24 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  // LAN multiplayer host controls (desktop only)
+  ipcMain.handle('lan:startHost', async (_evt, opts) => {
+    try {
+      return await lanServer.start(opts || {});
+    } catch (e) {
+      return { error: String(e && e.message ? e.message : e) };
+    }
+  });
+  ipcMain.handle('lan:stopHost', async () => {
+    try {
+      await lanServer.stop();
+      return { ok: true };
+    } catch (e) {
+      return { error: String(e && e.message ? e.message : e) };
+    }
+  });
+  ipcMain.handle('lan:getInfo', async () => lanServer.getInfo());
+
   await createWindow();
 
   app.on('activate', () => {
@@ -173,5 +192,6 @@ app.on('window-all-closed', () => {
     try { staticServer.close(); } catch {}
     staticServer = null;
   }
+  lanServer.stop().catch(() => {});
   if (process.platform !== 'darwin') app.quit();
 });

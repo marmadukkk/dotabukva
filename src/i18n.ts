@@ -31,8 +31,8 @@ const dict: Record<Language, Record<string, string>> = {
     'main.createDesc': 'Сгенерировать код и пригнать друзей',
     'main.rooms': 'Список комнат',
     'main.roomsDesc': 'Присоединиться к существующей комнате',
-    'main.version': 'VERSION 1.1.2 • СКОРО АЛЬФА ДЕСКТОП-ВЕРСИИ',
-    'main.versionDesktop': 'VERSION 1.0-desktop • РЕЛИЗ',
+    'main.version': 'VERSION 1.1.3 • СКОРО АЛЬФА ДЕСКТОП-ВЕРСИИ',
+    'main.versionDesktop': 'VERSION 1.1-desktop • РЕЛИЗ • LAN MULTIPLAYER',
     'main.newsTitle': 'Новости',
     'main.newsSubtitle': 'Последние обновления',
 
@@ -64,6 +64,12 @@ const dict: Record<Language, Record<string, string>> = {
     'room.statusGuesserConnect': 'Вы отгадывающий. Подключаемся к комнате...',
     'room.statusLeaderReady': 'Вы ведущий. Соединение установлено. Нажмите «Начать игру», когда все подключатся.',
     'room.statusGuesserReady': 'Вы отгадывающий. Соединение установлено. Ожидайте, пока ведущий начнёт игру.',
+    'room.leave': 'ВЫЙТИ ИЗ КОМНАТЫ',
+    'room.lanHint': 'LAN — адрес хоста',
+    'room.lanHowTo': 'Другие игроки в той же Wi‑Fi/сети: «Список комнат» → ввести этот IP и код комнаты.',
+    'room.lanAlso': 'Также',
+    'room.copyCode': 'Скопировать код',
+    'room.copyLan': 'Скопировать IP:порт',
 
     // Leader view
     'leader.spin': 'КРУТИТЬ',
@@ -115,6 +121,10 @@ const dict: Record<Language, Record<string, string>> = {
     'modal.resetElimAbilities': 'Сбросить все вычеркнутые способности?',
 
     'roomList.title': 'Список комнат',
+    'roomList.lanTitle': 'Подключение по LAN',
+    'roomList.lanDesc': 'Введите IP компьютера-хоста (ведущего) и код комнаты с его экрана.',
+    'roomList.lanHost': 'IP хоста',
+    'roomList.lanPort': 'Порт',
     'roomList.empty': 'Пока нет комнат. Создайте свою или введите код.',
     'roomList.orEnter': 'Или введи код комнаты:',
     'roomList.placeholder': 'ABCDEF',
@@ -155,8 +165,8 @@ const dict: Record<Language, Record<string, string>> = {
     'main.createDesc': 'Generate a code and invite friends',
     'main.rooms': 'Room List',
     'main.roomsDesc': 'Join an existing room',
-    'main.version': 'VERSION 1.1.2 • DESKTOP ALPHA COMING SOON',
-    'main.versionDesktop': 'VERSION 1.0-desktop • RELEASE',
+    'main.version': 'VERSION 1.1.3 • DESKTOP ALPHA COMING SOON',
+    'main.versionDesktop': 'VERSION 1.1-desktop • RELEASE • LAN MULTIPLAYER',
     'main.newsTitle': 'News',
     'main.newsSubtitle': 'Latest updates',
 
@@ -188,6 +198,12 @@ const dict: Record<Language, Record<string, string>> = {
     'room.statusGuesserConnect': 'You are a guesser. Connecting to room...',
     'room.statusLeaderReady': 'You are the leader. Connection established. Press "Start game" when everyone has joined.',
     'room.statusGuesserReady': 'You are a guesser. Connection established. Wait for the leader to start the game.',
+    'room.leave': 'LEAVE ROOM',
+    'room.lanHint': 'LAN — host address',
+    'room.lanHowTo': 'Other players on the same Wi‑Fi: open Room List → enter this IP and room code.',
+    'room.lanAlso': 'Also',
+    'room.copyCode': 'Copy code',
+    'room.copyLan': 'Copy IP:port',
 
     // Leader view
     'leader.spin': 'SPIN',
@@ -239,6 +255,10 @@ const dict: Record<Language, Record<string, string>> = {
     'modal.resetElimAbilities': 'Reset all crossed out abilities?',
 
     'roomList.title': 'Room list',
+    'roomList.lanTitle': 'Join via LAN',
+    'roomList.lanDesc': 'Enter the host PC IP and room code shown on the leader screen.',
+    'roomList.lanHost': 'Host IP',
+    'roomList.lanPort': 'Port',
     'roomList.empty': 'No rooms yet. Create one or enter a code.',
     'roomList.orEnter': 'Or enter room code:',
     'roomList.placeholder': 'ABCDEF',
