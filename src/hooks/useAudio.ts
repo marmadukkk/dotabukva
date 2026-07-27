@@ -289,27 +289,35 @@ export function useAudio() {
     spinMusicRef.current = null;
   }, []);
 
-  /** Looping spin bed while reels are rolling. */
+  /** Looping spin bed while reels are rolling (must NOT gate UI / result reveal). */
   const startSpinMusic = useCallback(() => {
     stopSpinMusic();
     if (sfxVolumeRef.current <= 0) return;
     try {
+      // Prefer spin.mp3 if present, else spinmusic.mp3
       const el = new Audio('/sounds/spinmusic.mp3');
       el.loop = true;
       el.preload = 'auto';
       el.volume = clamp01(sfxVolumeRef.current * SPIN_MUSIC_PEAK);
       spinMusicRef.current = el;
-      el.play().catch(() => {
+      // Fire-and-forget — never await; result timing must not depend on this
+      void el.play().catch(() => {
         if (spinMusicRef.current === el) spinMusicRef.current = null;
       });
     } catch {}
   }, [stopSpinMusic]);
 
-  /** Stop spin bed and play the end sting. */
+  /**
+   * End sting after reels land. Safe to call after stopSpinMusic().
+   * Must stay non-blocking so the result card can paint immediately.
+   */
   const playSpinMusicEnd = useCallback(() => {
     stopSpinMusic();
     if (sfxVolumeRef.current <= 0) return;
-    playSfxFile('/sounds/spinmusicend.mp3', 0.95);
+    // Defer one macrotask so React can commit setLastResult first
+    window.setTimeout(() => {
+      playSfxFile('/sounds/spinmusicend.mp3', 0.95);
+    }, 0);
   }, [stopSpinMusic, playSfxFile]);
 
   // Cleanup spin music on unmount

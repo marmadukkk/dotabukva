@@ -32,6 +32,9 @@ const dict: Record<Language, Record<string, string>> = {
     'main.rooms': 'Список комнат',
     'main.roomsDesc': 'Присоединиться к существующей комнате',
     'main.version': 'VERSION 1.1.2 • СКОРО АЛЬФА ДЕСКТОП-ВЕРСИИ',
+    'main.versionDesktop': 'VERSION 1.0-desktop • РЕЛИЗ',
+    'main.newsTitle': 'Новости',
+    'main.newsSubtitle': 'Последние обновления',
 
     // Role Menu
     'role.title': 'Выбери роль',
@@ -153,6 +156,9 @@ const dict: Record<Language, Record<string, string>> = {
     'main.rooms': 'Room List',
     'main.roomsDesc': 'Join an existing room',
     'main.version': 'VERSION 1.1.2 • DESKTOP ALPHA COMING SOON',
+    'main.versionDesktop': 'VERSION 1.0-desktop • RELEASE',
+    'main.newsTitle': 'News',
+    'main.newsSubtitle': 'Latest updates',
 
     // Role Menu
     'role.title': 'Choose your role',

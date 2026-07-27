@@ -95,15 +95,11 @@ export function useReels({ heroesData, language, currentMode }: UseReelsProps) {
 
       items.forEach(it => it.classList.add('spinning'));
 
-      const anim = strip.animate([
-        { transform: `translateY(-${currentY}px)` },
-        { transform: `translateY(-${finalTranslate}px)` }
-      ], { duration, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' });
+      let settled = false;
+      const settle = () => {
+        if (settled) return;
+        settled = true;
 
-      if (leftC) leftC.animate([{transform:`translateY(-${currentY}px)`},{transform:`translateY(-${finalTranslate}px)`}], {duration, easing:'cubic-bezier(0.22, 1, 0.36, 1)', fill:'forwards'});
-      if (rightC) rightC.animate([{transform:`translateY(-${currentY}px)`},{transform:`translateY(-${finalTranslate}px)`}], {duration, easing:'cubic-bezier(0.22, 1, 0.36, 1)', fill:'forwards'});
-
-      anim.onfinish = () => {
         items.forEach(it => it.classList.remove('spinning'));
         const baseDuplicate = 2;
         const relativeIdx = safeIndex % originalCount;
@@ -111,6 +107,11 @@ export function useReels({ heroesData, language, currentMode }: UseReelsProps) {
         const baseItem = items[baseItemIdx] || targetItem;
         const baseContentCenter = baseItem.offsetTop + (baseItem.offsetHeight || itemHeightActual) / 2;
         const snapY = baseContentCenter - windowHeightActual / 2;
+
+        // Cancel WAAPI so we own the final transform (more reliable in Electron)
+        try { anim.cancel(); } catch {}
+        try { leftAnim?.cancel(); } catch {}
+        try { rightAnim?.cancel(); } catch {}
 
         strip.style.transition = 'none';
         strip.style.transform = `translateY(-${snapY}px)`;
@@ -128,6 +129,28 @@ export function useReels({ heroesData, language, currentMode }: UseReelsProps) {
         }
         resolve();
       };
+
+      const anim = strip.animate([
+        { transform: `translateY(-${currentY}px)` },
+        { transform: `translateY(-${finalTranslate}px)` }
+      ], { duration, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' });
+
+      const leftAnim = leftC
+        ? leftC.animate(
+            [{ transform: `translateY(-${currentY}px)` }, { transform: `translateY(-${finalTranslate}px)` }],
+            { duration, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' }
+          )
+        : null;
+      const rightAnim = rightC
+        ? rightC.animate(
+            [{ transform: `translateY(-${currentY}px)` }, { transform: `translateY(-${finalTranslate}px)` }],
+            { duration, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' }
+          )
+        : null;
+
+      anim.onfinish = () => settle();
+      // Fallback if onfinish is delayed/missed (seen under heavy media load in Electron)
+      window.setTimeout(settle, Math.max(0, duration) + 80);
     });
   };
 
