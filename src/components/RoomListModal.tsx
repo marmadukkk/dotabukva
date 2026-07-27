@@ -57,6 +57,7 @@ const RoomListModal: React.FC<RoomListModalProps> = ({ language, open, rooms, on
                 <div 
                   key={idx}
                   onClick={() => handleRoomClick(room.code)}
+                  data-sfx="button"
                   className="flex justify-between items-center p-3 rounded-xl border border-[#4a3728] hover:border-[#d4af37] cursor-pointer"
                 >
                   <div>

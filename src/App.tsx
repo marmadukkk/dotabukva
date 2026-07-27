@@ -131,6 +131,9 @@ const App: React.FC = () => {
     playMulticastSound,
     playMulticastToggleSound,
     playDisclaimerSound,
+    playWarningSound,
+    playBanSound,
+    playUnbanSound,
   } = audio;
   const reels = useReels({ heroesData, language, currentMode });
 
@@ -505,9 +508,15 @@ const App: React.FC = () => {
   const [elimCD, setElimCD] = useState(0);
 
   const toggleEliminated = (short: string) => {
+    const wasEliminated = eliminatedHeroes.has(short);
+    if (wasEliminated) playUnbanSound();
+    else playBanSound();
     setEliminatedHeroes(prev => {
       const next = new Set(prev);
       if (next.has(short)) next.delete(short); else next.add(short);
+      try {
+        localStorage.setItem('dota_bukva_eliminated', JSON.stringify(Array.from(next)));
+      } catch {}
       return next;
     });
   };
@@ -780,7 +789,10 @@ const App: React.FC = () => {
         <MainMenu
           language={language}
           onStartNormal={startNormalMode}
-          onCreateRoom={() => showHostingDonation((key) => t(language, key))}
+          onCreateRoom={() => {
+            playWarningSound();
+            showHostingDonation((key) => t(language, key));
+          }}
           onShowRooms={showRoomList}
         />
       )}

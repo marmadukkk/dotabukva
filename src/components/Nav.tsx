@@ -94,7 +94,8 @@ const Nav: React.FC<NavProps> = ({
         {/* Left logo area */}
         <div className="flex items-center">
           <div 
-            onClick={onLogoClick} 
+            onClick={onLogoClick}
+            data-sfx="logo"
             className="logo-frame flex items-center gap-x-2.5 cursor-pointer px-3 py-1.5 rounded-sm"
           >
             <img 
@@ -111,7 +112,8 @@ const Nav: React.FC<NavProps> = ({
           {currentRole && (
             <div 
               id="nav-role" 
-              onClick={onShowRoleMenu} 
+              onClick={onShowRoleMenu}
+              data-sfx="button"
               className="flex items-center gap-x-1.5 px-3 py-0.5 rounded border border-[#444] hover:border-[#c23c2a] cursor-pointer text-xs bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors"
             >
               <span className="font-medium text-[#e0d2b0]">{currentRole === 'leader' ? t(language, 'room.leader') : t(language, 'room.guesser')}</span>
@@ -120,7 +122,8 @@ const Nav: React.FC<NavProps> = ({
           )}
           
           <div 
-            onClick={onShowHowto} 
+            onClick={onShowHowto}
+            data-sfx="button"
             className="flex items-center gap-x-1.5 px-3 py-0.5 rounded border border-[#444] hover:border-[#c23c2a] cursor-pointer text-xs bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors text-[#d4af37]"
           >
             <i className="fa-solid fa-question-circle text-sm"></i>
@@ -131,6 +134,7 @@ const Nav: React.FC<NavProps> = ({
           <div className="relative">
             <button
               onClick={onToggleLangMenu}
+              data-sfx="button"
               className="flex items-center gap-x-1.5 px-3 py-0.5 rounded border border-[#444] hover:border-[#c23c2a] cursor-pointer text-xs bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors text-[#d4af37]"
               aria-label="Language"
             >
@@ -141,12 +145,14 @@ const Nav: React.FC<NavProps> = ({
               <div className="absolute right-0 mt-1 z-[200] min-w-[120px] rounded-xl border border-[#4a3728] bg-[#1a1a1a] shadow-xl overflow-hidden text-sm">
                 <button
                   onClick={() => onChangeLanguage('ru')}
+                  data-sfx="button"
                   className={`w-full text-left px-4 py-2 hover:bg-[#2a2a2a] flex items-center gap-2 ${language === 'ru' ? 'text-[#f0c060]' : 'text-[#e0d2b0]'}`}
                 >
                   🇷🇺 Русский
                 </button>
                 <button
                   onClick={() => onChangeLanguage('en')}
+                  data-sfx="button"
                   className={`w-full text-left px-4 py-2 hover:bg-[#2a2a2a] flex items-center gap-2 ${language === 'en' ? 'text-[#f0c060]' : 'text-[#e0d2b0]'}`}
                 >
                   🇬🇧 English
@@ -159,6 +165,7 @@ const Nav: React.FC<NavProps> = ({
           <div className="relative" ref={settingsRef}>
             <button
               onClick={onToggleSettingsMenu}
+              data-sfx="settings"
               className={`flex items-center justify-center w-8 h-7 rounded border cursor-pointer text-xs transition-colors ${
                 showSettingsMenu
                   ? 'border-[#d4af37] bg-[#2a2a2a] text-[#f0c060]'
@@ -170,7 +177,10 @@ const Nav: React.FC<NavProps> = ({
               <i className="fa-solid fa-gear text-sm"></i>
             </button>
             {showSettingsMenu && (
-              <div className="absolute right-0 mt-1 z-[200] w-64 rounded-xl border border-[#4a3728] bg-[#1a1a1a] shadow-xl overflow-hidden text-sm">
+              <div
+                data-sfx="settings"
+                className="absolute right-0 mt-1 z-[200] w-64 rounded-xl border border-[#4a3728] bg-[#1a1a1a] shadow-xl overflow-hidden text-sm"
+              >
                 <div className="px-3 py-2 border-b border-[#333] text-[10px] tracking-widest text-[#888] font-medium">
                   {t(language, 'nav.settings').toUpperCase()}
                 </div>

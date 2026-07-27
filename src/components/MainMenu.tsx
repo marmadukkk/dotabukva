@@ -24,7 +24,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ language, onStartNormal, onCreateRo
       </div>
 
       <div className="max-w-md mx-auto space-y-4">
-        <div onClick={onStartNormal} className="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
+        <div onClick={onStartNormal} data-sfx="button" className="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
           <div className="flex items-center gap-4">
             <i className="fa-solid fa-gamepad text-3xl text-[#d4af37] group-hover:rotate-12 group-hover:scale-110 transition-transform"></i>
             <div>
@@ -34,7 +34,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ language, onStartNormal, onCreateRo
           </div>
         </div>
 
-        <div onClick={onCreateRoom} className="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
+        <div onClick={onCreateRoom} data-sfx="button" className="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
           <div className="flex items-center gap-4">
             <i className="fa-solid fa-plus text-3xl text-[#d4af37] group-hover:rotate-90 group-hover:scale-110 transition-transform"></i>
             <div>
@@ -44,7 +44,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ language, onStartNormal, onCreateRo
           </div>
         </div>
 
-        <div onClick={onShowRooms} className="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
+        <div onClick={onShowRooms} data-sfx="button" className="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
           <div className="flex items-center gap-4">
             <i className="fa-solid fa-list text-3xl text-[#d4af37] group-hover:-rotate-6 group-hover:scale-110 transition-transform"></i>
             <div>

@@ -40,7 +40,8 @@ const LeaderReels: React.FC<LeaderReelsProps> = ({
           <div 
             id="hero-reel" 
             ref={heroReelRef} 
-            className="slot-window h-[236px] relative cursor-pointer" 
+            className="slot-window h-[236px] relative cursor-pointer"
+            data-sfx="button"
             onClick={() => !isSpinning && onSpin()}
           >
             <div id="hero-strip" ref={heroStripRef} className="slot-strip"></div>
@@ -59,7 +60,8 @@ const LeaderReels: React.FC<LeaderReelsProps> = ({
           <div 
             id="letter-reel" 
             ref={letterReelRef} 
-            className="slot-window h-[236px] relative cursor-pointer" 
+            className="slot-window h-[236px] relative cursor-pointer"
+            data-sfx="button"
             onClick={() => !isSpinning && onSpin()}
           >
             <div id="letter-strip" ref={letterStripRef} className="slot-strip letter-strip"></div>

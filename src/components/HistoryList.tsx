@@ -27,7 +27,8 @@ const HistoryList: React.FC<HistoryListProps> = ({ language, history, onClear, o
         )}
         {history.map((h, idx) => (
           <div 
-            key={idx} 
+            key={idx}
+            data-sfx="button"
             onClick={() => onSelect({ 
               hero: h.hero, 
               hero_en: h.hero, 
