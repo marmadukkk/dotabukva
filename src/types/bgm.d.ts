@@ -12,9 +12,26 @@ interface DotaBgmController {
   saveNow: () => void;
 }
 
+interface LanHostInfo {
+  running: boolean;
+  port: number;
+  room: string;
+  players: number;
+  game_started: boolean;
+  addresses: string[];
+  primaryAddress: string;
+  wsPath: string;
+  error?: string;
+}
+
 interface DotaDesktopBridge {
   platform: string;
   isElectron: boolean;
+  lan?: {
+    startHost: (opts?: { port?: number; code?: string }) => Promise<LanHostInfo | { error: string }>;
+    stopHost: () => Promise<{ ok?: boolean; error?: string }>;
+    getInfo: () => Promise<LanHostInfo | null>;
+  };
 }
 
 interface Window {

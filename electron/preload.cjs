@@ -1,10 +1,14 @@
 /**
  * Preload bridge (contextIsolation on).
- * Expose only safe, explicit APIs to the renderer if needed later.
  */
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('dotaDesktop', {
   platform: process.platform,
   isElectron: true,
+  lan: {
+    startHost: (opts) => ipcRenderer.invoke('lan:startHost', opts || {}),
+    stopHost: () => ipcRenderer.invoke('lan:stopHost'),
+    getInfo: () => ipcRenderer.invoke('lan:getInfo'),
+  },
 });

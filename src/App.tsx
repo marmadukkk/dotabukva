@@ -94,10 +94,43 @@ const App: React.FC = () => {
   const [roomPlayers, setRoomPlayers] = useState(1);
   const [lobbyStatus, setLobbyStatus] = useState('');
   const [gameStarted, setGameStarted] = useState(false);
+  const [myFreeElims, setMyFreeElims] = useState(3);
+  const [myLastElim, setMyLastElim] = useState(0);
+  const [eliminatedHeroes, setEliminatedHeroes] = useState<Set<string>>(new Set());
+  const [elimCD, setElimCD] = useState(0);
+  const elimCDIntervalRef = useRef<number | null>(null);
   // Background and screen state (kept minimal)
 
   const languageRef = useRef(language);
   useEffect(() => { languageRef.current = language; }, [language]);
+  const isRoomLeaderRef = useRef(isRoomLeader);
+  useEffect(() => { isRoomLeaderRef.current = isRoomLeader; }, [isRoomLeader]);
+
+  const stopElimCD = useCallback(() => {
+    if (elimCDIntervalRef.current) {
+      clearInterval(elimCDIntervalRef.current);
+      elimCDIntervalRef.current = null;
+    }
+    setElimCD(0);
+  }, []);
+
+  const startElimCD = useCallback((secs: number) => {
+    if (elimCDIntervalRef.current) clearInterval(elimCDIntervalRef.current);
+    setElimCD(Math.ceil(secs));
+    elimCDIntervalRef.current = window.setInterval(() => {
+      setElimCD((prev) => {
+        const n = prev - 1;
+        if (n <= 0) {
+          if (elimCDIntervalRef.current) {
+            clearInterval(elimCDIntervalRef.current);
+            elimCDIntervalRef.current = null;
+          }
+          return 0;
+        }
+        return n;
+      });
+    }, 1000);
+  }, []);
 
   const loadingTimeoutRef = React.useRef<number | null>(null);
 
@@ -152,25 +185,6 @@ const App: React.FC = () => {
   const historyHook = useHistory();
   const { history, setHistory, logSpin, clearHistory: clearHistoryHook } = historyHook;
 
-  const spinHook = useSpin({
-    language,
-    currentMode,
-    heroesData,
-    currentRoom,
-    isRoomLeader,
-    reels,
-    audio,
-    setIsSpinning,
-    setLastResult,
-    setCurrentMultiplier,
-    setMulticastLevel,
-    setSparks,
-    setHistory,
-    launchConfetti: () => {},
-    multicastEnabled,
-  });
-  const { spin: spinFromHook } = spinHook;
-
   const modals = useModals();
   const { 
     showHowto, setShowHowto,
@@ -180,12 +194,6 @@ const App: React.FC = () => {
     joinCodeInput, setJoinCodeInput,
     showConfirm, hideConfirm, showHostingDonation, showRoomInvite, closeRoomListModal 
   } = modals;
-
-  // room declared earlier
-
-
-  // elimination after room
-
 
   const [currentBgIndex, setCurrentBgIndex] = useState(() => {
     try {
@@ -215,25 +223,51 @@ const App: React.FC = () => {
     setLobbyStatus,
     setGameStarted,
     setLastResult,
-    setEliminatedHeroes: () => {},
-    setMyFreeElims: () => {},
-    setMyLastElim: () => {},
+    setEliminatedHeroes,
+    setMyFreeElims,
+    setMyLastElim,
     setCurrentRole,
-    stopElimCD: () => {},
-    startElimCD: () => {},
+    stopElimCD,
+    startElimCD,
     handleGameStartedFromWS: () => {
       setGameStarted(true);
-      if (isRoomLeader) {
+      if (isRoomLeaderRef.current) {
         setCurrentRole('leader');
+        setScreen('leader-view');
+        setTimeout(() => {
+          reels.buildHeroStrip();
+          reels.buildLetterStrip();
+        }, 80);
       } else {
         setCurrentRole('guesser');
         setMyFreeElims(3);
         setMyLastElim(0);
+        setScreen('guesser-view');
       }
       loadDataHook(currentMode);
     },
     landReelResult: (result: any) => setLastResult(result),
   });
+
+  const spinHook = useSpin({
+    language,
+    currentMode,
+    heroesData,
+    currentRoom,
+    isRoomLeader,
+    reels,
+    audio,
+    setIsSpinning,
+    setLastResult,
+    setCurrentMultiplier,
+    setMulticastLevel,
+    setSparks,
+    setHistory,
+    launchConfetti: () => {},
+    multicastEnabled,
+    sendRoomMessage: room.sendRoomMessage,
+  });
+  const { spin: spinFromHook } = spinHook;
 
   // Persist background index to localStorage
   useEffect(() => {
@@ -270,7 +304,6 @@ const App: React.FC = () => {
 
 
   const roomSocketRef = useRef<WebSocket | null>(null);
-  const elimCDIntervalRef = useRef<number | null>(null);
 
   function getFallbackHeroes() {
     return [
@@ -398,7 +431,12 @@ const App: React.FC = () => {
         // connect later after render
         setTimeout(() => {
           showRoomLobby(code, leader);
-          connectToRoomWS(code, leader ? 'leader' : 'guesser');
+          // Web deep-link only; desktop LAN uses explicit host IP join
+          if (!window.dotaDesktop?.isElectron) {
+            room.connectToRoomWS({ code, role: leader ? 'leader' : 'guesser' });
+          } else {
+            switchToScreen('room-lobby');
+          }
         }, 200);
       }
       updateNavRoomVisual();
@@ -494,24 +532,40 @@ const App: React.FC = () => {
   // startElimCD defined earlier
   // stopElimCD and startElimCD defined earlier for useRoom hook
 
-  const connectToRoomWS = room.connectToRoomWS || (() => {});
-  const sendRoomMessage = room.sendRoomMessage || (() => {});
-  const handleRoomMessage = room.handleRoomMessage || (() => {});
-  const handleGameStartedFromWS = room.handleGameStartedFromWS || (() => {});
+  const connectToRoomWS = room.connectToRoomWS;
 
   // Navigation / screen switching (exact hide/show + history)
   const [screen, setScreen] = useState<'main-menu' | 'role-menu' | 'room-lobby' | 'leader-view' | 'guesser-view'>('main-menu');
-
-  const [myFreeElims, setMyFreeElims] = useState(3);
-  const [myLastElim, setMyLastElim] = useState(0);
-  const [eliminatedHeroes, setEliminatedHeroes] = useState<Set<string>>(new Set());
-  const [elimCD, setElimCD] = useState(0);
 
   const toggleEliminated = (short: string) => {
     const wasEliminated = eliminatedHeroes.has(short);
     if (wasEliminated) playUnbanSound();
     else playBanSound();
-    setEliminatedHeroes(prev => {
+
+    // LAN room: sync bans via host
+    if (currentRoom && room.sendRoomMessage) {
+      if (currentRole !== 'guesser' && currentRole !== 'leader') return;
+      if (wasEliminated) {
+        room.sendRoomMessage({ type: 'uneliminate', short });
+        setEliminatedHeroes((prev) => {
+          const next = new Set(prev);
+          next.delete(short);
+          return next;
+        });
+      } else {
+        if (currentRole === 'guesser' && myFreeElims <= 0 && elimCD > 0) return;
+        room.sendRoomMessage({ type: 'eliminate', short });
+        // Optimistic update; server will broadcast canonical list
+        setEliminatedHeroes((prev) => {
+          const next = new Set(prev);
+          next.add(short);
+          return next;
+        });
+      }
+      return;
+    }
+
+    setEliminatedHeroes((prev) => {
       const next = new Set(prev);
       if (next.has(short)) next.delete(short); else next.add(short);
       try {
@@ -522,7 +576,13 @@ const App: React.FC = () => {
   };
 
   const resetEliminatedFn = () => {
+    if (currentRoom && room.sendRoomMessage) {
+      room.sendRoomMessage({ type: 'reset_eliminated' });
+    }
     setEliminatedHeroes(new Set());
+    try {
+      localStorage.setItem('dota_bukva_eliminated', '[]');
+    } catch {}
   };
 
   // Refresh translated lobby status when language changes
@@ -574,7 +634,14 @@ const App: React.FC = () => {
       reels.buildHeroStrip(); reels.buildLetterStrip();
     }, 50);
     updateNavRoleVisual();
-    if (currentRoom) connectToRoomWS(currentRoom, 'leader');
+    if (currentRoom) {
+      connectToRoomWS({
+        code: currentRoom,
+        role: 'leader',
+        host: room.lanHost || '127.0.0.1',
+        port: room.lanPort || 17432,
+      });
+    }
   }
   async function enterGuesser() {
     setCurrentRole('guesser');
@@ -583,7 +650,12 @@ const App: React.FC = () => {
     await loadDataHook(currentMode);
     updateNavRoleVisual();
     if (currentRoom) {
-      connectToRoomWS(currentRoom, 'guesser');
+      connectToRoomWS({
+        code: currentRoom,
+        role: 'guesser',
+        host: room.lanHost || '127.0.0.1',
+        port: room.lanPort || 17432,
+      });
     }
   }
 
@@ -600,15 +672,35 @@ const App: React.FC = () => {
   }
 
   // Room flows now from hook
-  const createRoom = room.createRoom;
+  const createRoom = async () => {
+    const result = await room.createRoom();
+    if (result && (result as any).code) {
+      switchToScreen('room-lobby');
+    }
+  };
   const generateClientRoomCode = room.generateClientRoomCode;
   const showRoomList = () => room.showRoomList(setRoomsList, setJoinCodeInput, setShowRoomListModal);
-  // close from modals
 
-  const joinRoom = (code: string) => room.joinRoom(code, closeRoomListModal);
+  const joinRoom = (opts: string | { code: string; host?: string; port?: number }) => {
+    const payload = typeof opts === 'string' ? { code: opts } : opts;
+    room.joinRoom(payload, closeRoomListModal);
+    switchToScreen('room-lobby');
+  };
   const showRoomLobby = room.showRoomLobby;
-  const startGameFromLobby = room.startGameFromLobby;
-  const leaveRoom = room.leaveRoom;
+  const startGameFromLobby = () => {
+    room.startGameFromLobby();
+    // Navigate host immediately (also via WS for clients)
+    setGameStarted(true);
+    if (isRoomLeader) {
+      setCurrentRole('leader');
+      switchToScreen('leader-view');
+    }
+  };
+  const leaveRoom = async () => {
+    await room.leaveRoom();
+    setEliminatedHeroes(new Set());
+    switchToScreen('main-menu');
+  };
 
   function updateNavRoomVisual() {
     // The nav room badge is rendered in JSX below
@@ -789,9 +881,14 @@ const App: React.FC = () => {
         <MainMenu
           language={language}
           onStartNormal={startNormalMode}
-          onCreateRoom={() => {
-            playWarningSound();
-            showHostingDonation((key) => t(language, key));
+          onCreateRoom={async () => {
+            // Desktop: real LAN host. Web: donation stub (online multiplayer WIP).
+            if (window.dotaDesktop?.isElectron) {
+              await createRoom();
+            } else {
+              playWarningSound();
+              showHostingDonation((key) => t(language, key));
+            }
           }}
           onShowRooms={showRoomList}
         />
@@ -816,6 +913,9 @@ const App: React.FC = () => {
           roomPlayers={roomPlayers}
           isLeader={isRoomLeader}
           lobbyStatus={lobbyStatus}
+          lanHost={room.lanHost}
+          lanPort={room.lanPort}
+          lanAddresses={room.lanAddresses}
           onStartGame={startGameFromLobby}
           onLeave={leaveRoom}
         />
@@ -892,7 +992,8 @@ const App: React.FC = () => {
         open={showRoomListModal} 
         rooms={roomsList} 
         onClose={closeRoomListModal} 
-        onJoin={joinRoom} 
+        onJoin={joinRoom}
+        lanMode={!!window.dotaDesktop?.isElectron}
       />
 
     </>
