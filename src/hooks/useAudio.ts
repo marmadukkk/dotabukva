@@ -376,6 +376,11 @@ export function useAudio() {
     playSfxFile('/sounds/unban.mp3', 0.95);
   }, [playSfxFile]);
 
+  /** Clicked eliminate while on cooldown (denied). */
+  const playMipmapSound = useCallback(() => {
+    playSfxFile('/sounds/mipmap.mp3', 0.95);
+  }, [playSfxFile]);
+
   // Global UI click SFX by data-sfx / common interactive selectors
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -436,5 +441,6 @@ export function useAudio() {
     playRolePick,
     playBanSound,
     playUnbanSound,
+    playMipmapSound,
   };
 }
