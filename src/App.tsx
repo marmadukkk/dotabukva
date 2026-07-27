@@ -770,7 +770,7 @@ const App: React.FC = () => {
         onToggleMulticast={() => {
           const next = !multicastEnabled;
           setMulticastEnabled(next);
-          playMulticastToggleSound(next);
+          playMulticastToggleSound(next, language);
         }}
         onToggleDisclaimer={() => setDisclaimerEnabled((v) => !v)}
         onChangeBackground={changeBackground}

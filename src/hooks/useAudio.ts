@@ -320,9 +320,13 @@ export function useAudio() {
     playSfxFile(`/sounds/x${lvl}.mp3`, MULTICAST_BASE);
   }, [playSfxFile]);
 
-  /** yess when Multicast is turned on, noo when turned off. */
-  const playMulticastToggleSound = useCallback((enabled: boolean) => {
-    playSfxFile(enabled ? 'yess' : 'noo', 0.95);
+  /** yess/noo (RU) or yess_eng/noo_eng (EN) when Multicast is toggled. */
+  const playMulticastToggleSound = useCallback((enabled: boolean, lang: 'ru' | 'en' = 'ru') => {
+    if (lang === 'en') {
+      playSfxFile(enabled ? 'yess_eng' : 'noo_eng', 0.95);
+    } else {
+      playSfxFile(enabled ? 'yess' : 'noo', 0.95);
+    }
   }, [playSfxFile]);
 
   const playDisclaimerSound = useCallback(() => {
