@@ -73,6 +73,7 @@ const MemoHeroCell = memo(function MemoHeroCell({
   return (
     <div
       data-short={h.short}
+      data-sfx="none"
       onClick={handleClick}
       className={className}
     >

@@ -40,7 +40,7 @@ export function useSpin({
   heroesData = [],
   multicastEnabled = true,
 }: UseSpinProps & { currentMode?: any; heroesData?: any[] }) {
-  const { playSpinSounds, playDing, playMulticastSound } = audio;
+  const { playSpinSounds, playDing, playMulticastSound, startSpinMusic, playSpinMusicEnd, stopSpinMusic } = audio;
 
   // Sparks effect
   function emitSparks(count = 8, intensity = 1) {
@@ -220,22 +220,29 @@ export function useSpin({
     if (multicastEnabled) {
       triggerMulticastSequence(multi);
     }
+    startSpinMusic();
     playSpinSounds(Math.max(hd, ld));
 
-    await Promise.all([reels.animateReel(hs!, hT, hd, false), reels.animateReel(ls!, lT, ld, true)]);
-    await new Promise(r => setTimeout(r, 180));
+    try {
+      await Promise.all([reels.animateReel(hs!, hT, hd, false), reels.animateReel(ls!, lT, ld, true)]);
+      await new Promise(r => setTimeout(r, 180));
 
-    showResult(result);
-    logSpin(result);
+      showResult(result);
+      logSpin(result);
 
-    setIsSpinning(false);
-    if (Math.random() > 0.65) launchConfettiLocal(28);
-    playDing();
+      setIsSpinning(false);
+      if (Math.random() > 0.65) launchConfettiLocal(28);
+      playSpinMusicEnd();
+      playDing();
 
-    setTimeout(() => {
-      setMulticastLevel(0);
-      setSparks([]);
-    }, 1400);
+      setTimeout(() => {
+        setMulticastLevel(0);
+        setSparks([]);
+      }, 1400);
+    } catch {
+      stopSpinMusic();
+      setIsSpinning(false);
+    }
   }, [language, currentMode, heroesData, currentRoom, reels, audio, multicastEnabled]);
 
   // Helper for fallback (duplicated from useData for independence)

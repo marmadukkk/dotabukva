@@ -25,7 +25,8 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
       <div className="text-center mb-6">
         <div className="text-[#d4af37] text-xs tracking-[3px] mb-1">{t(language, 'room.code')}</div>
         <div 
-          className="font-mono text-4xl text-[#f0c060] tracking-[4px] cursor-pointer" 
+          className="font-mono text-4xl text-[#f0c060] tracking-[4px] cursor-pointer"
+          data-sfx="button"
           onClick={() => { 
             const l = `${location.origin}/?room=${roomCode}`; 
             navigator.clipboard.writeText(l); 

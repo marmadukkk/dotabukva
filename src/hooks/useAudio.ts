@@ -60,6 +60,10 @@ export function useAudio() {
 
   /** Currently playing multicast HTMLAudioElements — updated live when the slider moves. */
   const activeMulticastRef = useRef<HTMLAudioElement[]>([]);
+  /** Looping music bed during reel spin. */
+  const spinMusicRef = useRef<HTMLAudioElement | null>(null);
+
+  const SPIN_MUSIC_PEAK = 0.85;
 
   useEffect(() => {
     try {
@@ -79,7 +83,7 @@ export function useAudio() {
     } catch {}
   }, [musicTrack]);
 
-  // SFX volume → in-flight multicast clips
+  // SFX volume → in-flight multicast clips + spin music bed
   useEffect(() => {
     const v = clamp01(sfxVolume * MULTICAST_BASE);
     for (const el of activeMulticastRef.current) {
@@ -88,6 +92,15 @@ export function useAudio() {
         if (sfxVolume <= 0) {
           el.pause();
           el.currentTime = 0;
+        }
+      } catch {}
+    }
+    const spinEl = spinMusicRef.current;
+    if (spinEl) {
+      try {
+        spinEl.volume = clamp01(sfxVolume * SPIN_MUSIC_PEAK);
+        if (sfxVolume <= 0) {
+          spinEl.pause();
         }
       } catch {}
     }
@@ -266,6 +279,42 @@ export function useAudio() {
     } catch (e) {}
   }, []);
 
+  const stopSpinMusic = useCallback(() => {
+    const el = spinMusicRef.current;
+    if (!el) return;
+    try {
+      el.pause();
+      el.currentTime = 0;
+    } catch {}
+    spinMusicRef.current = null;
+  }, []);
+
+  /** Looping spin bed while reels are rolling. */
+  const startSpinMusic = useCallback(() => {
+    stopSpinMusic();
+    if (sfxVolumeRef.current <= 0) return;
+    try {
+      const el = new Audio('/sounds/spinmusic.mp3');
+      el.loop = true;
+      el.preload = 'auto';
+      el.volume = clamp01(sfxVolumeRef.current * SPIN_MUSIC_PEAK);
+      spinMusicRef.current = el;
+      el.play().catch(() => {
+        if (spinMusicRef.current === el) spinMusicRef.current = null;
+      });
+    } catch {}
+  }, [stopSpinMusic]);
+
+  /** Stop spin bed and play the end sting. */
+  const playSpinMusicEnd = useCallback(() => {
+    stopSpinMusic();
+    if (sfxVolumeRef.current <= 0) return;
+    playSfxFile('/sounds/spinmusicend.mp3', 0.95);
+  }, [stopSpinMusic, playSfxFile]);
+
+  // Cleanup spin music on unmount
+  useEffect(() => () => stopSpinMusic(), [stopSpinMusic]);
+
   const playMulticastSound = useCallback((level: number) => {
     const lvl = Math.max(1, Math.min(4, Math.floor(level) || 1));
     playSfxFile(`/sounds/x${lvl}.mp3`, MULTICAST_BASE);
@@ -279,6 +328,73 @@ export function useAudio() {
   const playDisclaimerSound = useCallback(() => {
     playSfxFile('/sounds/disclaimer.mp3', 0.9);
   }, [playSfxFile]);
+
+  /** Warning popup (e.g. multiplayer in development). */
+  const playWarningSound = useCallback(() => {
+    playSfxFile('/sounds/warning.mp3', 0.95);
+  }, [playSfxFile]);
+
+  /** General UI button / card click. */
+  const playButtonClick = useCallback(() => {
+    playSfxFile('/sounds/buttonclick.mp3', 0.9);
+  }, [playSfxFile]);
+
+  /** Settings gear + items inside the settings panel. */
+  const playSettingsClick = useCallback(() => {
+    playSfxFile('/sounds/buttonclickSettings.mp3', 0.9);
+  }, [playSfxFile]);
+
+  /** Header logo click. */
+  const playLogoClick = useCallback(() => {
+    playSfxFile('/sounds/logoclick.mp3', 0.95);
+  }, [playSfxFile]);
+
+  /** Role pick cards (leader / guesser). */
+  const playRolePick = useCallback(() => {
+    playSfxFile('/sounds/rolepick.mp3', 0.95);
+  }, [playSfxFile]);
+
+  /** Cross out (ban) a hero/item/ability in the table. */
+  const playBanSound = useCallback(() => {
+    playSfxFile('/sounds/ban.mp3', 0.95);
+  }, [playSfxFile]);
+
+  /** Undo cross-out (unban) in the table. */
+  const playUnbanSound = useCallback(() => {
+    playSfxFile('/sounds/unban.mp3', 0.95);
+  }, [playSfxFile]);
+
+  // Global UI click SFX by data-sfx / common interactive selectors
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+
+      // Never SFX on volume sliders / form typing fields
+      if (target.closest('input[type="range"], input[type="text"], input[type="search"], textarea, select')) {
+        return;
+      }
+
+      const marked = target.closest('[data-sfx]') as HTMLElement | null;
+      if (marked) {
+        const kind = (marked.getAttribute('data-sfx') || '').toLowerCase();
+        if (kind === 'logo') playLogoClick();
+        else if (kind === 'settings') playSettingsClick();
+        else if (kind === 'rolepick' || kind === 'role') playRolePick();
+        else if (kind === 'button' || kind === 'click') playButtonClick();
+        // data-sfx="none" → silent
+        return;
+      }
+
+      // Fallback: plain <button> / role=button without data-sfx
+      if (target.closest('button, [role="button"]')) {
+        playButtonClick();
+      }
+    };
+
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [playButtonClick, playSettingsClick, playLogoClick, playRolePick]);
 
   return {
     /** @deprecated use sfxVolume — kept as alias for any leftover callers */
@@ -294,9 +410,19 @@ export function useAudio() {
     setVolume: setSfxVolume,
     playTick,
     playSpinSounds,
+    startSpinMusic,
+    stopSpinMusic,
+    playSpinMusicEnd,
     playDing,
     playMulticastSound,
     playMulticastToggleSound,
     playDisclaimerSound,
+    playWarningSound,
+    playButtonClick,
+    playSettingsClick,
+    playLogoClick,
+    playRolePick,
+    playBanSound,
+    playUnbanSound,
   };
 }
