@@ -227,13 +227,18 @@ export function useSpin({
       await Promise.all([reels.animateReel(hs!, hT, hd, false), reels.animateReel(ls!, lT, ld, true)]);
       await new Promise(r => setTimeout(r, 180));
 
+      // 1) Stop spin bed + paint result immediately — never wait for end-sting audio
+      stopSpinMusic();
       showResult(result);
       logSpin(result);
-
       setIsSpinning(false);
-      if (Math.random() > 0.65) launchConfettiLocal(28);
-      playSpinMusicEnd();
-      playDing();
+
+      // 2) Let React commit the result card, then fire end SFX (non-blocking)
+      requestAnimationFrame(() => {
+        playSpinMusicEnd();
+        playDing();
+        if (Math.random() > 0.65) launchConfettiLocal(28);
+      });
 
       setTimeout(() => {
         setMulticastLevel(0);

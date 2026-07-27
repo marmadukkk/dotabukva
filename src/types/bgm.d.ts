@@ -12,6 +12,12 @@ interface DotaBgmController {
   saveNow: () => void;
 }
 
+interface DotaDesktopBridge {
+  platform: string;
+  isElectron: boolean;
+}
+
 interface Window {
   __dotaBgm?: DotaBgmController;
+  dotaDesktop?: DotaDesktopBridge;
 }

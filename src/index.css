@@ -1,2 +1,9 @@
-/* Additional global overrides if needed. All main styles are in index.html for pixel fidelity. */
-body { margin: 0; }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Local fonts + icons are imported from main.tsx for offline/Electron builds. */
+
+body {
+  margin: 0;
+}
