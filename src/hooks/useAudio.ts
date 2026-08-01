@@ -381,6 +381,11 @@ export function useAudio() {
     playSfxFile('/sounds/mipmap.mp3', 0.95);
   }, [playSfxFile]);
 
+  /** Invoker Game — Invoke skill cast. */
+  const playInvokeSound = useCallback(() => {
+    playSfxFile('/sounds/Invoke.mp3', 0.95);
+  }, [playSfxFile]);
+
   // Global UI click SFX by data-sfx / common interactive selectors
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -442,5 +447,6 @@ export function useAudio() {
     playBanSound,
     playUnbanSound,
     playMipmapSound,
+    playInvokeSound,
   };
 }
