@@ -104,3 +104,15 @@ next-env.d.ts
 # Electron
 release/
 *.AppImage
+*.blockmap
+linux-unpacked/
+win-unpacked/
+mac/
+*.exe
+*.nsis.7z
+builder-debug.yml
+builder-effective-config.yaml
+
+# Generated Vite config emit (source is vite.config.ts)
+vite.config.js
+vite.config.d.ts
