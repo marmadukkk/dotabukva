@@ -7,6 +7,9 @@ import { Language, t, getAlphabet, getModeWord, getModePlural, getAttrLabel } fr
 
 // Components
 import MainMenu from './components/MainMenu';
+import MinigamesMenu, { MinigameId } from './components/MinigamesMenu';
+import InvokerGame from './components/InvokerGame';
+import WhoseBuildGame from './components/WhoseBuildGame';
 import RoleMenu from './components/RoleMenu';
 import RoomLobby from './components/RoomLobby';
 import LeaderView from './components/LeaderView';
@@ -36,6 +39,28 @@ import {
 } from './multiplayer';
 
 const BG_STORAGE_KEY = 'dota_bukva_background_index';
+const NAV_STORAGE_KEY = 'dota_bukva_nav';
+
+type AppScreen =
+  | 'main-menu'
+  | 'minigames-menu'
+  | 'invoker-game'
+  | 'whose-build'
+  | 'role-menu'
+  | 'room-lobby'
+  | 'leader-view'
+  | 'guesser-view';
+
+const APP_SCREENS: AppScreen[] = [
+  'main-menu',
+  'minigames-menu',
+  'invoker-game',
+  'whose-build',
+  'role-menu',
+  'room-lobby',
+  'leader-view',
+  'guesser-view',
+];
 
 /** Stable list — must live outside the component so Background does not re-load on every re-render. */
 const BACKGROUND_VIDEOS = [
@@ -46,10 +71,61 @@ const BACKGROUND_VIDEOS = [
   '/videos/background5.mp4',
 ];
 
+function readNavSnap(): {
+  screen: AppScreen;
+  role: 'leader' | 'guesser' | null;
+  room: string | null;
+  isRoomLeader: boolean;
+  gameStarted: boolean;
+} {
+  const fallback = {
+    screen: 'main-menu' as AppScreen,
+    role: null as 'leader' | 'guesser' | null,
+    room: null as string | null,
+    isRoomLeader: false,
+    gameStarted: false,
+  };
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('room')) {
+      return {
+        ...fallback,
+        screen: 'room-lobby',
+        room: params.get('room')!.toUpperCase(),
+      };
+    }
+    const raw = localStorage.getItem(NAV_STORAGE_KEY);
+    if (!raw) return fallback;
+    const snap = JSON.parse(raw) as Record<string, unknown>;
+    let screen = (APP_SCREENS as string[]).includes(String(snap.screen))
+      ? (snap.screen as AppScreen)
+      : 'main-menu';
+    const room =
+      typeof snap.room === 'string' && snap.room.trim()
+        ? String(snap.room).toUpperCase()
+        : null;
+    // Avoid blank lobby (screen set but no room code)
+    if (screen === 'room-lobby' && !room) screen = 'main-menu';
+    const role =
+      snap.role === 'leader' || snap.role === 'guesser' ? snap.role : null;
+    return {
+      screen,
+      role,
+      room,
+      isRoomLeader: !!snap.isRoomLeader,
+      gameStarted: !!snap.gameStarted,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 // Global styles (minimal - most in index.html)
 const GlobalStyle = createGlobalStyle``;
 
 const App: React.FC = () => {
+  const initialNav = React.useMemo(() => readNavSnap(), []);
+
   // All state first
   const [language, setLanguage] = useState<Language>(() => {
     try {
@@ -88,23 +164,25 @@ const App: React.FC = () => {
     return true;
   });
 
-  // Core states
-  const [currentRole, setCurrentRole] = useState<'leader' | 'guesser' | null>(null);
-  const [currentRoom, setCurrentRoom] = useState<string | null>(null);
-  const [isRoomLeader, setIsRoomLeader] = useState(false);
+  // Core states (restore role / room / screen from last session)
+  const [screen, setScreen] = useState<AppScreen>(() => initialNav.screen);
+  const [currentRole, setCurrentRole] = useState<'leader' | 'guesser' | null>(
+    () => initialNav.role
+  );
+  const [currentRoom, setCurrentRoom] = useState<string | null>(() => initialNav.room);
+  const [isRoomLeader, setIsRoomLeader] = useState(() => initialNav.isRoomLeader);
   const [isSpinning, setIsSpinning] = useState(false);
   const [lastResult, setLastResult] = useState<SpinResult | null>(null);
   const [currentGuesserSort, setCurrentGuesserSort] = useState<'az' | 'za' | 'str' | 'agi' | 'int' | 'uni'>('az');
   const [guesserSearch, setGuesserSearch] = useState('');
   const [roomPlayers, setRoomPlayers] = useState(1);
   const [lobbyStatus, setLobbyStatus] = useState('');
-  const [gameStarted, setGameStarted] = useState(false);
+  const [gameStarted, setGameStarted] = useState(() => initialNav.gameStarted);
   const [myFreeElims, setMyFreeElims] = useState(3);
   const [myLastElim, setMyLastElim] = useState(0);
   const [eliminatedHeroes, setEliminatedHeroes] = useState<Set<string>>(new Set());
   const [elimCD, setElimCD] = useState(0);
   const elimCDIntervalRef = useRef<number | null>(null);
-  // Background and screen state (kept minimal)
 
   const languageRef = useRef(language);
   useEffect(() => { languageRef.current = language; }, [language]);
@@ -546,8 +624,6 @@ const App: React.FC = () => {
   const connectToRoomWS = room.connectToRoomWS;
 
   // Navigation / screen switching (exact hide/show + history)
-  const [screen, setScreen] = useState<'main-menu' | 'role-menu' | 'room-lobby' | 'leader-view' | 'guesser-view'>('main-menu');
-
   const toggleEliminated = (short: string) => {
     const wasEliminated = eliminatedHeroes.has(short);
     const inRoom = !!currentRoom;
@@ -671,10 +747,52 @@ const App: React.FC = () => {
     }
   }
 
-  window.onpopstate = (ev: any) => {
-    if (ev.state?.screen) switchToScreen(ev.state.screen, false);
-    else switchToScreen('main-menu', false);
-  };
+  // Persist navigation so reload returns you where you left off
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        NAV_STORAGE_KEY,
+        JSON.stringify({
+          screen,
+          role: currentRole,
+          room: currentRoom,
+          isRoomLeader,
+          mode: currentMode,
+          gameStarted,
+        })
+      );
+    } catch {}
+  }, [screen, currentRole, currentRoom, isRoomLeader, currentMode, gameStarted]);
+
+  // If lobby screen without room (or other blank states) — fall back to main menu
+  useEffect(() => {
+    if (screen === 'room-lobby' && !currentRoom) {
+      setScreen('main-menu');
+    }
+  }, [screen, currentRoom]);
+
+  // After data load on restored leader/guesser views, rebuild strips
+  useEffect(() => {
+    if (screen === 'leader-view' && heroesData.length > 0) {
+      setTimeout(() => {
+        reels.buildHeroStrip();
+        reels.buildLetterStrip();
+      }, 80);
+    }
+  }, [screen, heroesData.length]);
+
+  useEffect(() => {
+    const onPop = (ev: PopStateEvent) => {
+      const s = (ev.state as { screen?: string } | null)?.screen;
+      if (s && (APP_SCREENS as string[]).includes(s)) {
+        switchToScreen(s, false);
+      } else {
+        switchToScreen('main-menu', false);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   // Role / mode
   async function enterLeader() {
@@ -938,6 +1056,46 @@ const App: React.FC = () => {
             await createRoom();
           }}
           onShowRooms={showRoomList}
+          onMinigames={() => switchToScreen('minigames-menu')}
+        />
+      )}
+
+      {/* MINI-GAMES MENU */}
+      {screen === 'minigames-menu' && (
+        <MinigamesMenu
+          language={language}
+          onBack={() => switchToScreen('main-menu')}
+          onSelect={(id: MinigameId) => {
+            if (id === 'invoker') {
+              switchToScreen('invoker-game');
+              return;
+            }
+            if (id === 'build') {
+              switchToScreen('whose-build');
+              return;
+            }
+            playWarningSound();
+            showConfirm(
+              t(language, 'minigames.soonMsg'),
+              t(language, 'minigames.soonTitle')
+            );
+          }}
+        />
+      )}
+
+      {/* INVOKER GAME */}
+      {screen === 'invoker-game' && (
+        <InvokerGame
+          language={language}
+          onBack={() => switchToScreen('minigames-menu')}
+        />
+      )}
+
+      {/* WHOSE BUILD? */}
+      {screen === 'whose-build' && (
+        <WhoseBuildGame
+          language={language}
+          onBack={() => switchToScreen('minigames-menu')}
         />
       )}
 
