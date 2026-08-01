@@ -7,9 +7,16 @@ interface MainMenuProps {
   onStartNormal: () => void;
   onCreateRoom: () => void;
   onShowRooms: () => void;
+  onMinigames: () => void;
 }
 
-const MainMenu: React.FC<MainMenuProps> = ({ language, onStartNormal, onCreateRoom, onShowRooms }) => {
+const MainMenu: React.FC<MainMenuProps> = ({
+  language,
+  onStartNormal,
+  onCreateRoom,
+  onShowRooms,
+  onMinigames,
+}) => {
   const isDesktop =
     (typeof window !== 'undefined' && window.dotaDesktop?.isElectron) ||
     import.meta.env.VITE_IS_ELECTRON === 'true' ||
@@ -81,6 +88,20 @@ const MainMenu: React.FC<MainMenuProps> = ({ language, onStartNormal, onCreateRo
                   <div>
                     <div className="font-display text-xl sm:text-2xl tracking-tight text-white">{t(language, 'main.rooms')}</div>
                     <div className="text-sm text-zinc-400 mt-0.5">{t(language, 'main.roomsDesc')}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                onClick={onMinigames}
+                data-sfx="button"
+                className="dota-card group cursor-pointer rounded-2xl p-5 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]"
+              >
+                <div className="flex items-center gap-4">
+                  <i className="fa-solid fa-puzzle-piece text-2xl sm:text-3xl text-[#d4af37] group-hover:rotate-12 group-hover:scale-110 transition-transform"></i>
+                  <div>
+                    <div className="font-display text-xl sm:text-2xl tracking-tight text-white">{t(language, 'main.minigames')}</div>
+                    <div className="text-sm text-zinc-400 mt-0.5">{t(language, 'main.minigamesDesc')}</div>
                   </div>
                 </div>
               </div>
