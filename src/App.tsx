@@ -10,7 +10,10 @@ import MainMenu from './components/MainMenu';
 import MinigamesMenu, { MinigameId } from './components/MinigamesMenu';
 import InvokerGame from './components/InvokerGame';
 import WhoseBuildGame from './components/WhoseBuildGame';
+import QuizMenu from './components/QuizMenu';
+import QuizGame from './components/QuizGame';
 import RoleMenu from './components/RoleMenu';
+import type { QuizMode } from './minigames/quiz/types';
 import RoomLobby from './components/RoomLobby';
 import LeaderView from './components/LeaderView';
 import GuesserView from './components/GuesserView';
@@ -46,6 +49,8 @@ type AppScreen =
   | 'minigames-menu'
   | 'invoker-game'
   | 'whose-build'
+  | 'quiz-menu'
+  | 'quiz-game'
   | 'role-menu'
   | 'room-lobby'
   | 'leader-view'
@@ -56,6 +61,8 @@ const APP_SCREENS: AppScreen[] = [
   'minigames-menu',
   'invoker-game',
   'whose-build',
+  'quiz-menu',
+  'quiz-game',
   'role-menu',
   'room-lobby',
   'leader-view',
@@ -166,6 +173,7 @@ const App: React.FC = () => {
 
   // Core states (restore role / room / screen from last session)
   const [screen, setScreen] = useState<AppScreen>(() => initialNav.screen);
+  const [quizMode, setQuizMode] = useState<QuizMode>('classic');
   const [currentRole, setCurrentRole] = useState<'leader' | 'guesser' | null>(
     () => initialNav.role
   );
@@ -1074,6 +1082,10 @@ const App: React.FC = () => {
               switchToScreen('whose-build');
               return;
             }
+            if (id === 'quiz') {
+              switchToScreen('quiz-menu');
+              return;
+            }
             playWarningSound();
             showConfirm(
               t(language, 'minigames.soonMsg'),
@@ -1096,6 +1108,27 @@ const App: React.FC = () => {
         <WhoseBuildGame
           language={language}
           onBack={() => switchToScreen('minigames-menu')}
+        />
+      )}
+
+      {/* QUIZ MODE MENU */}
+      {screen === 'quiz-menu' && (
+        <QuizMenu
+          language={language}
+          onBack={() => switchToScreen('minigames-menu')}
+          onSelect={(mode) => {
+            setQuizMode(mode);
+            switchToScreen('quiz-game');
+          }}
+        />
+      )}
+
+      {/* QUIZ GAME */}
+      {screen === 'quiz-game' && (
+        <QuizGame
+          language={language}
+          mode={quizMode}
+          onBack={() => switchToScreen('quiz-menu')}
         />
       )}
 
