@@ -125,52 +125,86 @@ export function sanitizeNickname(raw: string): string {
   return n || 'Player';
 }
 
+function nickKey(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+/** One row per nick (best time), sorted low → high. */
+function normalizeLeaderboard(list: LeaderboardEntry[]): LeaderboardEntry[] {
+  const best = new Map<string, LeaderboardEntry>();
+  for (const e of list) {
+    if (!e || typeof e.time !== 'number' || !(e.time > 0)) continue;
+    const name = (e.name && String(e.name).trim()) || 'Player';
+    const key = nickKey(name);
+    const entry: LeaderboardEntry = {
+      time: e.time,
+      at: typeof e.at === 'number' ? e.at : Date.now(),
+      name,
+    };
+    const prev = best.get(key);
+    if (!prev || entry.time < prev.time || (entry.time === prev.time && entry.at < prev.at)) {
+      best.set(key, entry);
+    }
+  }
+  return [...best.values()]
+    .sort((a, b) => a.time - b.time || a.at - b.at)
+    .slice(0, LEADERBOARD_MAX);
+}
+
 export function readLeaderboard(): LeaderboardEntry[] {
   try {
     const raw = localStorage.getItem(LEADERBOARD_KEY);
     if (!raw) {
       const best = readBestTime();
-      if (Number.isFinite(best)) {
+      if (Number.isFinite(best) && best > 0) {
         return [{ time: best, at: Date.now(), name: readNickname() || 'Player' }];
       }
       return [];
     }
     const parsed = JSON.parse(raw) as LeaderboardEntry[];
     if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((e) => e && typeof e.time === 'number' && e.time > 0)
-      .map((e) => ({
-        time: e.time,
-        at: typeof e.at === 'number' ? e.at : Date.now(),
-        name: (e.name && String(e.name).trim()) || 'Player',
-      }))
-      .sort((a, b) => a.time - b.time)
-      .slice(0, LEADERBOARD_MAX);
+    return normalizeLeaderboard(parsed);
   } catch {
     return [];
   }
 }
 
-/** Insert a finished run; returns updated top list. Lower time = better. */
+/**
+ * Upsert a finished run. Lower time = better.
+ * Same nick never appears twice; only personal best is kept.
+ * Identical re-submits of the same (or worse) time are ignored.
+ */
 export function addLeaderboardTime(sec: number, name?: string): LeaderboardEntry[] {
   const time = parseFloat(sec.toFixed(2));
   if (!time || time <= 0) return readLeaderboard();
   const nick = sanitizeNickname(name ?? readNickname() ?? 'Player');
   writeNickname(nick);
+
   const list = readLeaderboard();
-  list.push({ time, at: Date.now(), name: nick });
-  list.sort((a, b) => a.time - b.time);
-  const next = list.slice(0, LEADERBOARD_MAX);
+  const key = nickKey(nick);
+  const prev = list.find((e) => nickKey(e.name) === key);
+  // Not an improvement → keep board unchanged (no duplicate row)
+  if (prev && prev.time <= time) {
+    return list;
+  }
+
+  const others = list.filter((e) => nickKey(e.name) !== key);
+  others.push({ time, at: Date.now(), name: nick });
+  const next = normalizeLeaderboard(others);
   try {
     localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(next));
   } catch {}
   return next;
 }
 
-/** Whether this time would place on the top-10 board. */
-export function wouldPlaceOnLeaderboard(sec: number): boolean {
+/** Whether this time would place on the top-10 board (or beat this nick's best). */
+export function wouldPlaceOnLeaderboard(sec: number, name?: string): boolean {
   const time = parseFloat(sec.toFixed(2));
+  if (!time || time <= 0) return false;
   const list = readLeaderboard();
+  const nick = sanitizeNickname(name ?? readNickname() ?? 'Player');
+  const prev = list.find((e) => nickKey(e.name) === nickKey(nick));
+  if (prev) return time < prev.time;
   if (list.length < LEADERBOARD_MAX) return true;
   return time < list[list.length - 1].time;
 }
