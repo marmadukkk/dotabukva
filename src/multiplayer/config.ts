@@ -71,25 +71,27 @@ export function buildRoomWsUrl(opts: {
   transport: MpTransport;
   host?: string;
   port?: number;
+  nick?: string;
 }): string | null {
   const code = opts.code.toUpperCase();
   const role = opts.role || 'guesser';
+  const nick = opts.nick ? `&nick=${encodeURIComponent(opts.nick)}` : '';
 
   if (opts.transport === 'lan') {
     const host = opts.host || '127.0.0.1';
     const port = opts.port || DEFAULT_LAN_PORT;
-    return `ws://${host}:${port}/ws?role=${encodeURIComponent(role)}&room=${encodeURIComponent(code)}`;
+    return `ws://${host}:${port}/ws?role=${encodeURIComponent(role)}&room=${encodeURIComponent(code)}${nick}`;
   }
 
   if (opts.transport === 'online') {
     const base = getOnlineWsBase();
     if (base) {
-      return `${base}/ws/room/${encodeURIComponent(code)}?role=${encodeURIComponent(role)}`;
+      return `${base}/ws/room/${encodeURIComponent(code)}?role=${encodeURIComponent(role)}${nick}`;
     }
     // Same-origin fallback (for self-hosted reverse proxy later)
     if (typeof location !== 'undefined') {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${proto}//${location.host}/ws/room/${encodeURIComponent(code)}?role=${encodeURIComponent(role)}`;
+      return `${proto}//${location.host}/ws/room/${encodeURIComponent(code)}?role=${encodeURIComponent(role)}${nick}`;
     }
   }
 

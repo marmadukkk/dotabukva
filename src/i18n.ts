@@ -33,8 +33,8 @@ const dict: Record<Language, Record<string, string>> = {
     'main.roomsDesc': 'Присоединиться к существующей комнате',
     'main.minigames': 'Мини-игры',
     'main.minigamesDesc': 'Короткие режимы и челленджи',
-    'main.version': 'VERSION 1.2',
-    'main.versionDesktop': 'VERSION 1.1-desktop • РЕЛИЗ • LAN MULTIPLAYER',
+    'main.version': 'VERSION 1.3',
+    'main.versionDesktop': 'VERSION 1.3 • РЕЛИЗ • LAN MULTIPLAYER',
     'main.newsTitle': 'Новости',
     'main.newsSubtitle': 'Последние обновления',
 
@@ -177,6 +177,12 @@ const dict: Record<Language, Record<string, string>> = {
     'room.errLan': 'Ошибка соединения. Проверьте IP хоста и что комната запущена.',
     'room.errOnline': 'Онлайн-сервер недоступен. Проверьте сеть и попробуйте ещё раз.',
     'room.errUrl': 'Не удалось построить адрес подключения.',
+    'room.nick': 'Ник',
+    'room.nickPh': 'Как тебя звать',
+    'room.you': 'вы',
+    'room.rosterHint': 'При старте ведущий выбирается случайно. Кто нажмёт верного героя — загадывает следующий раунд.',
+    'room.roundWon': '{name} угадал {hero}. Следующий раунд загадывает {name}.',
+    'room.guesserHint': 'Серое — мимо. Верный герой заканчивает раунд.',
 
     // Leader view
     'leader.spin': 'КРУТИТЬ',
@@ -275,8 +281,8 @@ const dict: Record<Language, Record<string, string>> = {
     'main.roomsDesc': 'Join an existing room',
     'main.minigames': 'Mini-games',
     'main.minigamesDesc': 'Short modes and challenges',
-    'main.version': 'VERSION 1.2',
-    'main.versionDesktop': 'VERSION 1.1-desktop • RELEASE • LAN MULTIPLAYER',
+    'main.version': 'VERSION 1.3',
+    'main.versionDesktop': 'VERSION 1.3 • RELEASE • LAN MULTIPLAYER',
     'main.newsTitle': 'News',
     'main.newsSubtitle': 'Latest updates',
 
@@ -419,6 +425,12 @@ const dict: Record<Language, Record<string, string>> = {
     'room.errLan': 'Connection failed. Check the host IP and that the room is running.',
     'room.errOnline': 'Online server is unreachable. Check the network and try again.',
     'room.errUrl': 'Could not build the connection address.',
+    'room.nick': 'Nick',
+    'room.nickPh': 'Your name',
+    'room.you': 'you',
+    'room.rosterHint': 'The leader is picked at random when the game starts. Whoever clicks the right hero describes the next round.',
+    'room.roundWon': '{name} found {hero}. {name} describes the next round.',
+    'room.guesserHint': 'Gray means a miss. The right hero ends the round.',
 
     // Leader view
     'leader.spin': 'SPIN',

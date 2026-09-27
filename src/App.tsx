@@ -39,6 +39,8 @@ import {
   canEliminate,
   applySuccessfulElim,
   isElectronDesktop,
+  readStoredNick,
+  writeStoredNick,
 } from './multiplayer';
 
 const BG_STORAGE_KEY = 'dota_bukva_background_index';
@@ -184,6 +186,8 @@ const App: React.FC = () => {
   const [currentGuesserSort, setCurrentGuesserSort] = useState<'az' | 'za' | 'str' | 'agi' | 'int' | 'uni'>('az');
   const [guesserSearch, setGuesserSearch] = useState('');
   const [roomPlayers, setRoomPlayers] = useState(1);
+  const [nick, setNick] = useState(readStoredNick);
+  const [roundBanner, setRoundBanner] = useState('');
   const [lobbyStatus, setLobbyStatus] = useState('');
   const [gameStarted, setGameStarted] = useState(() => initialNav.gameStarted);
   const [myFreeElims, setMyFreeElims] = useState(3);
@@ -339,6 +343,35 @@ const App: React.FC = () => {
       loadDataHook(currentMode);
     },
     landReelResult: (result: any) => setLastResult(result),
+    nick,
+    onAssignRole: (role) => {
+      isRoomLeaderRef.current = role === 'leader';
+      setIsRoomLeader(role === 'leader');
+      setCurrentRole(role);
+    },
+    onRoundWon: ({ winnerName, hero, role }) => {
+      isRoomLeaderRef.current = role === 'leader';
+      setIsRoomLeader(role === 'leader');
+      setCurrentRole(role);
+      setEliminatedHeroes(new Set());
+      setLastResult(null);
+      setMyFreeElims(3);
+      setMyLastElim(0);
+      setRoundBanner(
+        t(languageRef.current, 'room.roundWon')
+          .split('{name}')
+          .join(winnerName)
+          .split('{hero}')
+          .join(hero)
+      );
+      setScreen(role === 'leader' ? 'leader-view' : 'guesser-view');
+      if (role === 'leader') {
+        setTimeout(() => {
+          reels.buildHeroStrip();
+          reels.buildLetterStrip();
+        }, 80);
+      }
+    },
   });
 
   const spinHook = useSpin({
@@ -659,6 +692,11 @@ const App: React.FC = () => {
       return;
     }
 
+    if (inRoom && networked && currentRole === 'guesser' && !wasEliminated) {
+      room.sendRoomMessage({ type: 'pick', short });
+      return;
+    }
+
     if (wasEliminated) playUnbanSound();
     else playBanSound();
 
@@ -724,6 +762,19 @@ const App: React.FC = () => {
   // Translate the lobby line when the language changes.
   // Must not run on enter: that used to overwrite a finished connect (or a
   // local session) with "Connecting..." forever.
+  useEffect(() => {
+    writeStoredNick(nick);
+    room.sendNick(nick);
+    // Persist and tell the room when the nick field changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nick]);
+
+  useEffect(() => {
+    if (!roundBanner) return;
+    const id = window.setTimeout(() => setRoundBanner(''), 4500);
+    return () => window.clearTimeout(id);
+  }, [roundBanner]);
+
   const lobbyLangSeen = useRef(false);
   useEffect(() => {
     if (!lobbyLangSeen.current) {
@@ -1159,6 +1210,14 @@ const App: React.FC = () => {
       )}
 
       {/* ROOM LOBBY */}
+      {roundBanner && (
+        <div className="max-w-3xl mx-auto px-5 pt-4">
+          <div className="rounded-xl border border-[#d4af37] bg-black/70 px-4 py-3 text-center text-[#f0c060]">
+            {roundBanner}
+          </div>
+        </div>
+      )}
+
       {screen === 'room-lobby' && currentRoom && (
         <RoomLobby
           language={language}
@@ -1166,6 +1225,10 @@ const App: React.FC = () => {
           roomPlayers={roomPlayers}
           isLeader={isRoomLeader}
           lobbyStatus={lobbyStatus}
+          nick={nick}
+          roster={room.roster}
+          selfId={room.selfId}
+          onNickChange={(name) => setNick(name.slice(0, 16))}
           lanHost={room.transport === 'lan' ? room.lanHost : null}
           lanPort={room.transport === 'lan' ? room.lanPort : null}
           lanAddresses={room.transport === 'lan' ? room.lanAddresses : []}

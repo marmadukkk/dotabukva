@@ -1,6 +1,7 @@
 import React from 'react';
 import { Language, t } from '../i18n';
 import type { MpTransport } from '../multiplayer';
+import type { RoomSeat } from '../hooks/useRoom';
 
 interface RoomLobbyProps {
   language: Language;
@@ -8,6 +9,10 @@ interface RoomLobbyProps {
   roomPlayers: number;
   isLeader: boolean;
   lobbyStatus: string;
+  nick: string;
+  roster: RoomSeat[];
+  selfId?: string | null;
+  onNickChange: (name: string) => void;
   lanHost?: string | null;
   lanPort?: number | null;
   lanAddresses?: string[];
@@ -23,6 +28,10 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
   roomPlayers,
   isLeader,
   lobbyStatus,
+  nick,
+  roster,
+  selfId,
+  onNickChange,
   lanHost,
   lanPort,
   lanAddresses = [],
@@ -113,6 +122,37 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
           <div className={`px-3 py-1 text-xs rounded-full border font-medium ${isLeader ? 'border-[#c23c2a] text-[#f0c060]' : 'border-emerald-400 text-emerald-400'}`}>
             {isLeader ? t(language, 'room.leader') : t(language, 'room.guesser')}
           </div>
+        </div>
+
+        <label className="block mb-4">
+          <div className="text-[10px] tracking-[2px] text-zinc-500 mb-1">{t(language, 'room.nick')}</div>
+          <input
+            value={nick}
+            maxLength={16}
+            placeholder={t(language, 'room.nickPh')}
+            onChange={(e) => onNickChange(e.target.value)}
+            className="w-full h-10 px-3 rounded-xl bg-black/40 border border-[#4a3728] text-white outline-none focus:border-[#d4af37]"
+          />
+        </label>
+
+        <div className="mb-4">
+          <div className="text-[10px] tracking-[2px] text-zinc-500 mb-2">{t(language, 'room.players')}</div>
+          <ul className="space-y-1.5">
+            {(roster.length ? roster : [{ id: 'me', name: nick || 'Player', role: isLeader ? 'leader' as const : 'guesser' as const }]).map((seat) => (
+              <li key={seat.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-white truncate">
+                  {seat.name || 'Player'}
+                  {(seat.id === selfId || seat.id === 'me') && (
+                    <span className="text-zinc-500"> · {t(language, 'room.you')}</span>
+                  )}
+                </span>
+                <span className={`text-[10px] tracking-wider ${seat.role === 'leader' ? 'text-[#f0c060]' : 'text-emerald-400'}`}>
+                  {seat.role === 'leader' ? t(language, 'room.leader') : t(language, 'room.guesser')}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[11px] text-zinc-500 leading-relaxed">{t(language, 'room.rosterHint')}</p>
         </div>
 
         <div className="text-[#e0d2b0] text-sm mb-6 min-h-[40px]">{lobbyStatus}</div>

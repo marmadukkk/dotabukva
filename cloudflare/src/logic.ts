@@ -6,9 +6,17 @@ export const ELIM_COOLDOWN_SEC = 25;
 export type Role = 'leader' | 'guesser';
 
 export interface ClientMeta {
+  id: string;
+  name: string;
   role: Role;
   freeElims: number;
   lastElim: number;
+}
+
+export interface Seat {
+  id: string;
+  name: string;
+  role: Role;
 }
 
 export interface RoomData {
@@ -23,18 +31,73 @@ export function emptyRoom(): RoomData {
   return { gameStarted: false, currentSpin: null, eliminated: [] };
 }
 
-export function publicState(room: RoomData, players: number): ServerMsg {
+export function sanitizeNick(raw: unknown): string {
+  const n = String(raw ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, 16);
+  return n || 'Player';
+}
+
+export function answerShort(spin: unknown): string | null {
+  if (!spin || typeof spin !== 'object') return null;
+  const short = (spin as { short?: unknown }).short;
+  return typeof short === 'string' && short ? short : null;
+}
+
+export function isCorrectPick(spin: unknown, short: string): boolean {
+  const answer = answerShort(spin);
+  return !!answer && answer === short;
+}
+
+/** One random player describes. Everyone else guesses. */
+export function dealLeader<T extends { id: string; role: Role }>(
+  players: T[],
+  rng: () => number = Math.random,
+): T[] {
+  if (players.length === 0) return players;
+  const idx = Math.floor(rng() * players.length);
+  return players.map((player, i) => ({
+    ...player,
+    role: i === idx ? 'leader' : 'guesser',
+  }));
+}
+
+/** Whoever found the hero describes the next round. */
+export function rotateWinnerToLeader<T extends { id: string; role: Role }>(
+  players: T[],
+  winnerId: string,
+): T[] {
+  return players.map((player) => ({
+    ...player,
+    role: player.id === winnerId ? 'leader' : 'guesser',
+  }));
+}
+
+export function publicState(
+  room: RoomData,
+  players: number,
+  roster: Seat[] = [],
+  revealSpin = false,
+): ServerMsg {
   return {
     type: 'state',
     players,
     game_started: room.gameStarted,
     eliminated: room.eliminated,
-    current_spin: room.currentSpin,
+    roster,
+    ...(revealSpin ? { current_spin: room.currentSpin } : {}),
   };
 }
 
-export function freshMeta(role: Role): ClientMeta {
-  return { role, freeElims: FREE_ELIMS, lastElim: 0 };
+export function freshMeta(role: Role, name = 'Player', id = ''): ClientMeta {
+  return {
+    id,
+    name: sanitizeNick(name),
+    role,
+    freeElims: FREE_ELIMS,
+    lastElim: 0,
+  };
 }
 
 /** Messages sent to the socket that just joined, then a state broadcast. */
@@ -53,6 +116,10 @@ export interface HandleResult {
   meta: ClientMeta;
   direct: ServerMsg[];
   broadcast: ServerMsg[];
+  /** Host pressed start — caller deals a random leader, then tells each seat. */
+  started?: boolean;
+  /** Guesser clicked the spun hero. */
+  win?: boolean;
 }
 
 export function handleClientMessage(
@@ -67,22 +134,22 @@ export function handleClientMessage(
 
   if (msg.type === 'start_game') {
     if (meta.role !== 'leader') return { room, meta, direct, broadcast };
-    const next = { ...room, gameStarted: true };
-    broadcast.push({ type: 'game_started' });
-    broadcast.push(publicState(next, players));
-    return { room: next, meta, direct, broadcast };
+    const next = { ...room, gameStarted: true, currentSpin: null, eliminated: [] };
+    return { room: next, meta, direct, broadcast, started: true };
   }
 
   if (msg.type === 'spin_result' && msg.result) {
     if (meta.role !== 'leader') return { room, meta, direct, broadcast };
     const next = { ...room, currentSpin: msg.result };
-    broadcast.push({ type: 'spin_result', result: msg.result });
-    broadcast.push(publicState(next, players));
+    direct.push({ type: 'spin_result', result: msg.result });
     return { room: next, meta, direct, broadcast };
   }
 
-  if (msg.type === 'eliminate' && msg.short) {
+  if ((msg.type === 'eliminate' || msg.type === 'pick') && msg.short) {
     if (meta.role !== 'guesser') return { room, meta, direct, broadcast };
+    if (isCorrectPick(room.currentSpin, String(msg.short))) {
+      return { room, meta, direct, broadcast, win: true };
+    }
     if (meta.freeElims <= 0 && nowSec - meta.lastElim < ELIM_COOLDOWN_SEC) {
       direct.push({
         type: 'elim_personal',

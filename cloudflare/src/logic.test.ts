@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  dealLeader,
   emptyRoom,
   freshMeta,
   handleClientMessage,
+  isCorrectPick,
   joinMessages,
+  rotateWinnerToLeader,
+  sanitizeNick,
 } from './logic.ts';
 
 describe('room logic', () => {
@@ -35,16 +39,47 @@ describe('room logic', () => {
 
     const started = handleClientMessage(emptyRoom(), freshMeta('leader'), { type: 'start_game' }, 2, 1);
     assert.equal(started.room.gameStarted, true);
-    assert.equal(started.broadcast[0]?.type, 'game_started');
+    assert.equal(started.started, true);
+    assert.equal(started.broadcast.length, 0);
 
     const spun = handleClientMessage(
       started.room,
       freshMeta('leader'),
-      { type: 'spin_result', result: { hero: 'Pudge' } },
+      { type: 'spin_result', result: { hero: 'Pudge', short: 'pudge' } },
       2,
       2,
     );
-    assert.deepEqual(spun.room.currentSpin, { hero: 'Pudge' });
+    assert.equal((spun.room.currentSpin as { short: string }).short, 'pudge');
+    assert.equal(spun.direct[0]?.type, 'spin_result');
+    assert.equal(JSON.stringify(spun.broadcast).includes('pudge'), false);
+  });
+
+  it('ends the round when the guesser picks the spun hero', () => {
+    const room = { ...emptyRoom(), gameStarted: true, currentSpin: { hero: 'Axe', short: 'axe' } };
+    const hit = handleClientMessage(room, freshMeta('guesser', 'Mira', 'a'), { type: 'pick', short: 'axe' }, 2, 10);
+    assert.equal(hit.win, true);
+    assert.equal(hit.room.eliminated.length, 0);
+
+    const miss = handleClientMessage(room, freshMeta('guesser', 'Mira', 'a'), { type: 'pick', short: 'lion' }, 2, 10);
+    assert.equal(miss.win, undefined);
+    assert.deepEqual(miss.room.eliminated, ['lion']);
+    assert.equal(isCorrectPick(room.currentSpin, 'axe'), true);
+  });
+
+  it('deals one leader and hands the next round to the winner', () => {
+    assert.equal(sanitizeNick('   '), 'Player');
+    const seats = [
+      { id: 'a', role: 'leader' as const },
+      { id: 'b', role: 'leader' as const },
+      { id: 'c', role: 'guesser' as const },
+    ];
+    const dealt = dealLeader(seats, () => 0.9);
+    assert.equal(dealt.filter((seat) => seat.role === 'leader').length, 1);
+    assert.equal(dealt[2].role, 'leader');
+
+    const next = rotateWinnerToLeader(dealt, 'a');
+    assert.equal(next.find((seat) => seat.id === 'a')?.role, 'leader');
+    assert.equal(next.filter((seat) => seat.role === 'leader').length, 1);
   });
 
   it('tells a joiner the game already started', () => {

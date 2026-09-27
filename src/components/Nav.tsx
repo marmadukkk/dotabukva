@@ -323,7 +323,7 @@ const Nav: React.FC<NavProps> = ({
             <div 
               id="nav-room-badge" 
               onClick={() => { const l = `${window.location.origin}/?room=${currentRoom}`; navigator.clipboard?.writeText(l); }} 
-              className="flex items-center gap-x-1.5 px-3 py-0.5 text-xs rounded border border-[#444] bg-[#1f1f1f] cursor-pointer hover:bg-[#2a2a2a]"
+              className="hidden sm:flex items-center gap-x-1.5 px-3 py-0.5 text-xs rounded border border-[#444] bg-[#1f1f1f] cursor-pointer hover:bg-[#2a2a2a]"
             >
               <span className="font-mono text-[#f0c060] tracking-[2px]">{currentRoom}</span>
               <button 

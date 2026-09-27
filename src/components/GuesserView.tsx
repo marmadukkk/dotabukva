@@ -75,6 +75,7 @@ const GuesserView: React.FC<GuesserViewProps> = ({
               <i className="fa-solid fa-clock mr-1"></i> {t(language, 'guesser.cd')} <span className="font-mono font-bold">{elimCD}</span>с
             </div>
           )}
+          <div className="text-zinc-500">{t(language, 'room.guesserHint')}</div>
         </div>
       )}
 

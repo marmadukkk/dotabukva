@@ -11,7 +11,14 @@ import {
   isOnlineMultiplayerConfigured,
   buildRoomWsUrl,
   remainingElimCd,
+  sanitizeNick,
 } from '../multiplayer';
+
+export interface RoomSeat {
+  id: string;
+  name: string;
+  role: 'leader' | 'guesser';
+}
 
 interface UseRoomProps {
   language: Language;
@@ -34,6 +41,9 @@ interface UseRoomProps {
   landReelResult?: (result: any) => void;
   /** Optional: animate spin for remote results (leader view) */
   onRemoteSpinResult?: (result: any) => void;
+  nick?: string;
+  onAssignRole?: (role: 'leader' | 'guesser') => void;
+  onRoundWon?: (info: { winnerName: string; hero: string; role: 'leader' | 'guesser' }) => void;
 }
 
 export function useRoom(props: UseRoomProps) {
@@ -54,7 +64,16 @@ export function useRoom(props: UseRoomProps) {
     handleGameStartedFromWS,
     landReelResult,
     onRemoteSpinResult,
+    nick,
+    onAssignRole,
+    onRoundWon,
   } = props;
+
+  const [roster, setRoster] = useState<RoomSeat[]>([]);
+  const [selfId, setSelfId] = useState<string | null>(null);
+  const selfIdRef = useRef<string | null>(null);
+  const nickRef = useRef(nick || '');
+  nickRef.current = nick || '';
 
   const roomSocketRef = useRef<WebSocket | null>(null);
   const handleRoomMessageRef = useRef<(msg: any) => void>(() => {});
@@ -118,11 +137,32 @@ export function useRoom(props: UseRoomProps) {
       if (msg.type === 'game_started') {
         handleGameStartedFromWS();
       }
-      if (msg.type === 'state' && msg.game_started) {
-        handleGameStartedFromWS();
-      }
       if (msg.type === 'elim_personal') {
         applyElimPersonal(msg.free_elims || 0, msg.last_elim_time || 0);
+      }
+      if (Array.isArray(msg.roster)) {
+        setRoster(msg.roster);
+      }
+      if (typeof msg.you === 'string' && msg.you) {
+        selfIdRef.current = msg.you;
+        setSelfId(msg.you);
+      }
+      if (msg.role === 'leader' || msg.role === 'guesser') {
+        onAssignRole?.(msg.role);
+      }
+      if (msg.type === 'round_won') {
+        const you = selfIdRef.current;
+        const seat = Array.isArray(msg.roster)
+          ? msg.roster.find((item: RoomSeat) => item.id === you)
+          : null;
+        const role: 'leader' | 'guesser' =
+          seat?.role || (msg.winnerId && msg.winnerId === you ? 'leader' : 'guesser');
+        onAssignRole?.(role);
+        onRoundWon?.({
+          winnerName: String(msg.winnerName || ''),
+          hero: String(msg.hero || ''),
+          role,
+        });
       }
       if (msg.players !== undefined) {
         setRoomPlayers(msg.players);
@@ -139,6 +179,8 @@ export function useRoom(props: UseRoomProps) {
       setRoomPlayers,
       landReelResult,
       onRemoteSpinResult,
+      onAssignRole,
+      onRoundWon,
       setLobbyStatus,
     ]
   );
@@ -152,6 +194,7 @@ export function useRoom(props: UseRoomProps) {
       host?: string;
       port?: number;
       transport?: MpTransport;
+      nick?: string;
     }) => {
       const code = opts.code.toUpperCase();
       const role = opts.role || 'guesser';
@@ -179,6 +222,7 @@ export function useRoom(props: UseRoomProps) {
         transport: mode,
         host: opts.host,
         port: opts.port,
+        nick: opts.nick || nickRef.current,
       });
 
       if (!url) {
@@ -262,6 +306,7 @@ export function useRoom(props: UseRoomProps) {
         host: '127.0.0.1',
         port: info.port,
         transport: 'lan',
+        nick: nickRef.current,
       });
       return { code, lan: info, transport: 'lan' as const };
     }
@@ -291,7 +336,7 @@ export function useRoom(props: UseRoomProps) {
       } catch {}
       rememberRoomCode(code);
       setLobbyStatus(t(language, 'room.statusLeaderConnect'));
-      connectToRoomWS({ code, role: 'leader', transport: 'online' });
+      connectToRoomWS({ code, role: 'leader', transport: 'online', nick: nickRef.current });
       return { code, transport: 'online' as const };
     }
 
@@ -311,7 +356,7 @@ export function useRoom(props: UseRoomProps) {
     setLobbyStatus(
       'Локальная сессия (веб). Онлайн-мультиплеер скоро — не LAN. Все механики комнаты доступны.'
     );
-    connectToRoomWS({ code, role: 'leader', transport: 'local' });
+    connectToRoomWS({ code, role: 'leader', transport: 'local', nick: nickRef.current });
     return { code, transport: 'local' as const, local: true };
   }, [
     API_BASE,
@@ -401,6 +446,7 @@ export function useRoom(props: UseRoomProps) {
         host: electron ? host : undefined,
         port: electron ? port : undefined,
         transport: mode,
+        nick: nickRef.current,
       });
 
       if (onCloseModal) onCloseModal();
@@ -490,5 +536,10 @@ export function useRoom(props: UseRoomProps) {
     preferredTransport: getPreferredTransport(),
     isOnlineConfigured: isOnlineMultiplayerConfigured(),
     applyElimPersonal,
+    roster,
+    selfId,
+    sendNick: (name: string) => {
+      sendRoomMessage({ type: 'set_nick', name: sanitizeNick(name) });
+    },
   };
 }

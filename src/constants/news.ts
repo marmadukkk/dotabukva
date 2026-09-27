@@ -12,6 +12,62 @@ export interface NewsItem {
 /** Latest updates shown on the main menu (newest first). */
 export const NEWS_ITEMS: NewsItem[] = [
   {
+    id: '1.3-rounds',
+    date: '2026-09-27',
+    version: '1.3',
+    tag: { ru: 'Ход', en: 'Rounds' },
+    title: {
+      ru: 'Ники и смена хода',
+      en: 'Nicks and turn rotation',
+    },
+    body: {
+      ru: 'В лобби ник и список игроков. При старте ведущий выбирается случайно. Верный герой заканчивает раунд, и этот игрок загадывает следующим.',
+      en: 'Lobby shows a nick and the player list. The leader is picked at random when the game starts. The right hero ends the round, and that player describes the next one.',
+    },
+  },
+  {
+    id: '1.3-online',
+    date: '2026-09-27',
+    version: '1.3',
+    tag: { ru: 'Онлайн', en: 'Online' },
+    title: {
+      ru: 'Онлайн-комнаты',
+      en: 'Online rooms',
+    },
+    body: {
+      ru: 'Веб-комнаты идут через сервер. Друзья заходят по коду или ссылке.',
+      en: 'Web rooms go through a server. Friends join by code or link.',
+    },
+  },
+  {
+    id: '1.3-phone',
+    date: '2026-09-27',
+    version: '1.3',
+    tag: { ru: 'Телефон', en: 'Phone' },
+    title: {
+      ru: 'Шапка на узком экране',
+      en: 'Header on a narrow screen',
+    },
+    body: {
+      ru: 'Ниже 640px код комнаты убран из шапки. Код и выход остаются в лобби.',
+      en: 'Below 640px the room code leaves the header. The code and leave button stay in the lobby.',
+    },
+  },
+  {
+    id: '1.3-load',
+    date: '2026-09-27',
+    version: '1.3',
+    tag: { ru: 'Загрузка', en: 'Load' },
+    title: {
+      ru: 'Фон не держит открытие страницы',
+      en: 'Background no longer blocks page open',
+    },
+    body: {
+      ru: 'Ролик стартует после того, как меню уже открыто. Сам файл фона не менялся.',
+      en: 'The clip starts after the menu is already open. The background file itself is unchanged.',
+    },
+  },
+  {
     id: '1.1-lan',
     date: '2026-07-27',
     version: '1.1-desktop',

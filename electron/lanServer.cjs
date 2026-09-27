@@ -49,22 +49,39 @@ function createLanServer() {
   let currentSpin = null;
   /** @type {Set<string>} */
   let eliminated = new Set();
-  /** @type {Map<import('ws').WebSocket, { role: string, freeElims: number, lastElim: number }>} */
+  /** @type {Map<import('ws').WebSocket, { id: string, name: string, role: string, freeElims: number, lastElim: number }>} */
   const clients = new Map();
 
   function playerCount() {
     return clients.size;
   }
 
-  function publicState() {
-    return {
+  function sanitizeNick(raw) {
+    const n = String(raw || '').trim().replace(/\s+/g, ' ').slice(0, 16);
+    return n || 'Player';
+  }
+
+  function roster() {
+    return [...clients.values()]
+      .map((meta) => ({ id: meta.id, name: meta.name, role: meta.role }))
+      .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  }
+
+  function answerShort() {
+    return currentSpin && typeof currentSpin.short === 'string' ? currentSpin.short : '';
+  }
+
+  function publicState(forRole) {
+    const body = {
       type: 'state',
       room: roomCode,
       players: playerCount(),
       game_started: gameStarted,
       eliminated: Array.from(eliminated),
-      current_spin: currentSpin,
+      roster: roster(),
     };
+    if (forRole === 'leader') body.current_spin = currentSpin;
+    return body;
   }
 
   function send(ws, obj) {
@@ -88,17 +105,58 @@ function createLanServer() {
   }
 
   function broadcastState() {
-    broadcast(publicState());
+    for (const [sock, meta] of clients.entries()) {
+      send(sock, publicState(meta.role));
+    }
+  }
+
+  function dealLeader() {
+    const sockets = [...clients.keys()];
+    if (!sockets.length) return;
+    const idx = Math.floor(Math.random() * sockets.length);
+    sockets.forEach((sock, i) => {
+      const meta = clients.get(sock);
+      if (!meta) return;
+      meta.role = i === idx ? 'leader' : 'guesser';
+      clients.set(sock, meta);
+    });
+  }
+
+  function rotateWinner(winnerId) {
+    for (const [sock, meta] of clients.entries()) {
+      meta.role = meta.id === winnerId ? 'leader' : 'guesser';
+      meta.freeElims = 3;
+      meta.lastElim = 0;
+      clients.set(sock, meta);
+      send(sock, { type: 'elim_personal', free_elims: 3, last_elim_time: 0 });
+    }
   }
 
   function handleMessage(ws, msg) {
     const meta = clients.get(ws);
     if (!meta) return;
 
+    if (msg.type === 'set_nick') {
+      meta.name = sanitizeNick(msg.name);
+      clients.set(ws, meta);
+      broadcastState();
+      return;
+    }
+
     if (msg.type === 'start_game') {
       if (meta.role !== 'leader') return;
       gameStarted = true;
-      broadcast({ type: 'game_started' });
+      currentSpin = null;
+      eliminated = new Set();
+      dealLeader();
+      for (const [sock, seat] of clients.entries()) {
+        send(sock, {
+          type: 'game_started',
+          role: seat.role,
+          you: seat.id,
+          roster: roster(),
+        });
+      }
       broadcastState();
       return;
     }
@@ -106,12 +164,29 @@ function createLanServer() {
     if (msg.type === 'spin_result' && msg.result) {
       if (meta.role !== 'leader') return;
       currentSpin = msg.result;
-      broadcast({ type: 'spin_result', result: msg.result });
+      send(ws, { type: 'spin_result', result: msg.result });
       broadcastState();
       return;
     }
 
-    if (msg.type === 'eliminate' && msg.short) {
+    if ((msg.type === 'pick' || msg.type === 'eliminate') && msg.short && meta.role === 'guesser' && answerShort() && msg.short === answerShort()) {
+      const hero = (currentSpin && currentSpin.hero) || answerShort();
+      rotateWinner(meta.id);
+      currentSpin = null;
+      eliminated = new Set();
+      broadcast({
+        type: 'round_won',
+        winnerId: meta.id,
+        winnerName: meta.name,
+        short: msg.short,
+        hero,
+        roster: roster(),
+      });
+      broadcastState();
+      return;
+    }
+
+    if ((msg.type === 'eliminate' || msg.type === 'pick') && msg.short) {
       if (meta.role !== 'guesser') return;
       const now = Date.now() / 1000;
       if (meta.freeElims <= 0 && now - meta.lastElim < 25) {
@@ -174,7 +249,7 @@ function createLanServer() {
     }
   }
 
-  function attachClient(ws, role) {
+  function attachClient(ws, role, nick) {
     const safeRole = role === 'leader' ? 'leader' : 'guesser';
     // Only one leader
     if (safeRole === 'leader') {
@@ -187,20 +262,24 @@ function createLanServer() {
       }
     }
 
+    const id = Math.random().toString(36).slice(2, 10);
     clients.set(ws, {
+      id,
+      name: sanitizeNick(nick),
       role: safeRole,
       freeElims: 3,
       lastElim: 0,
     });
 
-    send(ws, publicState());
+    send(ws, { type: 'hello', you: id, roster: roster() });
+    send(ws, publicState(safeRole));
     send(ws, {
       type: 'elim_personal',
       free_elims: 3,
       last_elim_time: 0,
     });
     if (gameStarted) {
-      send(ws, { type: 'game_started' });
+      send(ws, { type: 'game_started', role: safeRole, you: id, roster: roster() });
     }
     broadcastState();
 
@@ -259,7 +338,7 @@ function createLanServer() {
           ws.close();
           return;
         }
-        attachClient(ws, role);
+        attachClient(ws, role, url.searchParams.get('nick') || '');
       } catch {
         try { ws.close(); } catch {}
       }

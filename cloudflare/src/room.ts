@@ -2,12 +2,15 @@ import { DurableObject } from 'cloudflare:workers';
 import {
   ClientMeta,
   RoomData,
+  Seat,
   ServerMsg,
+  dealLeader,
   emptyRoom,
   freshMeta,
   handleClientMessage,
-  joinMessages,
   publicState,
+  rotateWinnerToLeader,
+  sanitizeNick,
 } from './logic';
 
 interface Env {
@@ -32,16 +35,25 @@ export class RoomDO extends DurableObject<Env> {
     this.ctx.acceptWebSocket(server);
 
     if (role === 'leader') this.demoteOtherLeaders(server);
-    const meta = freshMeta(role);
+    const meta = freshMeta(role, url.searchParams.get('nick') || '', crypto.randomUUID().slice(0, 8));
     server.serializeAttachment(meta);
 
     const room = await this.loadRoom();
-    const players = this.ctx.getWebSockets().length;
-    const joined = joinMessages(room, players);
-    // Last message is the public state; everyone else needs the new player count.
-    const announce = joined[joined.length - 1];
-    for (const msg of joined.slice(0, -1)) this.send(server, msg);
-    if (announce) this.broadcast(announce);
+    this.send(server, { type: 'hello', you: meta.id, roster: this.roster() });
+    this.send(server, {
+      type: 'elim_personal',
+      free_elims: meta.freeElims,
+      last_elim_time: meta.lastElim,
+    });
+    if (room.gameStarted) {
+      this.send(server, {
+        type: 'game_started',
+        role: meta.role,
+        you: meta.id,
+        roster: this.roster(),
+      });
+    }
+    this.broadcastPersonalized(room);
 
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -50,7 +62,7 @@ export class RoomDO extends DurableObject<Env> {
     const meta = this.readMeta(ws);
     if (!meta) return;
 
-    let parsed: { type?: string; result?: unknown; short?: string };
+    let parsed: { type?: string; result?: unknown; short?: string; name?: string };
     try {
       const text = typeof message === 'string' ? message : new TextDecoder().decode(message);
       parsed = JSON.parse(text);
@@ -58,20 +70,101 @@ export class RoomDO extends DurableObject<Env> {
       return;
     }
 
+    if (parsed.type === 'set_nick') {
+      ws.serializeAttachment({ ...meta, name: sanitizeNick(parsed.name) });
+      this.broadcastPersonalized(await this.loadRoom());
+      return;
+    }
+
     const room = await this.loadRoom();
     const players = this.ctx.getWebSockets().length;
     const result = handleClientMessage(room, meta, parsed, players, Date.now() / 1000);
+
+    if (result.started) {
+      const dealt = dealLeader(this.roster());
+      this.applySeats(dealt);
+      await this.saveRoom(result.room);
+      for (const sock of this.ctx.getWebSockets()) {
+        const seat = this.readMeta(sock);
+        if (!seat) continue;
+        this.send(sock, {
+          type: 'game_started',
+          role: seat.role,
+          you: seat.id,
+          roster: this.roster(),
+        });
+      }
+      this.broadcastPersonalized(result.room);
+      return;
+    }
+
+    if (result.win) {
+      const winner = meta;
+      const dealt = rotateWinnerToLeader(this.roster(), winner.id);
+      this.applySeats(dealt, true);
+      const next: RoomData = { ...room, eliminated: [], currentSpin: null };
+      await this.saveRoom(next);
+      const hero =
+        room.currentSpin && typeof room.currentSpin === 'object'
+          ? String((room.currentSpin as { hero?: string }).hero || answerFrom(room))
+          : answerFrom(room);
+      this.broadcast({
+        type: 'round_won',
+        winnerId: winner.id,
+        winnerName: winner.name,
+        short: parsed.short,
+        hero,
+        roster: this.roster(),
+      });
+      this.broadcastPersonalized(next);
+      return;
+    }
 
     ws.serializeAttachment(result.meta);
     if (result.room !== room) await this.saveRoom(result.room);
     for (const msg of result.direct) this.send(ws, msg);
     for (const msg of result.broadcast) this.broadcast(msg);
+    if (result.room !== room || parsed.type === 'spin_result') {
+      this.broadcastPersonalized(result.room);
+    }
   }
 
   async webSocketClose(ws: WebSocket): Promise<void> {
-    const room = await this.loadRoom();
-    const players = this.ctx.getWebSockets().filter((sock) => sock !== ws).length;
-    this.broadcast(publicState(room, players), ws);
+    this.broadcastPersonalized(await this.loadRoom(), ws);
+  }
+
+  private roster(except?: WebSocket): Seat[] {
+    return this.ctx
+      .getWebSockets()
+      .filter((sock) => sock !== except)
+      .map((sock) => this.readMeta(sock))
+      .filter((meta): meta is ClientMeta => !!meta)
+      .map((meta) => ({ id: meta.id, name: meta.name, role: meta.role }))
+      .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  }
+
+  private applySeats(seats: Seat[], resetElims = false) {
+    const byId = new Map(seats.map((seat) => [seat.id, seat]));
+    for (const sock of this.ctx.getWebSockets()) {
+      const meta = this.readMeta(sock);
+      if (!meta) continue;
+      const seat = byId.get(meta.id);
+      if (!seat) continue;
+      sock.serializeAttachment({
+        ...meta,
+        role: seat.role,
+        ...(resetElims ? { freeElims: 3, lastElim: 0 } : {}),
+      });
+    }
+  }
+
+  private broadcastPersonalized(room: RoomData, except?: WebSocket) {
+    for (const sock of this.ctx.getWebSockets()) {
+      if (sock === except) continue;
+      const meta = this.readMeta(sock);
+      if (!meta) continue;
+      this.send(sock, publicState(room, this.roster(except).length, this.roster(except), meta.role === 'leader'));
+    }
   }
 
   private demoteOtherLeaders(self: WebSocket) {
@@ -87,7 +180,11 @@ export class RoomDO extends DurableObject<Env> {
   private readMeta(ws: WebSocket): ClientMeta | null {
     const raw = ws.deserializeAttachment() as ClientMeta | null;
     if (!raw || (raw.role !== 'leader' && raw.role !== 'guesser')) return null;
-    return raw;
+    return {
+      ...raw,
+      id: raw.id || 'seat',
+      name: sanitizeNick(raw.name),
+    };
   }
 
   private async loadRoom(): Promise<RoomData> {
@@ -123,4 +220,10 @@ export class RoomDO extends DurableObject<Env> {
       }
     }
   }
+}
+
+function answerFrom(room: RoomData): string {
+  if (!room.currentSpin || typeof room.currentSpin !== 'object') return '';
+  const short = (room.currentSpin as { short?: string }).short;
+  return short || '';
 }
