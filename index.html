@@ -340,6 +340,16 @@
             top: 50%;
         }
 
+        .reel-spark {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 30;
+            background: #ffeb3b;
+            box-shadow: 0 0 8px #ffd700, 0 0 16px #ff8c00, 0 0 24px #ff4500;
+            animation: spark-fly 0.7s ease-out forwards;
+        }
+
         .spin-button {
             transition: all 0.1s cubic-bezier(0.23, 1, 0.32, 1);
             position: relative;

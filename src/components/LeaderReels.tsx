@@ -1,5 +1,78 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Language, t } from '../i18n';
+
+interface ReelSpark {
+  id: string;
+  left: number;
+  top: number;
+  tx: number;
+  ty: number;
+  size: number;
+  delay: number;
+}
+
+function spawnReelSparks(count: number): ReelSpark[] {
+  return Array.from({ length: count }, () => {
+    const left = 18 + Math.random() * 64;
+    const top = 28 + Math.random() * 44;
+    const dx = left - 50;
+    const dy = top - 50;
+    return {
+      id: `${Date.now()}-${Math.random()}`,
+      left,
+      top,
+      tx: dx * 1.6 + (Math.random() - 0.5) * 16,
+      ty: dy * 1.8 - 8,
+      size: 4 + Math.random() * 5,
+      delay: Math.random() * 90,
+    };
+  });
+}
+
+/** Gold sparks along the drum edges while it is spinning. */
+function SpinSparks({ active }: { active: boolean }) {
+  const [sparks, setSparks] = useState<ReelSpark[]>([]);
+
+  useEffect(() => {
+    if (!active) {
+      setSparks([]);
+      return;
+    }
+    const burst = () => {
+      const batch = spawnReelSparks(4);
+      setSparks((prev) => [...prev, ...batch].slice(-30));
+      window.setTimeout(() => {
+        const ids = new Set(batch.map((spark) => spark.id));
+        setSparks((prev) => prev.filter((spark) => !ids.has(spark.id)));
+      }, 780);
+    };
+    burst();
+    const id = window.setInterval(burst, 160);
+    return () => window.clearInterval(id);
+  }, [active]);
+
+  if (!active && sparks.length === 0) return null;
+
+  return (
+    <>
+      {sparks.map((spark) => (
+        <div
+          key={spark.id}
+          className="reel-spark"
+          style={{
+            left: `${spark.left}%`,
+            top: `${spark.top}%`,
+            width: spark.size,
+            height: spark.size,
+            animationDelay: `${spark.delay}ms`,
+            ['--tx' as string]: `${spark.tx}px`,
+            ['--ty' as string]: `${spark.ty}px`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
 
 interface LeaderReelsProps {
   language: Language;
@@ -49,6 +122,7 @@ const LeaderReels: React.FC<LeaderReelsProps> = ({
             <div className="reel-cylinder right"><div className="cylinder-strip"></div></div>
             <div className="reel-shadow"></div>
             <div className="reel-lens absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-24px)] h-[78px] rounded-xl pointer-events-none z-20"></div>
+            <SpinSparks active={isSpinning} />
           </div>
         </div>
 
@@ -69,6 +143,7 @@ const LeaderReels: React.FC<LeaderReelsProps> = ({
             <div className="reel-cylinder right"><div className="cylinder-strip"></div></div>
             <div className="reel-shadow"></div>
             <div className="reel-lens absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-32px)] h-[110px] rounded-2xl pointer-events-none z-20"></div>
+            <SpinSparks active={isSpinning} />
           </div>
         </div>
       </div>
