@@ -1,4 +1,4 @@
-import { Language } from '../i18n';
+import type { Language } from '../i18n';
 
 export interface NewsItem {
   id: string;

@@ -172,6 +172,11 @@ const dict: Record<Language, Record<string, string>> = {
     'room.onlineHowTo': 'Друзья заходят по коду или ссылке. Синхронизация через сервер (не LAN).',
     'room.localHint': 'Локальная сессия (веб)',
     'room.localHowTo': 'Все механики комнаты уже здесь. Онлайн-мультиплеер скоро — не через локальную сеть.',
+    'room.statusLocalLeader': 'Локальная сессия. Онлайн-мультиплеер скоро (не LAN). Механики комнаты готовы.',
+    'room.statusLocalGuesser': 'Локальная сессия. Онлайн-синхронизация пока недоступна.',
+    'room.errLan': 'Ошибка соединения. Проверьте IP хоста и что комната запущена.',
+    'room.errOnline': 'Онлайн-сервер недоступен. Проверьте сеть и попробуйте ещё раз.',
+    'room.errUrl': 'Не удалось построить адрес подключения.',
 
     // Leader view
     'leader.spin': 'КРУТИТЬ',
@@ -409,6 +414,11 @@ const dict: Record<Language, Record<string, string>> = {
     'room.onlineHowTo': 'Friends join by code or link. Sync via server (not LAN).',
     'room.localHint': 'Local session (web)',
     'room.localHowTo': 'Full room mechanics are ready. Online multiplayer coming — not via local network.',
+    'room.statusLocalLeader': 'Local session. Online multiplayer is not configured (not LAN). Room mechanics still work.',
+    'room.statusLocalGuesser': 'Local session. Online sync is unavailable.',
+    'room.errLan': 'Connection failed. Check the host IP and that the room is running.',
+    'room.errOnline': 'Online server is unreachable. Check the network and try again.',
+    'room.errUrl': 'Could not build the connection address.',
 
     // Leader view
     'leader.spin': 'SPIN',
@@ -483,6 +493,11 @@ const dict: Record<Language, Record<string, string>> = {
 
 export function t(lang: Language, key: string): string {
   return dict[lang]?.[key] ?? key;
+}
+
+/** Keys present for one language. Tests use this to keep ru and en in lockstep. */
+export function translationKeys(lang: Language): string[] {
+  return Object.keys(dict[lang]);
 }
 
 // Dynamic mode word (for descriptions)

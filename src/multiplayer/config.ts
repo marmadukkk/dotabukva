@@ -8,13 +8,28 @@
 import type { MpTransport } from './protocol';
 import { DEFAULT_LAN_PORT } from './protocol';
 
+/**
+ * Production web rooms (Cloudflare worker). Dev and Electron ignore this
+ * unless VITE_API_URL / VITE_WS_URL is set.
+ */
+export const PUBLIC_ROOMS_ORIGIN = 'https://dotabukva-rooms.dotabukva.workers.dev';
+
 export function isElectronDesktop(): boolean {
   return !!(typeof window !== 'undefined' && window.dotaDesktop?.isElectron);
 }
 
+function isElectronBuild(): boolean {
+  const flag = import.meta.env.VITE_IS_ELECTRON;
+  return flag === true || flag === 'true';
+}
+
 /** Remote HTTP API base (no trailing slash). */
 export function getApiBase(): string {
-  return (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  const fromEnv = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+  if (isElectronDesktop() || isElectronBuild()) return '';
+  if (!import.meta.env.PROD) return '';
+  return PUBLIC_ROOMS_ORIGIN.replace(/\/$/, '');
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useRef, useCallback, useState } from 'react';
-import { Language } from '../i18n';
+import { Language, t } from '../i18n';
 import {
   MpTransport,
   generateRoomCode,
@@ -38,6 +38,7 @@ interface UseRoomProps {
 
 export function useRoom(props: UseRoomProps) {
   const {
+    language,
     API_BASE,
     setCurrentRoom,
     setIsRoomLeader,
@@ -165,8 +166,8 @@ export function useRoom(props: UseRoomProps) {
         setIsConnected(false);
         setLobbyStatus(
           role === 'leader'
-            ? 'Локальная сессия. Онлайн-мультиплеер скоро (не LAN). Механики комнаты готовы.'
-            : 'Локальная сессия. Онлайн-синхронизация пока недоступна.'
+            ? t(language, 'room.statusLocalLeader')
+            : t(language, 'room.statusLocalGuesser')
         );
         applyElimPersonal(FREE_ELIMS_INITIAL, 0);
         return;
@@ -182,7 +183,7 @@ export function useRoom(props: UseRoomProps) {
 
       if (!url) {
         setIsConnected(false);
-        setLobbyStatus('Не удалось построить адрес подключения.');
+        setLobbyStatus(t(language, 'room.errUrl'));
         return;
       }
 
@@ -202,11 +203,11 @@ export function useRoom(props: UseRoomProps) {
 
       ws.onopen = () => {
         setIsConnected(true);
-        const status =
+        setLobbyStatus(
           role === 'leader'
-            ? 'Вы ведущий. Соединение установлено. Нажмите «Начать игру», когда все подключатся.'
-            : 'Вы отгадывающий. Соединение установлено. Ожидайте, пока ведущий начнёт игру.';
-        setLobbyStatus(status);
+            ? t(language, 'room.statusLeaderReady')
+            : t(language, 'room.statusGuesserReady')
+        );
       };
       ws.onmessage = (ev) => {
         try {
@@ -216,20 +217,16 @@ export function useRoom(props: UseRoomProps) {
       };
       ws.onerror = () => {
         setIsConnected(false);
-        if (mode === 'lan') {
-          setLobbyStatus('Ошибка соединения. Проверьте IP хоста и что комната запущена.');
-        } else {
-          setLobbyStatus(
-            'Онлайн-сервер недоступен. Мультиплеер в сети скоро (не через LAN).'
-          );
-        }
+        setLobbyStatus(t(language, mode === 'lan' ? 'room.errLan' : 'room.errOnline'));
       };
       ws.onclose = () => {
-        roomSocketRef.current = null;
-        setIsConnected(false);
+        if (roomSocketRef.current === ws) {
+          roomSocketRef.current = null;
+          setIsConnected(false);
+        }
       };
     },
-    [setLobbyStatus, setTransportBoth, applyElimPersonal]
+    [language, setLobbyStatus, setTransportBoth, applyElimPersonal]
   );
 
   const rememberRoomCode = (code: string) => {
@@ -269,21 +266,33 @@ export function useRoom(props: UseRoomProps) {
       return { code, lan: info, transport: 'lan' as const };
     }
 
-    // ── Web online API (when backend exists) ───────────────────────
-    const api = API_BASE || getApiBase();
-    if (api && isOnlineMultiplayerConfigured()) {
+    // ── Web online (Cloudflare worker, or any host that speaks this protocol)
+    if (!isElectronDesktop() && isOnlineMultiplayerConfigured()) {
+      const api = API_BASE || getApiBase();
+      let code = '';
+      if (api) {
+        try {
+          const res = await fetch(`${api}/api/rooms/create`, { method: 'POST' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.code) code = String(data.code).toUpperCase();
+          }
+        } catch {}
+      }
+      if (!code) code = generateRoomCode();
+      setCurrentRoom(code);
+      setIsRoomLeader(true);
+      setRoomPlayers(1);
       try {
-        const res = await fetch(`${api}/api/rooms/create`, { method: 'POST' });
-        if (res.ok) {
-          const data = await res.json();
-          setCurrentRoom(data.code);
-          setIsRoomLeader(true);
-          rememberRoomCode(data.code);
-          setLobbyStatus('Вы ведущий. Подключаемся к комнате...');
-          connectToRoomWS({ code: data.code, role: 'leader', transport: 'online' });
-          return { code: data.code, transport: 'online' as const };
-        }
+        let roomsL = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
+        roomsL = roomsL.filter((r: any) => r.code !== code);
+        roomsL.unshift({ code, created: Date.now() });
+        localStorage.setItem('dota_bukva_rooms', JSON.stringify(roomsL));
       } catch {}
+      rememberRoomCode(code);
+      setLobbyStatus(t(language, 'room.statusLeaderConnect'));
+      connectToRoomWS({ code, role: 'leader', transport: 'online' });
+      return { code, transport: 'online' as const };
     }
 
     // ── Web local session: full MP client mechanics, no network ────
@@ -308,6 +317,7 @@ export function useRoom(props: UseRoomProps) {
     API_BASE,
     setCurrentRoom,
     setIsRoomLeader,
+    language,
     setLobbyStatus,
     setRoomPlayers,
     connectToRoomWS,

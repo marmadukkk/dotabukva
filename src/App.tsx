@@ -721,16 +721,31 @@ const App: React.FC = () => {
     } catch {}
   };
 
-  // Refresh translated lobby status when language changes
+  // Translate the lobby line when the language changes.
+  // Must not run on enter: that used to overwrite a finished connect (or a
+  // local session) with "Connecting..." forever.
+  const lobbyLangSeen = useRef(false);
   useEffect(() => {
-    if (screen === 'room-lobby' && currentRoom) {
-      const leader = isRoomLeader;
-      const newStatus = leader 
-        ? t(language, 'room.statusLeaderConnect') 
-        : t(language, 'room.statusGuesserConnect');
-      setLobbyStatus(newStatus);
+    if (!lobbyLangSeen.current) {
+      lobbyLangSeen.current = true;
+      return;
     }
-  }, [language, screen, currentRoom, isRoomLeader]);
+    if (screen !== 'room-lobby' || !currentRoom) return;
+    if (room.transport === 'local' || room.transport === 'none') {
+      setLobbyStatus(
+        isRoomLeader
+          ? t(language, 'room.statusLocalLeader')
+          : t(language, 'room.statusLocalGuesser')
+      );
+      return;
+    }
+    const ready = room.isConnected;
+    setLobbyStatus(
+      isRoomLeader
+        ? t(language, ready ? 'room.statusLeaderReady' : 'room.statusLeaderConnect')
+        : t(language, ready ? 'room.statusGuesserReady' : 'room.statusGuesserConnect')
+    );
+  }, [language]);
 
   // Ensure correct data for the reel when mode or leader context changes
   useEffect(() => {

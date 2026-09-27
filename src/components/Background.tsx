@@ -40,17 +40,30 @@ const Background: React.FC<BackgroundProps> = ({
   const loadedA = useRef<number | null>(null);
   const loadedB = useRef<number | null>(null);
   const didInit = useRef(false);
+  const indexRef = useRef(currentBgIndex);
+  indexRef.current = currentBgIndex;
 
-  // Initial load once — never re-run on parent re-renders
+  // Start the clip after window "load". A <video> in the document delays that
+  // event until the file finishes, and the default background is ~6.5 MB.
   useEffect(() => {
-    if (didInit.current) return;
-    didInit.current = true;
-    const video = videoARef.current;
-    if (!video) return;
-    const path = backgroundVideos[currentBgIndex];
-    loadedA.current = currentBgIndex;
-    loadAndPlay(video, path);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only init
+    const start = () => {
+      if (didInit.current) return;
+      didInit.current = true;
+      const video = videoARef.current;
+      if (!video) return;
+      const index = indexRef.current;
+      const path = backgroundVideos[index];
+      loadedA.current = index;
+      loadAndPlay(video, path);
+    };
+
+    if (document.readyState === 'complete') {
+      start();
+      return;
+    }
+    window.addEventListener('load', start, { once: true });
+    return () => window.removeEventListener('load', start);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; index is read from a ref
   }, []);
 
   // Crossfade: only when the user switches background
@@ -83,6 +96,7 @@ const Background: React.FC<BackgroundProps> = ({
         loop
         muted
         playsInline
+        preload="none"
       />
       <video
         ref={videoBRef}
@@ -91,6 +105,7 @@ const Background: React.FC<BackgroundProps> = ({
         loop
         muted
         playsInline
+        preload="none"
       />
 
       {/* Subtle dark overlay */}
