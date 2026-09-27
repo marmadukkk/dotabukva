@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Language, t } from '../i18n';
 import type { MpTransport } from '../multiplayer';
-import type { RoomSeat } from '../hooks/useRoom';
+import type { RoomReel, RoomSeat } from '../hooks/useRoom';
+import NickReel from './NickReel';
 
 interface RoomLobbyProps {
   language: Language;
@@ -13,12 +14,14 @@ interface RoomLobbyProps {
   roster: RoomSeat[];
   selfId?: string | null;
   onNickChange: (name: string) => void;
+  countdownEndsAt?: number | null;
+  reel?: RoomReel | null;
+  onToggleReady: () => void;
   lanHost?: string | null;
   lanPort?: number | null;
   lanAddresses?: string[];
   /** lan | online | local — web never uses LAN */
   transport?: MpTransport;
-  onStartGame: () => void;
   onLeave: () => void;
 }
 
@@ -32,13 +35,25 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
   roster,
   selfId,
   onNickChange,
+  countdownEndsAt,
+  reel,
+  onToggleReady,
   lanHost,
   lanPort,
   lanAddresses = [],
   transport = 'none',
-  onStartGame,
   onLeave,
 }) => {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!countdownEndsAt) return;
+    const id = window.setInterval(() => setNow(Date.now()), 200);
+    return () => window.clearInterval(id);
+  }, [countdownEndsAt]);
+  const secondsLeft = countdownEndsAt ? Math.max(0, Math.ceil((countdownEndsAt - now) / 1000)) : 0;
+  const me = roster.find((seat) => seat.id === selfId);
+  const iAmReady = !!me?.ready;
+  const winnerName = reel ? roster.find((seat) => seat.id === reel.winnerId)?.name || '' : '';
   const port = lanPort || 17432;
   const primary = lanHost && lanHost !== '127.0.0.1' ? lanHost : (lanAddresses[0] || lanHost || '127.0.0.1');
   const joinHint = `${primary}:${port}`;
@@ -146,8 +161,8 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
                     <span className="text-zinc-500"> · {t(language, 'room.you')}</span>
                   )}
                 </span>
-                <span className={`text-[10px] tracking-wider ${seat.role === 'leader' ? 'text-[#f0c060]' : 'text-emerald-400'}`}>
-                  {seat.role === 'leader' ? t(language, 'room.leader') : t(language, 'room.guesser')}
+                <span className={`text-[10px] tracking-wider ${seat.ready ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                  {seat.ready ? t(language, 'room.ready') : t(language, 'room.unready')}
                 </span>
               </li>
             ))}
@@ -155,20 +170,39 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
           <p className="mt-3 text-[11px] text-zinc-500 leading-relaxed">{t(language, 'room.rosterHint')}</p>
         </div>
 
-        <div className="text-[#e0d2b0] text-sm mb-6 min-h-[40px]">{lobbyStatus}</div>
+        <div className="text-[#e0d2b0] text-sm mb-4 min-h-[40px]">{lobbyStatus}</div>
 
-        {isLeader && (
+        {reel && winnerName && (
+          <div className="mb-4 text-center">
+            <div className="text-[10px] tracking-[2px] text-[#d4af37] mb-1">{t(language, 'room.countdown')}</div>
+            <NickReel names={reel.names.length ? reel.names : roster.map((seat) => seat.name)} winnerName={winnerName} />
+          </div>
+        )}
+
+        {countdownEndsAt && !reel && (
+          <div className="mb-4 text-center">
+            <div className="text-[10px] tracking-[2px] text-[#d4af37]">{t(language, 'room.countdown')}</div>
+            <div className="font-display text-6xl text-white tabular-nums">{secondsLeft}</div>
+          </div>
+        )}
+
+        {!reel && (
           <button
-            id="lobby-start-btn"
-            onClick={onStartGame}
+            id="lobby-ready-btn"
+            type="button"
+            onClick={onToggleReady}
             data-sfx="button"
-            className="w-full h-11 bg-[#c23c2a] hover:bg-[#e04a38] text-white font-semibold rounded-xl border border-[#d4af37]"
+            className={`w-full h-11 font-semibold rounded-xl border ${
+              iAmReady
+                ? 'bg-[#1f3a2a] border-emerald-400 text-emerald-300'
+                : 'bg-[#c23c2a] hover:bg-[#e04a38] border-[#d4af37] text-white'
+            }`}
           >
-            {t(language, 'room.start')}
+            {iAmReady ? t(language, 'room.unready') : t(language, 'room.ready')}
           </button>
         )}
-        {!isLeader && (
-          <div className="text-center text-xs text-zinc-500">{t(language, 'room.waitLeader')}</div>
+        {!reel && roster.filter((seat) => seat.ready).length < roster.length && (
+          <div className="mt-2 text-center text-xs text-zinc-500">{t(language, 'room.waitReady')}</div>
         )}
 
         <button

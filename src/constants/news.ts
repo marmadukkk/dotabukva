@@ -21,8 +21,8 @@ export const NEWS_ITEMS: NewsItem[] = [
       en: 'Nicks and turn rotation',
     },
     body: {
-      ru: 'В лобби ник и список игроков. При старте ведущий выбирается случайно. Верный герой заканчивает раунд, и этот игрок загадывает следующим.',
-      en: 'Lobby shows a nick and the player list. The leader is picked at random when the game starts. The right hero ends the round, and that player describes the next one.',
+      ru: 'Все жмут «Готов», затем отсчёт и барабан ников. Кто выпал — загадывает. Отгадывающие ходят по очереди по 15 секунд. Пропуск снимает случайного героя, но не загаданного. Верный герой заканчивает раунд.',
+      en: 'Everyone hits Ready, then a countdown and a name reel. Whoever lands describes. Guessers take 15-second turns. A miss crosses out a random hero, never the secret one. The right hero ends the round.',
     },
   },
   {

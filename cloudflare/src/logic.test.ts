@@ -7,30 +7,18 @@ import {
   handleClientMessage,
   isCorrectPick,
   joinMessages,
+  randomMiss,
   rotateWinnerToLeader,
   sanitizeNick,
 } from './logic.ts';
 
 describe('room logic', () => {
-  it('rejects a second eliminate inside the cooldown', () => {
+  it('eliminates without a cooldown', () => {
     const meta = { ...freshMeta('guesser'), freeElims: 0, lastElim: 1_000 };
-    const result = handleClientMessage(emptyRoom(), meta, { type: 'eliminate', short: 'pudge' }, 2, 1_010);
-    assert.equal(result.direct[0]?.rejected, true);
-    assert.equal(result.room.eliminated.length, 0);
-    assert.equal(result.broadcast.length, 0);
-  });
-
-  it('spends free elims before starting the cooldown', () => {
-    const first = handleClientMessage(
-      emptyRoom(),
-      freshMeta('guesser'),
-      { type: 'eliminate', short: 'axe' },
-      2,
-      50,
-    );
-    assert.equal(first.meta.freeElims, 2);
-    assert.equal(first.meta.lastElim, 0);
-    assert.deepEqual(first.room.eliminated, ['axe']);
+    const first = handleClientMessage(emptyRoom(), meta, { type: 'eliminate', short: 'axe' }, 2, 1_000);
+    const second = handleClientMessage(first.room, first.meta, { type: 'eliminate', short: 'lion' }, 2, 1_001);
+    assert.deepEqual(second.room.eliminated, ['axe', 'lion']);
+    assert.equal(second.direct.some((msg) => msg.rejected), false);
   });
 
   it('lets only the leader start and spin', () => {
@@ -80,6 +68,16 @@ describe('room logic', () => {
     const next = rotateWinnerToLeader(dealt, 'a');
     assert.equal(next.find((seat) => seat.id === 'a')?.role, 'leader');
     assert.equal(next.filter((seat) => seat.role === 'leader').length, 1);
+  });
+
+  it('never auto-eliminates the secret hero', () => {
+    const pool = ['axe', 'pudge', 'lion'];
+    for (let i = 0; i < 30; i++) {
+      const miss = randomMiss(pool, ['axe'], 'pudge', () => i / 30);
+      assert.notEqual(miss, 'pudge');
+      assert.notEqual(miss, 'axe');
+    }
+    assert.equal(randomMiss(['pudge'], [], 'pudge'), null);
   });
 
   it('tells a joiner the game already started', () => {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Language, t, getSortLabel } from '../i18n';
 import HeroGrid from './HeroGrid';
 
@@ -10,6 +10,9 @@ interface GuesserViewProps {
   guesserSearch: string;
   myFreeElims: number;
   elimCD: number;
+  turnLabel?: string | null;
+  turnDeadline?: number | null;
+  isMyTurn?: boolean;
   currentRoom: string | null;
   filteredSorted: any[];
   totalCount: number;
@@ -29,6 +32,9 @@ const GuesserView: React.FC<GuesserViewProps> = ({
   guesserSearch,
   myFreeElims,
   elimCD,
+  turnLabel,
+  turnDeadline,
+  isMyTurn,
   currentRoom,
   filteredSorted,
   totalCount,
@@ -38,6 +44,14 @@ const GuesserView: React.FC<GuesserViewProps> = ({
   onResetEliminated,
   onImageLoad,
 }) => {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!turnDeadline) return;
+    const id = window.setInterval(() => setNow(Date.now()), 200);
+    return () => window.clearInterval(id);
+  }, [turnDeadline]);
+  const turnSeconds = turnDeadline ? Math.max(0, Math.ceil((turnDeadline - now) / 1000)) : null;
+
   const title = currentMode === 'items' 
     ? t(language, 'guesser.tableItems') 
     : currentMode === 'abilities' 
@@ -66,15 +80,13 @@ const GuesserView: React.FC<GuesserViewProps> = ({
 
       {/* Free / CD */}
       {currentRoom && (
-        <div className="px-1 mb-1 flex gap-4 text-xs">
-          <div className={myFreeElims > 0 ? 'text-emerald-400' : 'hidden'}>
-            {t(language, 'guesser.free')} <span className="font-bold">{myFreeElims}</span>
+        <div className="px-1 mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          <div className={isMyTurn ? 'text-[#f0c060] font-semibold' : 'text-zinc-300'}>
+            {turnLabel || t(language, 'room.waitingSpin')}
+            {turnSeconds != null && turnLabel && (
+              <span className="ml-2 font-mono tabular-nums">{turnSeconds}с</span>
+            )}
           </div>
-          {elimCD > 0 && (
-            <div className="text-red-400">
-              <i className="fa-solid fa-clock mr-1"></i> {t(language, 'guesser.cd')} <span className="font-mono font-bold">{elimCD}</span>с
-            </div>
-          )}
           <div className="text-zinc-500">{t(language, 'room.guesserHint')}</div>
         </div>
       )}

@@ -36,7 +36,6 @@ import { useMulticast } from './hooks/useMulticast';
 import { useModals } from './hooks/useModals';
 import { useSpin } from './hooks/useSpin';
 import {
-  canEliminate,
   applySuccessfulElim,
   isElectronDesktop,
   readStoredNick,
@@ -670,32 +669,15 @@ const App: React.FC = () => {
     const inRoom = !!currentRoom;
     const networked = inRoom && room.isNetworkRoom();
 
-    // Room guesser: free elims + CD (LAN / online / local session)
-    if (
-      inRoom &&
-      !wasEliminated &&
-      currentRole === 'guesser' &&
-      !canEliminate({ freeElims: myFreeElims, lastElimTime: myLastElim })
-    ) {
-      playMipmapSound();
-      return;
-    }
-    // Fallback: CD timer UI already ticking
-    if (
-      inRoom &&
-      !wasEliminated &&
-      currentRole === 'guesser' &&
-      myFreeElims <= 0 &&
-      elimCD > 0
-    ) {
-      playMipmapSound();
-      return;
-    }
-
     if (inRoom && networked && currentRole === 'guesser' && !wasEliminated) {
+      if (!room.turn || room.turn.id !== room.selfId) {
+        playMipmapSound();
+        return;
+      }
       room.sendRoomMessage({ type: 'pick', short });
       return;
     }
+    if (inRoom && wasEliminated) return;
 
     if (wasEliminated) playUnbanSound();
     else playBanSound();
@@ -1228,12 +1210,17 @@ const App: React.FC = () => {
           nick={nick}
           roster={room.roster}
           selfId={room.selfId}
+          countdownEndsAt={room.countdownEndsAt}
+          reel={room.reel}
+          onToggleReady={() => {
+            const mine = room.roster.find((seat) => seat.id === room.selfId);
+            room.sendReady(!mine?.ready);
+          }}
           onNickChange={(name) => setNick(name.slice(0, 16))}
           lanHost={room.transport === 'lan' ? room.lanHost : null}
           lanPort={room.transport === 'lan' ? room.lanPort : null}
           lanAddresses={room.transport === 'lan' ? room.lanAddresses : []}
           transport={room.transport}
-          onStartGame={startGameFromLobby}
           onLeave={leaveRoom}
         />
       )}
@@ -1272,6 +1259,15 @@ const App: React.FC = () => {
           guesserSearch={guesserSearch}
           myFreeElims={myFreeElims}
           elimCD={elimCD || 0}
+          turnLabel={
+            room.turn
+              ? room.turn.id === room.selfId
+                ? t(language, 'room.yourTurn')
+                : t(language, 'room.turnOf').split('{name}').join(room.turn.name)
+              : null
+          }
+          turnDeadline={room.turn?.deadline || null}
+          isMyTurn={!!room.turn && room.turn.id === room.selfId}
           currentRoom={currentRoom}
           filteredSorted={filteredSorted}
           totalCount={heroesData.length}

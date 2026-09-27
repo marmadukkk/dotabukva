@@ -2,13 +2,20 @@
 
 export const FREE_ELIMS = 3;
 export const ELIM_COOLDOWN_SEC = 25;
+export const COUNTDOWN_MS = 3000;
+export const REEL_MS = 3200;
+export const TURN_MS = 15000;
+export const MIN_PLAYERS = 2;
 
 export type Role = 'leader' | 'guesser';
+
+export type RoomPhase = 'lobby' | 'countdown' | 'reel' | 'playing';
 
 export interface ClientMeta {
   id: string;
   name: string;
   role: Role;
+  ready: boolean;
   freeElims: number;
   lastElim: number;
 }
@@ -17,18 +24,63 @@ export interface Seat {
   id: string;
   name: string;
   role: Role;
+  ready: boolean;
 }
 
 export interface RoomData {
   gameStarted: boolean;
   currentSpin: unknown | null;
   eliminated: string[];
+  phase: RoomPhase;
+  pool: string[];
+  turnOrder: string[];
+  turnIndex: number;
+  turnDeadline: number;
+  countdownEndsAt: number;
+  reelEndsAt: number;
+  reelWinnerId: string;
 }
 
 export type ServerMsg = { type: string; [key: string]: unknown };
 
 export function emptyRoom(): RoomData {
-  return { gameStarted: false, currentSpin: null, eliminated: [] };
+  return {
+    gameStarted: false,
+    currentSpin: null,
+    eliminated: [],
+    phase: 'lobby',
+    pool: [],
+    turnOrder: [],
+    turnIndex: 0,
+    turnDeadline: 0,
+    countdownEndsAt: 0,
+    reelEndsAt: 0,
+    reelWinnerId: '',
+  };
+}
+
+export function allReadyToStart(seats: Seat[]): boolean {
+  return seats.length >= MIN_PLAYERS && seats.every((seat) => seat.ready);
+}
+
+export function guesserOrder(seats: Seat[]): string[] {
+  return seats
+    .filter((seat) => seat.role === 'guesser')
+    .map((seat) => seat.id)
+    .sort();
+}
+
+export function randomMiss(
+  pool: string[],
+  eliminated: string[],
+  answer: string | null,
+  rng: () => number = Math.random,
+): string | null {
+  const banned = new Set(eliminated);
+  if (answer) banned.add(answer);
+  const choices = pool.filter((short) => short && !banned.has(short));
+  if (!choices.length) return null;
+  return choices[Math.floor(rng() * choices.length)] ?? null;
 }
 
 export function sanitizeNick(raw: unknown): string {
@@ -86,6 +138,12 @@ export function publicState(
     game_started: room.gameStarted,
     eliminated: room.eliminated,
     roster,
+    phase: room.phase,
+    countdownEndsAt: room.countdownEndsAt,
+    reelEndsAt: room.reelEndsAt,
+    reelWinnerId: room.reelWinnerId,
+    turnDeadline: room.turnDeadline,
+    turnPlayerId: room.turnOrder[room.turnIndex] || '',
     ...(revealSpin ? { current_spin: room.currentSpin } : {}),
   };
 }
@@ -95,6 +153,7 @@ export function freshMeta(role: Role, name = 'Player', id = ''): ClientMeta {
     id,
     name: sanitizeNick(name),
     role,
+    ready: false,
     freeElims: FREE_ELIMS,
     lastElim: 0,
   };
@@ -125,7 +184,7 @@ export interface HandleResult {
 export function handleClientMessage(
   room: RoomData,
   meta: ClientMeta,
-  msg: { type?: string; result?: unknown; short?: string },
+  msg: { type?: string; result?: unknown; short?: string; pool?: unknown },
   players: number,
   nowSec: number,
 ): HandleResult {
@@ -140,7 +199,10 @@ export function handleClientMessage(
 
   if (msg.type === 'spin_result' && msg.result) {
     if (meta.role !== 'leader') return { room, meta, direct, broadcast };
-    const next = { ...room, currentSpin: msg.result };
+    const pool = Array.isArray(msg.pool)
+      ? msg.pool.filter((short): short is string => typeof short === 'string' && short.length > 0)
+      : room.pool;
+    const next = { ...room, currentSpin: msg.result, pool };
     direct.push({ type: 'spin_result', result: msg.result });
     return { room: next, meta, direct, broadcast };
   }
@@ -150,35 +212,17 @@ export function handleClientMessage(
     if (isCorrectPick(room.currentSpin, String(msg.short))) {
       return { room, meta, direct, broadcast, win: true };
     }
-    if (meta.freeElims <= 0 && nowSec - meta.lastElim < ELIM_COOLDOWN_SEC) {
-      direct.push({
-        type: 'elim_personal',
-        free_elims: meta.freeElims,
-        last_elim_time: meta.lastElim,
-        rejected: true,
-      });
-      return { room, meta, direct, broadcast };
-    }
 
-    const eliminated = room.eliminated.includes(msg.short)
+    const eliminated = room.eliminated.includes(String(msg.short))
       ? room.eliminated
       : [...room.eliminated, String(msg.short)];
-    const nextMeta: ClientMeta =
-      meta.freeElims > 0
-        ? { ...meta, freeElims: meta.freeElims - 1 }
-        : { ...meta, lastElim: nowSec };
     const next = { ...room, eliminated };
-    direct.push({
-      type: 'elim_personal',
-      free_elims: nextMeta.freeElims,
-      last_elim_time: nextMeta.lastElim,
-    });
     broadcast.push({
       type: 'eliminated_update',
       eliminated,
       players,
     });
-    return { room: next, meta: nextMeta, direct, broadcast };
+    return { room: next, meta, direct, broadcast };
   }
 
   if (msg.type === 'uneliminate' && msg.short) {

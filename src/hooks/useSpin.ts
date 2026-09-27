@@ -233,7 +233,11 @@ export function useSpin({
 
       // Room: broadcast spin so guessers sync (no-op if local/offline socket)
       if (currentRoom && isRoomLeader && sendRoomMessage) {
-        sendRoomMessage({ type: 'spin_result', result });
+        sendRoomMessage({
+          type: 'spin_result',
+          result,
+          pool: heroesData.map((hero) => hero.short).filter(Boolean),
+        });
       }
 
       // 2) Let React commit the result card, then fire end SFX (non-blocking)

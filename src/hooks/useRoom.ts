@@ -18,6 +18,19 @@ export interface RoomSeat {
   id: string;
   name: string;
   role: 'leader' | 'guesser';
+  ready?: boolean;
+}
+
+export interface RoomTurn {
+  id: string;
+  name: string;
+  deadline: number;
+}
+
+export interface RoomReel {
+  winnerId: string;
+  endsAt: number;
+  names: string[];
 }
 
 interface UseRoomProps {
@@ -70,6 +83,9 @@ export function useRoom(props: UseRoomProps) {
   } = props;
 
   const [roster, setRoster] = useState<RoomSeat[]>([]);
+  const [countdownEndsAt, setCountdownEndsAt] = useState<number | null>(null);
+  const [reel, setReel] = useState<RoomReel | null>(null);
+  const [turn, setTurn] = useState<RoomTurn | null>(null);
   const [selfId, setSelfId] = useState<string | null>(null);
   const selfIdRef = useRef<string | null>(null);
   const nickRef = useRef(nick || '');
@@ -142,6 +158,56 @@ export function useRoom(props: UseRoomProps) {
       }
       if (Array.isArray(msg.roster)) {
         setRoster(msg.roster);
+      }
+      if (msg.type === 'countdown' && typeof msg.endsAt === 'number') {
+        setCountdownEndsAt(msg.endsAt);
+        setReel(null);
+      }
+      if (msg.type === 'countdown_cancel') {
+        setCountdownEndsAt(null);
+      }
+      if (msg.type === 'reel') {
+        setCountdownEndsAt(null);
+        setReel({
+          winnerId: String(msg.winnerId || ''),
+          endsAt: typeof msg.endsAt === 'number' ? msg.endsAt : Date.now() + 3200,
+          names: Array.isArray(msg.names) ? msg.names.map(String) : [],
+        });
+      }
+      if (msg.type === 'turn') {
+        setTurn(
+          msg.playerId
+            ? {
+                id: String(msg.playerId),
+                name: String(msg.name || ''),
+                deadline: typeof msg.deadline === 'number' ? msg.deadline : 0,
+              }
+            : null
+        );
+      }
+      if (msg.type === 'round_won') {
+        setTurn(null);
+      }
+      if (msg.type === 'state') {
+        if (msg.phase === 'lobby') {
+          setCountdownEndsAt(null);
+          setReel(null);
+        }
+        if (typeof msg.countdownEndsAt === 'number' && msg.countdownEndsAt > 0) {
+          setCountdownEndsAt(msg.countdownEndsAt);
+        }
+        if (msg.phase === 'playing') setReel(null);
+        if (msg.turnPlayerId && typeof msg.turnDeadline === 'number' && msg.turnDeadline > 0) {
+          const seat = Array.isArray(msg.roster)
+            ? msg.roster.find((item: RoomSeat) => item.id === msg.turnPlayerId)
+            : null;
+          setTurn({
+            id: String(msg.turnPlayerId),
+            name: seat?.name || '',
+            deadline: msg.turnDeadline,
+          });
+        }
+        if (!msg.turnDeadline) setTurn(null);
       }
       if (typeof msg.you === 'string' && msg.you) {
         selfIdRef.current = msg.you;
@@ -538,8 +604,14 @@ export function useRoom(props: UseRoomProps) {
     applyElimPersonal,
     roster,
     selfId,
+    countdownEndsAt,
+    reel,
+    turn,
     sendNick: (name: string) => {
       sendRoomMessage({ type: 'set_nick', name: sanitizeNick(name) });
+    },
+    sendReady: (ready: boolean) => {
+      sendRoomMessage({ type: 'ready', ready });
     },
   };
 }

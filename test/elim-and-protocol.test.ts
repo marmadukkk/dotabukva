@@ -15,48 +15,25 @@ import {
 import { handleClientMessage, freshMeta, emptyRoom } from '../cloudflare/src/logic.ts';
 
 describe('eliminate rules', () => {
-  it('spends three free eliminates before the cooldown', () => {
-    let state = initialElimState();
-    assert.equal(state.freeElims, FREE_ELIMS_INITIAL);
-    assert.equal(canEliminate(state, 100), true);
-
-    state = applySuccessfulElim(state, 100);
-    state = applySuccessfulElim(state, 101);
-    state = applySuccessfulElim(state, 102);
-    assert.deepEqual(state, { freeElims: 0, lastElimTime: 0 });
-    assert.equal(remainingElimCd(state, 102), 0);
-
-    state = applySuccessfulElim(state, 200);
-    assert.equal(state.lastElimTime, 200);
-    assert.equal(canEliminate(state, 200 + ELIM_COOLDOWN_SEC - 1), false);
-    assert.equal(remainingElimCd(state, 200 + 10), ELIM_COOLDOWN_SEC - 10);
-    assert.equal(canEliminate(state, 200 + ELIM_COOLDOWN_SEC), true);
+  it('no longer blocks a guesser with a cooldown', () => {
+    const state = { freeElims: 0, lastElimTime: 200 };
+    assert.equal(canEliminate(state, 201), true);
+    assert.equal(remainingElimCd(state, 201), 0);
+    assert.equal(initialElimState().freeElims, FREE_ELIMS_INITIAL);
+    assert.equal(ELIM_COOLDOWN_SEC, 25);
+    assert.deepEqual(applySuccessfulElim(state, 300), state);
   });
 
-  it('matches the cloud room host for the same sequence', () => {
-    let client = initialElimState();
+  it('lets the room host cross out every pick in a row', () => {
     let room = emptyRoom();
     let meta = freshMeta('guesser');
-    const shorts = ['a', 'b', 'c', 'd', 'e'];
-
-    for (const [i, short] of shorts.entries()) {
-      const now = 1_000 + i;
-      const host = handleClientMessage(room, meta, { type: 'eliminate', short }, 2, now);
-      if (host.direct[0]?.rejected) {
-        assert.equal(canEliminate(client, now), false);
-        continue;
-      }
-      assert.equal(canEliminate(client, now), true);
-      client = applySuccessfulElim(client, now);
+    for (const short of ['a', 'b', 'c', 'd', 'e']) {
+      const host = handleClientMessage(room, meta, { type: 'eliminate', short }, 2, 1_000);
+      assert.equal(host.direct.some((msg) => msg.rejected), false);
       room = host.room;
       meta = host.meta;
-      assert.equal(meta.freeElims, client.freeElims);
-      assert.equal(meta.lastElim, client.lastElimTime);
     }
-
-    assert.equal(meta.freeElims, 0);
-    assert.equal(room.eliminated.length, 4);
-    assert.equal(canEliminate(client, meta.lastElim + 1), false);
+    assert.deepEqual(room.eliminated, ['a', 'b', 'c', 'd', 'e']);
   });
 });
 

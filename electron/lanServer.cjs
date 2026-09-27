@@ -49,8 +49,23 @@ function createLanServer() {
   let currentSpin = null;
   /** @type {Set<string>} */
   let eliminated = new Set();
-  /** @type {Map<import('ws').WebSocket, { id: string, name: string, role: string, freeElims: number, lastElim: number }>} */
+  let phase = 'lobby';
+  /** @type {string[]} */
+  let pool = [];
+  /** @type {string[]} */
+  let turnOrder = [];
+  let turnIndex = 0;
+  let turnDeadline = 0;
+  let countdownEndsAt = 0;
+  let reelEndsAt = 0;
+  let reelWinnerId = '';
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let timer = null;
+  /** @type {Map<import('ws').WebSocket, { id: string, name: string, role: string, ready: boolean, freeElims: number, lastElim: number }>} */
   const clients = new Map();
+  const COUNTDOWN_MS = 3000;
+  const REEL_MS = 3200;
+  const TURN_MS = 15000;
 
   function playerCount() {
     return clients.size;
@@ -63,7 +78,7 @@ function createLanServer() {
 
   function roster() {
     return [...clients.values()]
-      .map((meta) => ({ id: meta.id, name: meta.name, role: meta.role }))
+      .map((meta) => ({ id: meta.id, name: meta.name, role: meta.role, ready: !!meta.ready }))
       .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   }
 
@@ -79,6 +94,12 @@ function createLanServer() {
       game_started: gameStarted,
       eliminated: Array.from(eliminated),
       roster: roster(),
+      phase,
+      countdownEndsAt,
+      reelEndsAt,
+      reelWinnerId,
+      turnDeadline,
+      turnPlayerId: turnOrder[turnIndex] || '',
     };
     if (forRole === 'leader') body.current_spin = currentSpin;
     return body;
@@ -122,6 +143,154 @@ function createLanServer() {
     });
   }
 
+  function allReady() {
+    const seats = roster();
+    return seats.length >= 2 && seats.every((seat) => seat.ready);
+  }
+
+  function arm(kind, ms) {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => onTimer(kind), ms);
+  }
+
+  function clearArm() {
+    if (timer) clearTimeout(timer);
+    timer = null;
+  }
+
+  function onTimer(kind) {
+    timer = null;
+    if (kind === 'countdown') {
+      if (phase !== 'countdown' || !allReady()) {
+        phase = 'lobby';
+        countdownEndsAt = 0;
+        broadcast({ type: 'countdown_cancel', roster: roster() });
+        broadcastState();
+        return;
+      }
+      beginReel();
+      return;
+    }
+    if (kind === 'reel') {
+      if (phase !== 'reel') return;
+      phase = 'playing';
+      for (const [sock, seat] of clients.entries()) {
+        send(sock, { type: 'game_started', role: seat.role, you: seat.id, roster: roster() });
+      }
+      broadcastState();
+      return;
+    }
+    if (kind === 'turn') {
+      if (phase !== 'playing' || !turnDeadline) return;
+      skipTurn();
+    }
+  }
+
+  function syncReady() {
+    if (phase === 'playing' || phase === 'reel') {
+      broadcastState();
+      return;
+    }
+    if (allReady()) {
+      if (phase !== 'countdown') {
+        phase = 'countdown';
+        countdownEndsAt = Date.now() + COUNTDOWN_MS;
+        arm('countdown', COUNTDOWN_MS);
+        broadcast({ type: 'countdown', endsAt: countdownEndsAt, roster: roster() });
+      }
+      broadcastState();
+      return;
+    }
+    if (phase === 'countdown') {
+      phase = 'lobby';
+      countdownEndsAt = 0;
+      clearArm();
+      broadcast({ type: 'countdown_cancel', roster: roster() });
+    }
+    broadcastState();
+  }
+
+  function beginReel() {
+    dealLeader();
+    const winner = roster().find((seat) => seat.role === 'leader');
+    phase = 'reel';
+    gameStarted = true;
+    currentSpin = null;
+    eliminated = new Set();
+    turnOrder = [];
+    turnIndex = 0;
+    turnDeadline = 0;
+    countdownEndsAt = 0;
+    reelWinnerId = winner ? winner.id : '';
+    reelEndsAt = Date.now() + REEL_MS;
+    arm('reel', REEL_MS);
+    broadcast({
+      type: 'reel',
+      winnerId: reelWinnerId,
+      endsAt: reelEndsAt,
+      roster: roster(),
+      names: roster().map((seat) => seat.name),
+    });
+    broadcastState();
+  }
+
+  function openTurn() {
+    turnOrder = roster().filter((seat) => seat.role === 'guesser').map((seat) => seat.id).sort();
+    turnIndex = 0;
+    turnDeadline = turnOrder.length ? Date.now() + TURN_MS : 0;
+    phase = 'playing';
+    if (turnDeadline) arm('turn', TURN_MS);
+    broadcastTurn();
+    broadcastState();
+  }
+
+  function advanceTurn() {
+    if (!turnOrder.length) {
+      broadcastState();
+      return;
+    }
+    turnIndex = (turnIndex + 1) % turnOrder.length;
+    turnDeadline = Date.now() + TURN_MS;
+    arm('turn', TURN_MS);
+    broadcastTurn();
+    broadcastState();
+  }
+
+  function skipTurn() {
+    const answer = answerShort();
+    const banned = new Set(eliminated);
+    if (answer) banned.add(answer);
+    const choices = pool.filter((short) => short && !banned.has(short));
+    const miss = choices.length ? choices[Math.floor(Math.random() * choices.length)] : '';
+    if (miss) eliminated.add(miss);
+    if (turnOrder.length) turnIndex = (turnIndex + 1) % turnOrder.length;
+    turnDeadline = turnOrder.length ? Date.now() + TURN_MS : 0;
+    if (miss) {
+      broadcast({
+        type: 'eliminated_update',
+        eliminated: Array.from(eliminated),
+        players: playerCount(),
+        auto: true,
+        short: miss,
+      });
+    }
+    if (turnDeadline) arm('turn', TURN_MS);
+    else clearArm();
+    broadcastTurn();
+    broadcastState();
+  }
+
+  function broadcastTurn() {
+    const id = turnOrder[turnIndex] || '';
+    const seat = roster().find((item) => item.id === id);
+    broadcast({
+      type: 'turn',
+      playerId: id,
+      name: seat ? seat.name : '',
+      deadline: turnDeadline,
+    });
+  }
+
   function rotateWinner(winnerId) {
     for (const [sock, meta] of clients.entries()) {
       meta.role = meta.id === winnerId ? 'leader' : 'guesser';
@@ -143,29 +312,24 @@ function createLanServer() {
       return;
     }
 
-    if (msg.type === 'start_game') {
-      if (meta.role !== 'leader') return;
-      gameStarted = true;
-      currentSpin = null;
-      eliminated = new Set();
-      dealLeader();
-      for (const [sock, seat] of clients.entries()) {
-        send(sock, {
-          type: 'game_started',
-          role: seat.role,
-          you: seat.id,
-          roster: roster(),
-        });
-      }
-      broadcastState();
+    if (msg.type === 'ready') {
+      meta.ready = !!msg.ready;
+      clients.set(ws, meta);
+      syncReady();
       return;
+    }
+
+    if ((msg.type === 'pick' || msg.type === 'eliminate') && msg.short) {
+      const current = turnOrder[turnIndex];
+      if (!current || current !== meta.id || phase !== 'playing') return;
     }
 
     if (msg.type === 'spin_result' && msg.result) {
       if (meta.role !== 'leader') return;
       currentSpin = msg.result;
+      pool = Array.isArray(msg.pool) ? msg.pool.filter((short) => typeof short === 'string' && short) : pool;
       send(ws, { type: 'spin_result', result: msg.result });
-      broadcastState();
+      openTurn();
       return;
     }
 
@@ -174,6 +338,10 @@ function createLanServer() {
       rotateWinner(meta.id);
       currentSpin = null;
       eliminated = new Set();
+      turnOrder = [];
+      turnIndex = 0;
+      turnDeadline = 0;
+      clearArm();
       broadcast({
         type: 'round_won',
         winnerId: meta.id,
@@ -188,36 +356,14 @@ function createLanServer() {
 
     if ((msg.type === 'eliminate' || msg.type === 'pick') && msg.short) {
       if (meta.role !== 'guesser') return;
-      const now = Date.now() / 1000;
-      if (meta.freeElims <= 0 && now - meta.lastElim < 25) {
-        send(ws, {
-          type: 'elim_personal',
-          free_elims: meta.freeElims,
-          last_elim_time: meta.lastElim,
-          rejected: true,
-        });
-        return;
-      }
-
       eliminated.add(String(msg.short));
-
-      if (meta.freeElims > 0) {
-        meta.freeElims -= 1;
-      } else {
-        meta.lastElim = now;
-      }
       clients.set(ws, meta);
-
-      send(ws, {
-        type: 'elim_personal',
-        free_elims: meta.freeElims,
-        last_elim_time: meta.lastElim,
-      });
       broadcast({
         type: 'eliminated_update',
         eliminated: Array.from(eliminated),
         players: playerCount(),
       });
+      advanceTurn();
       return;
     }
 
@@ -267,6 +413,7 @@ function createLanServer() {
       id,
       name: sanitizeNick(nick),
       role: safeRole,
+      ready: false,
       freeElims: 3,
       lastElim: 0,
     });
@@ -291,8 +438,12 @@ function createLanServer() {
     });
 
     ws.on('close', () => {
+      const current = turnOrder[turnIndex];
+      const seat = clients.get(ws);
+      const leaving = !!seat && seat.id === current && phase === 'playing';
       clients.delete(ws);
-      broadcastState();
+      if (leaving) skipTurn();
+      else syncReady();
     });
 
     ws.on('error', () => {
@@ -353,6 +504,7 @@ function createLanServer() {
   }
 
   async function stop() {
+    clearArm();
     for (const ws of clients.keys()) {
       try { ws.close(); } catch {}
     }
