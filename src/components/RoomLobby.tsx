@@ -53,7 +53,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
   const secondsLeft = countdownEndsAt ? Math.max(0, Math.ceil((countdownEndsAt - now) / 1000)) : 0;
   const me = roster.find((seat) => seat.id === selfId);
   const iAmReady = !!me?.ready;
-  const winnerName = reel ? roster.find((seat) => seat.id === reel.winnerId)?.name || '' : '';
+  const winnerName = reel?.names?.[reel.winnerIndex] || '';
   const port = lanPort || 17432;
   const primary = lanHost && lanHost !== '127.0.0.1' ? lanHost : (lanAddresses[0] || lanHost || '127.0.0.1');
   const joinHint = `${primary}:${port}`;
@@ -175,7 +175,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
         {reel && winnerName && (
           <div className="mb-4 text-center">
             <div className="text-[10px] tracking-[2px] text-[#d4af37] mb-1">{t(language, 'room.countdown')}</div>
-            <NickReel names={reel.names.length ? reel.names : roster.map((seat) => seat.name)} winnerName={winnerName} />
+            <NickReel names={reel.names.length ? reel.names : [winnerName]} winnerIndex={reel.winnerIndex} />
           </div>
         )}
 

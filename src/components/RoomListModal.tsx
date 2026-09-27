@@ -4,6 +4,7 @@ import { Language, t } from '../i18n';
 interface Room {
   code: string;
   created?: number;
+  players?: number;
 }
 
 interface RoomListModalProps {
@@ -143,7 +144,9 @@ const RoomListModal: React.FC<RoomListModalProps> = ({
                       <div>
                         <span className="font-mono text-lg text-[#f0c060]">{room.code}</span>
                       </div>
-                      <div className="text-xs text-zinc-500">{time}</div>
+                      <div className="text-xs text-zinc-500">
+                        {typeof room.players === 'number' ? room.players : time}
+                      </div>
                     </div>
                   );
                 })}

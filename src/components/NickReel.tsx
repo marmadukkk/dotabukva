@@ -5,19 +5,19 @@ const COPIES = 8;
 
 interface NickReelProps {
   names: string[];
-  winnerName: string;
+  winnerIndex: number;
 }
 
-/** Vertical nickname reel. Lands on winnerName. */
-const NickReel: React.FC<NickReelProps> = ({ names, winnerName }) => {
+/** Vertical nickname reel. The landed name is the describer. */
+const NickReel: React.FC<NickReelProps> = ({ names, winnerIndex }) => {
   const stripRef = useRef<HTMLDivElement>(null);
   const list = names.length ? names : ['Player'];
-  const winnerIndex = Math.max(0, list.indexOf(winnerName));
+  const landed = ((winnerIndex % list.length) + list.length) % list.length;
 
   useEffect(() => {
     const strip = stripRef.current;
     if (!strip) return;
-    const target = (COPIES - 2) * list.length + winnerIndex;
+    const target = (COPIES - 2) * list.length + landed;
     strip.style.transition = 'none';
     strip.style.transform = 'translateY(0px)';
     const frame = requestAnimationFrame(() => {
@@ -25,7 +25,7 @@ const NickReel: React.FC<NickReelProps> = ({ names, winnerName }) => {
       strip.style.transform = `translateY(-${target * ITEM}px)`;
     });
     return () => cancelAnimationFrame(frame);
-  }, [list.length, winnerIndex, winnerName]);
+  }, [landed, list.length]);
 
   const strip = Array.from({ length: COPIES }, () => list).flat();
 

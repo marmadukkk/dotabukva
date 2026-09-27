@@ -28,6 +28,7 @@ export interface Seat {
 }
 
 export interface RoomData {
+  code: string;
   gameStarted: boolean;
   currentSpin: unknown | null;
   eliminated: string[];
@@ -45,6 +46,7 @@ export type ServerMsg = { type: string; [key: string]: unknown };
 
 export function emptyRoom(): RoomData {
   return {
+    code: '',
     gameStarted: false,
     currentSpin: null,
     eliminated: [],

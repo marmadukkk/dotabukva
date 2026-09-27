@@ -29,6 +29,7 @@ export interface RoomTurn {
 
 export interface RoomReel {
   winnerId: string;
+  winnerIndex: number;
   endsAt: number;
   names: string[];
 }
@@ -88,6 +89,7 @@ export function useRoom(props: UseRoomProps) {
   const [turn, setTurn] = useState<RoomTurn | null>(null);
   const [selfId, setSelfId] = useState<string | null>(null);
   const selfIdRef = useRef<string | null>(null);
+  const reelWinnerRef = useRef<string>('');
   const nickRef = useRef(nick || '');
   nickRef.current = nick || '';
 
@@ -150,9 +152,6 @@ export function useRoom(props: UseRoomProps) {
       if ((msg.type === 'state' || msg.type === 'eliminated_update') && msg.eliminated) {
         setEliminatedHeroes(new Set<string>(msg.eliminated));
       }
-      if (msg.type === 'game_started') {
-        handleGameStartedFromWS();
-      }
       if (msg.type === 'elim_personal') {
         applyElimPersonal(msg.free_elims || 0, msg.last_elim_time || 0);
       }
@@ -167,11 +166,21 @@ export function useRoom(props: UseRoomProps) {
         setCountdownEndsAt(null);
       }
       if (msg.type === 'reel') {
+        const winnerId = String(msg.winnerId || '');
+        const seats = Array.isArray(msg.roster) ? (msg.roster as RoomSeat[]) : [];
+        const names = seats.length
+          ? seats.map((seat) => seat.name)
+          : Array.isArray(msg.names)
+            ? msg.names.map(String)
+            : [];
+        const found = seats.findIndex((seat) => seat.id === winnerId);
+        reelWinnerRef.current = winnerId;
         setCountdownEndsAt(null);
         setReel({
-          winnerId: String(msg.winnerId || ''),
+          winnerId,
+          winnerIndex: found >= 0 ? found : 0,
           endsAt: typeof msg.endsAt === 'number' ? msg.endsAt : Date.now() + 3200,
-          names: Array.isArray(msg.names) ? msg.names.map(String) : [],
+          names,
         });
       }
       if (msg.type === 'turn') {
@@ -213,7 +222,20 @@ export function useRoom(props: UseRoomProps) {
         selfIdRef.current = msg.you;
         setSelfId(msg.you);
       }
-      if (msg.role === 'leader' || msg.role === 'guesser') {
+      if (msg.type === 'game_started') {
+        const you = (typeof msg.you === 'string' && msg.you) || selfIdRef.current;
+        const winner = reelWinnerRef.current;
+        const role: 'leader' | 'guesser' | '' =
+          winner && you
+            ? winner === you
+              ? 'leader'
+              : 'guesser'
+            : msg.role === 'leader' || msg.role === 'guesser'
+              ? msg.role
+              : '';
+        if (role) onAssignRole?.(role);
+        handleGameStartedFromWS();
+      } else if (msg.role === 'leader' || msg.role === 'guesser') {
         onAssignRole?.(msg.role);
       }
       if (msg.type === 'round_won') {
@@ -453,12 +475,15 @@ export function useRoom(props: UseRoomProps) {
             }
           } catch {}
         }
-        if (rooms.length === 0) {
-          try {
-            rooms = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
-          } catch {
-            rooms = [];
-          }
+        let localRooms: any[] = [];
+        try {
+          localRooms = JSON.parse(localStorage.getItem('dota_bukva_rooms') || '[]');
+        } catch {
+          localRooms = [];
+        }
+        const seen = new Set(rooms.map((room: { code?: string }) => room.code));
+        for (const room of localRooms) {
+          if (room?.code && !seen.has(room.code)) rooms.push(room);
         }
       }
       setRoomsList(rooms);

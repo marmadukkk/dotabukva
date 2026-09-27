@@ -22,6 +22,7 @@ import {
 
 interface Env {
   ROOM: DurableObjectNamespace;
+  DIRECTORY: DurableObjectNamespace;
 }
 
 type AlarmKind = 'countdown' | 'reel' | 'turn';
@@ -33,6 +34,7 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     const url = new URL(request.url);
+    await this.rememberCode(url);
     const wantsLeader = url.searchParams.get('role') === 'leader';
     const pair = new WebSocketPair();
     const client = pair[0];
@@ -58,6 +60,7 @@ export class RoomDO extends DurableObject<Env> {
       });
     }
     await this.syncReady(await this.loadRoom());
+    await this.publish();
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -122,6 +125,7 @@ export class RoomDO extends DurableObject<Env> {
       await this.skipTurn(room);
     }
     await this.syncReady(await this.loadRoom(), ws);
+    await this.publish(ws);
   }
 
   async alarm(): Promise<void> {
@@ -216,6 +220,7 @@ export class RoomDO extends DurableObject<Env> {
     await this.arm('reel', endsAt);
     this.broadcast(this.reelMessage(next));
     this.broadcastPersonalized(next);
+    await this.publish();
   }
 
   private async openTurn(room: RoomData) {
@@ -325,6 +330,34 @@ export class RoomDO extends DurableObject<Env> {
       name: seat?.name || '',
       deadline: room.turnDeadline,
     });
+  }
+
+  private async rememberCode(url: URL) {
+    const match = url.pathname.match(/\/ws\/room\/([A-Za-z0-9]+)/);
+    const code = match?.[1]?.toUpperCase() || '';
+    if (!code) return;
+    const room = await this.loadRoom();
+    if (room.code !== code) await this.saveRoom({ ...room, code });
+  }
+
+  private async publish(except?: WebSocket) {
+    const room = await this.loadRoom();
+    if (!room.code) return;
+    const players = this.ctx.getWebSockets().filter((sock) => sock !== except).length;
+    try {
+      const directory = this.env.DIRECTORY.get(this.env.DIRECTORY.idFromName('index'));
+      await directory.fetch('https://directory/update', {
+        method: 'POST',
+        body: JSON.stringify({
+          code: room.code,
+          players,
+          phase: room.phase,
+          created: Date.now(),
+        }),
+      });
+    } catch {
+      /* listing is best-effort */
+    }
   }
 
   private async arm(kind: AlarmKind, at: number) {

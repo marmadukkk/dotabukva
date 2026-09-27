@@ -1,10 +1,12 @@
+import { DirectoryDO } from './directory';
 import { generateRoomCode } from './logic';
 import { RoomDO } from './room';
 
-export { RoomDO };
+export { DirectoryDO, RoomDO };
 
 interface Env {
   ROOM: DurableObjectNamespace;
+  DIRECTORY: DurableObjectNamespace;
 }
 
 const CORS: Record<string, string> = {
@@ -34,7 +36,13 @@ export default {
     }
 
     if (request.method === 'GET' && url.pathname === '/api/rooms') {
-      return json({ rooms: [] });
+      const directory = env.DIRECTORY.get(env.DIRECTORY.idFromName('index'));
+      const listed = await directory.fetch('https://directory/rooms');
+      const body = await listed.text();
+      return new Response(body, {
+        status: listed.status,
+        headers: { 'Content-Type': 'application/json', ...CORS },
+      });
     }
 
     const roomMatch = url.pathname.match(/^\/ws\/room\/([A-Za-z0-9]{4,12})$/);
