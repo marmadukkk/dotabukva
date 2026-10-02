@@ -16,7 +16,7 @@ const HistoryList: React.FC<HistoryListProps> = ({ language, history, onClear, o
         <div className="section-title text-[10px]">{t(language, 'leader.history')}</div>
         <button 
           onClick={onClear} 
-          className="text-[10px] text-[#d4af37] hover:text-white flex items-center gap-x-1 transition-colors border border-[#4a3728] px-2 py-0.5 rounded hover:bg-[#1a1a1a]"
+          className="ui-btn text-[10px] text-[#d4af37] flex items-center gap-x-1 transition-colors px-2 py-0.5 rounded"
         >
           <i className="fa-solid fa-trash text-[8px]"></i><span>{t(language, 'leader.clear')}</span>
         </button>

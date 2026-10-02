@@ -66,12 +66,12 @@ const GuesserView: React.FC<GuesserViewProps> = ({
           <span>{title}</span>
         </div>
         <div className="flex items-center gap-x-3 text-sm">
-          <div className="text-xs px-3 py-1 rounded bg-[#111] border border-[#4a3728] tabular-nums">
+          <div className="ui-btn text-xs px-3 py-1 rounded-lg tabular-nums pointer-events-none">
             <span>{Math.max(0, totalCount - eliminatedHeroes.size)}</span> / <span>{totalCount}</span>
           </div>
           <button 
             onClick={onResetEliminated} 
-            className="text-xs px-3 py-1 rounded border border-[#4a3728] hover:border-red-500/60 hover:text-red-400 flex items-center gap-x-1"
+            className="ui-btn text-xs px-3 py-1 rounded-lg flex items-center gap-x-1"
           >
             <i className="fa-solid fa-undo text-[10px]"></i><span>{t(language, 'guesser.reset')}</span>
           </button>
@@ -84,7 +84,7 @@ const GuesserView: React.FC<GuesserViewProps> = ({
           <div className={isMyTurn ? 'text-[#f0c060] font-semibold' : 'text-zinc-300'}>
             {turnLabel || t(language, 'room.waitingSpin')}
             {turnSeconds != null && turnLabel && (
-              <span className="ml-2 font-mono tabular-nums">{turnSeconds}с</span>
+              <span key={turnSeconds} className="count-tick ml-2 font-mono tabular-nums">{turnSeconds}с</span>
             )}
           </div>
           <div className="text-zinc-500">{t(language, 'room.guesserHint')}</div>
@@ -99,7 +99,7 @@ const GuesserView: React.FC<GuesserViewProps> = ({
             value={guesserSearch} 
             onChange={e => onSearchChange(e.target.value)} 
             placeholder={t(language, 'guesser.search')} 
-            className="w-full bg-[#111111] border border-[#4a3728] focus:border-[#d4af37] text-sm pl-9 pr-3 py-2 rounded outline-none placeholder:text-zinc-600" 
+            className="ui-field w-full text-sm pl-9 pr-3 py-2 rounded-xl" 
           />
         </div>
       </div>

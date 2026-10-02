@@ -65,7 +65,7 @@ const LeaderView: React.FC<LeaderViewProps> = (props) => {
               id="spin-btn" 
               onClick={onSpin} 
               disabled={isSpinning} 
-              className="spin-button group flex items-center justify-center gap-x-2 px-8 h-9 text-base font-semibold tracking-tighter bg-gradient-to-b from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white rounded-2xl shadow-xl shadow-red-950/50 border border-red-500/30 disabled:opacity-70"
+              className="spin-button ui-btn-primary group flex items-center justify-center gap-x-2 px-8 h-10 text-base font-semibold rounded-xl disabled:opacity-70"
             >
               <i className={`fa-solid fa-dice text-lg ${isSpinning ? 'fa-spin' : ''}`}></i>
               <span className="font-display tracking-[3px]">{isSpinning ? t(language, 'leader.spinning') : (lastResult ? t(language, 'leader.spinAgain') : t(language, 'leader.spin'))}</span>

@@ -94,7 +94,7 @@ const QuizMenu: React.FC<QuizMenuProps> = ({ language, onBack, onSelect }) => {
           type="button"
           onClick={onBack}
           data-sfx="button"
-          className="w-full h-11 text-sm text-zinc-400 hover:text-white border border-[#333] hover:border-[#666] rounded-xl transition-colors"
+          className="w-full h-11 ui-btn text-sm rounded-xl transition-colors"
         >
           {t(language, 'minigames.back')}
         </button>

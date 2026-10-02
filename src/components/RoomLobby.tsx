@@ -146,7 +146,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
             maxLength={16}
             placeholder={t(language, 'room.nickPh')}
             onChange={(e) => onNickChange(e.target.value)}
-            className="w-full h-10 px-3 rounded-xl bg-black/40 border border-[#4a3728] text-white outline-none focus:border-[#d4af37]"
+            className="ui-field w-full h-10 px-3 rounded-xl text-white"
           />
         </label>
 
@@ -182,7 +182,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
         {countdownEndsAt && !reel && (
           <div className="mb-4 text-center">
             <div className="text-[10px] tracking-[2px] text-[#d4af37]">{t(language, 'room.countdown')}</div>
-            <div className="font-display text-6xl text-white tabular-nums">{secondsLeft}</div>
+            <div key={secondsLeft} className="count-tick font-display text-6xl text-white tabular-nums">{secondsLeft}</div>
           </div>
         )}
 
@@ -195,7 +195,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
             className={`w-full h-11 font-semibold rounded-xl border ${
               iAmReady
                 ? 'bg-[#1f3a2a] border-emerald-400 text-emerald-300'
-                : 'bg-[#c23c2a] hover:bg-[#e04a38] border-[#d4af37] text-white'
+                : 'ui-btn-primary'
             }`}
           >
             {iAmReady ? t(language, 'room.unready') : t(language, 'room.ready')}
@@ -208,7 +208,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({
         <button
           onClick={onLeave}
           data-sfx="button"
-          className="mt-3 w-full h-10 text-sm text-zinc-400 hover:text-white border border-[#333] hover:border-[#666] rounded-xl transition-colors"
+          className="ui-btn mt-3 w-full h-10 text-sm rounded-xl transition-colors"
         >
           {t(language, 'room.leave')}
         </button>

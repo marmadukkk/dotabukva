@@ -85,75 +85,65 @@ const Nav: React.FC<NavProps> = ({
     sfxVolume <= 0 ? 'fa-volume-xmark' : sfxVolume < 0.4 ? 'fa-volume-low' : 'fa-volume-high';
 
   return (
-    <nav className="tavern-header sticky top-0 z-50 shadow-lg relative">
-      <div className="header-rivet" style={{left:'28px',top:'26px'}}></div>
-      <div className="header-rivet" style={{left:'64px',top:'26px'}}></div>
-      <div className="header-rivet" style={{right:'28px',top:'26px'}}></div>
-      <div className="header-rivet" style={{right:'64px',top:'26px'}}></div>
-      <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-        {/* Left logo area */}
-        <div className="flex items-center">
-          <div 
-            onClick={onLogoClick}
-            data-sfx="logo"
-            className="logo-frame flex items-center gap-x-2.5 cursor-pointer px-3 py-1.5 rounded-sm"
-          >
-            <img 
-              src="/images/canvas.png" 
-              alt="Dota Bukva" 
-              className="w-10 h-10 object-contain" 
-            />
-            <span className="font-display text-xl font-semibold tracking-tighter text-[#f0c060]">DOTA-BUKVA</span>
-          </div>
+    <nav className="tavern-header sticky top-0 z-50 relative">
+      <div className="header-bar max-w-6xl mx-auto px-2.5 sm:px-6 h-14 flex items-center justify-between gap-2 sm:gap-4">
+        <div
+          onClick={onLogoClick}
+          data-sfx="logo"
+          className="header-logo"
+        >
+          <img src="/images/canvas.png" alt="Dota Bukva" />
+          <span className="header-wordmark font-display">
+            DOTA<span className="header-wordmark__dash">-</span>BUKVA
+          </span>
         </div>
 
-        {/* Right side controls */}
-        <div className="controls-frame flex items-center gap-x-1 px-2 py-1 rounded-sm text-sm">
+        <div className="flex items-center gap-1.5 shrink-0">
           {currentRole && (
-            <div 
-              id="nav-role" 
+            <div
+              id="nav-role"
               onClick={onShowRoleMenu}
               data-sfx="button"
-              className="flex items-center gap-x-1.5 px-3 py-0.5 rounded border border-[#444] hover:border-[#c23c2a] cursor-pointer text-xs bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors"
+              className="header-chip"
             >
-              <span className="font-medium text-[#e0d2b0]">{currentRole === 'leader' ? t(language, 'room.leader') : t(language, 'room.guesser')}</span>
-              <span className="text-[#c23c2a] text-[10px] tracking-widest">{t(language, 'nav.change')}</span>
+              <i className={`fa-solid ${currentRole === 'leader' ? 'fa-crown' : 'fa-th-large'} text-[11px] text-[#d4af37]`}></i>
+              <span>{currentRole === 'leader' ? t(language, 'room.leader') : t(language, 'room.guesser')}</span>
+              <span className="header-chip__hint">{t(language, 'nav.change')}</span>
             </div>
           )}
-          
-          <div 
+
+          <div
             onClick={onShowHowto}
             data-sfx="button"
-            className="flex items-center gap-x-1.5 px-3 py-0.5 rounded border border-[#444] hover:border-[#c23c2a] cursor-pointer text-xs bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors text-[#d4af37]"
+            className="header-chip"
           >
-            <i className="fa-solid fa-question-circle text-sm"></i>
-            <span className="hidden sm:inline font-medium tracking-widest">{t(language, 'nav.howto')}</span>
+            <i className="fa-solid fa-question-circle text-[13px] text-[#d4af37]"></i>
+            <span className="hidden sm:inline">{t(language, 'nav.howto')}</span>
           </div>
 
-          {/* Language Burger Menu */}
           <div className="relative">
             <button
               onClick={onToggleLangMenu}
               data-sfx="button"
-              className="flex items-center gap-x-1.5 px-3 py-0.5 rounded border border-[#444] hover:border-[#c23c2a] cursor-pointer text-xs bg-[#1f1f1f] hover:bg-[#2a2a2a] transition-colors text-[#d4af37]"
+              className="header-chip"
               aria-label="Language"
             >
-              <i className="fa-solid fa-globe text-sm"></i>
-              <span className="font-medium tracking-widest">{language.toUpperCase()}</span>
+              <i className="fa-solid fa-globe text-[13px] text-[#d4af37]"></i>
+              <span>{language.toUpperCase()}</span>
             </button>
             {showLangMenu && (
-              <div className="absolute right-0 mt-1 z-[200] min-w-[120px] rounded-xl border border-[#4a3728] bg-[#1a1a1a] shadow-xl overflow-hidden text-sm">
+              <div className="header-menu absolute right-0 mt-2 z-[200] min-w-[140px] rounded-xl overflow-hidden text-sm">
                 <button
                   onClick={() => onChangeLanguage('ru')}
                   data-sfx="button"
-                  className={`w-full text-left px-4 py-2 hover:bg-[#2a2a2a] flex items-center gap-2 ${language === 'ru' ? 'text-[#f0c060]' : 'text-[#e0d2b0]'}`}
+                  className={`w-full text-left px-4 py-2 hover:bg-[#2a2118] flex items-center gap-2 ${language === 'ru' ? 'text-[#f0c060]' : 'text-[#e0d2b0]'}`}
                 >
                   🇷🇺 Русский
                 </button>
                 <button
                   onClick={() => onChangeLanguage('en')}
                   data-sfx="button"
-                  className={`w-full text-left px-4 py-2 hover:bg-[#2a2a2a] flex items-center gap-2 ${language === 'en' ? 'text-[#f0c060]' : 'text-[#e0d2b0]'}`}
+                  className={`w-full text-left px-4 py-2 hover:bg-[#2a2118] flex items-center gap-2 ${language === 'en' ? 'text-[#f0c060]' : 'text-[#e0d2b0]'}`}
                 >
                   🇬🇧 English
                 </button>
@@ -166,27 +156,23 @@ const Nav: React.FC<NavProps> = ({
             <button
               onClick={onToggleSettingsMenu}
               data-sfx="settings"
-              className={`flex items-center justify-center w-8 h-7 rounded border cursor-pointer text-xs transition-colors ${
-                showSettingsMenu
-                  ? 'border-[#d4af37] bg-[#2a2a2a] text-[#f0c060]'
-                  : 'border-[#444] bg-[#1f1f1f] hover:border-[#c23c2a] hover:bg-[#2a2a2a] text-[#d4af37]'
-              }`}
+              className={`header-chip header-chip--icon ${showSettingsMenu ? 'header-chip--on' : ''}`}
               aria-label={t(language, 'nav.settings')}
               title={t(language, 'nav.settings')}
             >
-              <i className="fa-solid fa-gear text-sm"></i>
+              <i className="fa-solid fa-gear text-[13px]"></i>
             </button>
             {showSettingsMenu && (
               <div
                 data-sfx="settings"
-                className="absolute right-0 mt-1 z-[200] w-64 rounded-xl border border-[#4a3728] bg-[#1a1a1a] shadow-xl overflow-hidden text-sm"
+                className="header-menu absolute right-0 mt-2 z-[200] w-64 rounded-xl overflow-hidden text-sm"
               >
-                <div className="px-3 py-2 border-b border-[#333] text-[10px] tracking-widest text-[#888] font-medium">
+                <div className="px-3 py-2 border-b border-[#4a3728] text-[10px] tracking-widest text-[#888] font-medium">
                   {t(language, 'nav.settings').toUpperCase()}
                 </div>
 
                 {/* Music volume */}
-                <div className="px-3 py-3 border-b border-[#333]">
+                <div className="px-3 py-3 border-b border-[#4a3728]">
                   <div className="flex items-center justify-between mb-2">
                     <label className="flex items-center gap-2 text-[#e0d2b0] text-xs font-medium">
                       <i className={`fa-solid ${musicIcon} text-[#d4af37] w-4 text-center`}></i>
@@ -210,7 +196,7 @@ const Nav: React.FC<NavProps> = ({
                 </div>
 
                 {/* SFX volume */}
-                <div className="px-3 py-3 border-b border-[#333]">
+                <div className="px-3 py-3 border-b border-[#4a3728]">
                   <div className="flex items-center justify-between mb-2">
                     <label className="flex items-center gap-2 text-[#e0d2b0] text-xs font-medium">
                       <i className={`fa-solid ${sfxIcon} text-[#d4af37] w-4 text-center`}></i>
@@ -237,7 +223,7 @@ const Nav: React.FC<NavProps> = ({
                 <button
                   type="button"
                   onClick={onCycleMusicTrack}
-                  className="w-full text-left px-3 py-3 border-b border-[#333] hover:bg-[#2a2a2a] flex items-center gap-2.5 text-[#e0d2b0] transition-colors"
+                  className="w-full text-left px-3 py-3 border-b border-[#4a3728] hover:bg-[#2a2118] flex items-center gap-2.5 text-[#e0d2b0] transition-colors"
                 >
                   <i className="fa-solid fa-compact-disc text-[#d4af37] w-4 text-center"></i>
                   <div className="flex-1 min-w-0">
@@ -257,7 +243,7 @@ const Nav: React.FC<NavProps> = ({
                   role="switch"
                   aria-checked={multicastEnabled}
                   onClick={onToggleMulticast}
-                  className="w-full text-left px-3 py-3 border-b border-[#333] hover:bg-[#2a2a2a] flex items-center gap-2.5 transition-colors"
+                  className="w-full text-left px-3 py-3 border-b border-[#4a3728] hover:bg-[#2a2118] flex items-center gap-2.5 transition-colors"
                 >
                   <i className="fa-solid fa-bolt text-[#d4af37] w-4 text-center"></i>
                   <div className="flex-1 min-w-0">
@@ -266,7 +252,7 @@ const Nav: React.FC<NavProps> = ({
                   </div>
                   <span
                     className={`relative flex-shrink-0 w-9 h-5 rounded-full transition-colors ${
-                      multicastEnabled ? 'bg-[#c23c2a]' : 'bg-[#333]'
+                      multicastEnabled ? 'bg-[#8a6230]' : 'bg-[#2a2118]'
                     }`}
                     aria-hidden
                   >
@@ -284,7 +270,7 @@ const Nav: React.FC<NavProps> = ({
                   role="switch"
                   aria-checked={disclaimerEnabled}
                   onClick={onToggleDisclaimer}
-                  className="w-full text-left px-3 py-3 border-b border-[#333] hover:bg-[#2a2a2a] flex items-center gap-2.5 transition-colors"
+                  className="w-full text-left px-3 py-3 border-b border-[#4a3728] hover:bg-[#2a2118] flex items-center gap-2.5 transition-colors"
                 >
                   <i className="fa-solid fa-circle-exclamation text-[#d4af37] w-4 text-center"></i>
                   <div className="flex-1 min-w-0">
@@ -293,7 +279,7 @@ const Nav: React.FC<NavProps> = ({
                   </div>
                   <span
                     className={`relative flex-shrink-0 w-9 h-5 rounded-full transition-colors ${
-                      disclaimerEnabled ? 'bg-[#c23c2a]' : 'bg-[#333]'
+                      disclaimerEnabled ? 'bg-[#8a6230]' : 'bg-[#2a2118]'
                     }`}
                     aria-hidden
                   >
@@ -309,7 +295,7 @@ const Nav: React.FC<NavProps> = ({
                 <button
                   onClick={onChangeBackground}
                   disabled={isBgTransitioning}
-                  className="w-full text-left px-3 py-3 hover:bg-[#2a2a2a] flex items-center gap-2.5 text-[#e0d2b0] disabled:opacity-50 transition-colors"
+                  className="w-full text-left px-3 py-3 hover:bg-[#2a2118] flex items-center gap-2.5 text-[#e0d2b0] disabled:opacity-50 transition-colors"
                 >
                   <i className="fa-solid fa-image text-[#d4af37] w-4 text-center"></i>
                   <span className="text-xs font-medium">{t(language, 'nav.changeBg')}</span>
@@ -320,15 +306,16 @@ const Nav: React.FC<NavProps> = ({
           </div>
 
           {currentRoom && (
-            <div 
-              id="nav-room-badge" 
-              onClick={() => { const l = `${window.location.origin}/?room=${currentRoom}`; navigator.clipboard?.writeText(l); }} 
-              className="hidden sm:flex items-center gap-x-1.5 px-3 py-0.5 text-xs rounded border border-[#444] bg-[#1f1f1f] cursor-pointer hover:bg-[#2a2a2a]"
+            <div
+              id="nav-room-badge"
+              onClick={() => { const l = `${window.location.origin}/?room=${currentRoom}`; navigator.clipboard?.writeText(l); }}
+              className="header-chip hidden sm:inline-flex"
             >
-              <span className="font-mono text-[#f0c060] tracking-[2px]">{currentRoom}</span>
-              <button 
-                onClick={(e) => { e.stopPropagation(); onLeaveRoom(); }} 
-                className="text-[#888] hover:text-white ml-1 text-[10px] leading-none"
+              <span className="header-chip__code">{currentRoom}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); onLeaveRoom(); }}
+                className="header-chip__leave"
+                aria-label="×"
               >
                 ×
               </button>

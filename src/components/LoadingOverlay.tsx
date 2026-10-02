@@ -20,7 +20,7 @@ const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   if (!isDrumLoading && !isTableLoading) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90] flex flex-col items-center justify-center">
+    <div className="modal-shade fixed inset-0 bg-black/40 backdrop-blur-sm z-[90] flex flex-col items-center justify-center">
       <div className="w-10 h-10 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin mb-4"></div>
       <div className="text-[#d4af37] text-sm tracking-[3px] font-semibold">{t(language, 'nav.loading')}</div>
     </div>

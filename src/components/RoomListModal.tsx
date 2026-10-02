@@ -53,7 +53,7 @@ const RoomListModal: React.FC<RoomListModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[130] flex items-center justify-center p-5"
+      className="modal-shade fixed inset-0 bg-black/90 backdrop-blur-sm z-[130] flex items-center justify-center p-5"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -83,7 +83,7 @@ const RoomListModal: React.FC<RoomListModalProps> = ({
                 value={lanHostInput}
                 onChange={(e) => setLanHostInput(e.target.value.trim())}
                 placeholder="192.168.0.12"
-                className="w-full bg-[#111] border border-[#4a3728] px-3 py-2 rounded text-center font-mono tracking-wide"
+                className="w-full ui-field px-3 py-2 rounded text-center font-mono tracking-wide"
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -95,7 +95,7 @@ const RoomListModal: React.FC<RoomListModalProps> = ({
                   value={lanPortInput}
                   onChange={(e) => setLanPortInput(e.target.value.replace(/[^\d]/g, ''))}
                   placeholder="17432"
-                  className="w-full bg-[#111] border border-[#4a3728] px-3 py-2 rounded text-center font-mono"
+                  className="w-full ui-field px-3 py-2 rounded text-center font-mono"
                 />
               </div>
               <div>
@@ -107,14 +107,14 @@ const RoomListModal: React.FC<RoomListModalProps> = ({
                   onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
                   maxLength={8}
                   placeholder={t(language, 'roomList.placeholder')}
-                  className="w-full bg-[#111] border border-[#4a3728] px-3 py-2 rounded text-center font-mono tracking-widest uppercase"
+                  className="w-full ui-field px-3 py-2 rounded text-center font-mono tracking-widest uppercase"
                 />
               </div>
             </div>
             <button
               onClick={handleJoin}
               data-sfx="button"
-              className="w-full h-11 bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] rounded-xl text-sm font-semibold"
+              className="w-full h-11 ui-btn-primary rounded-xl text-sm font-semibold"
             >
               {t(language, 'roomList.join')}
             </button>
@@ -161,12 +161,12 @@ const RoomListModal: React.FC<RoomListModalProps> = ({
                   onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
                   maxLength={8}
                   placeholder={t(language, 'roomList.placeholder')}
-                  className="flex-1 bg-[#111] border border-[#4a3728] px-3 py-2 rounded text-center font-mono tracking-widest uppercase"
+                  className="flex-1 ui-field px-3 py-2 rounded text-center font-mono tracking-widest uppercase"
                 />
                 <button
                   onClick={handleJoin}
                   data-sfx="button"
-                  className="px-4 bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] rounded text-sm"
+                  className="px-4 ui-btn-primary rounded text-sm"
                 >
                   {t(language, 'roomList.join')}
                 </button>

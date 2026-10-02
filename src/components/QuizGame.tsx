@@ -21,7 +21,7 @@ function cellClass(status: CellStatus): string {
     case 'lower':
       return 'bg-[#8b3a2a]/90 border-[#d4af37]/60 text-[#f0c060]';
     default:
-      return 'bg-[#2a2a2a] border-[#444] text-zinc-300';
+      return 'bg-[#1c1612] border-[#5a422a] text-[#cbbfa6]';
   }
 }
 
@@ -86,7 +86,7 @@ export default function QuizGame({ language, mode, onBack }: QuizGameProps) {
           type="button"
           data-sfx="button"
           onClick={onBack}
-          className="h-10 px-4 text-sm text-zinc-400 border border-[#333] hover:border-[#666] rounded-xl"
+          className="h-10 px-4 ui-btn text-sm rounded-xl"
         >
           {t(language, 'quiz.modes')}
         </button>
@@ -191,7 +191,7 @@ export default function QuizGame({ language, mode, onBack }: QuizGameProps) {
               type="button"
               data-sfx="button"
               onClick={() => void g.newRound()}
-              className="h-11 px-8 rounded-xl bg-[#c23c2a] border border-[#d4af37] text-white font-semibold"
+              className="h-11 px-8 rounded-xl ui-btn-primary font-semibold"
             >
               {t(language, 'quiz.retry')}
             </button>
@@ -283,12 +283,12 @@ export default function QuizGame({ language, mode, onBack }: QuizGameProps) {
                   maxLength={16}
                   autoFocus
                   placeholder={t(language, 'quiz.nickPlaceholder')}
-                  className="w-full bg-[#111] border border-[#4a3728] focus:border-[#d4af37] outline-none px-3 py-2 rounded-xl text-center font-mono text-[#f0c060]"
+                  className="w-full ui-field px-3 py-2 rounded-xl text-center font-mono text-[#f0c060]"
                 />
                 <button
                   type="submit"
                   data-sfx="button"
-                  className="w-full h-10 rounded-xl bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] text-white text-sm font-semibold"
+                  className="w-full h-10 rounded-xl ui-btn-primary text-sm font-semibold"
                 >
                   {t(language, 'quiz.nickSave')}
                 </button>
@@ -484,7 +484,7 @@ export default function QuizGame({ language, mode, onBack }: QuizGameProps) {
                   value={g.query}
                   onChange={(e) => g.setQuery(e.target.value)}
                   placeholder={t(language, 'quiz.placeholder')}
-                  className="w-full bg-[#111] border border-[#4a3728] focus:border-[#d4af37] outline-none px-4 py-3 rounded-xl text-center text-white"
+                  className="w-full ui-field px-4 py-3 rounded-xl text-center text-white"
                   autoComplete="off"
                 />
                 {g.query.trim() && g.suggestions.length > 0 && (

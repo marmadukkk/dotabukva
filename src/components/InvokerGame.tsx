@@ -225,7 +225,7 @@ const InvokerGame: React.FC<InvokerGameProps> = ({ language, onBack }) => {
           type="button"
           onClick={onBack}
           data-sfx="button"
-          className="h-10 px-4 text-sm text-zinc-400 hover:text-white border border-[#333] hover:border-[#666] rounded-xl"
+          className="h-10 px-4 ui-btn text-sm rounded-xl"
         >
           {t(language, 'minigames.back')}
         </button>
@@ -328,7 +328,7 @@ const InvokerGame: React.FC<InvokerGameProps> = ({ language, onBack }) => {
                 type="button"
                 data-sfx="button"
                 onClick={g.startGame}
-                className="h-11 px-8 rounded-xl bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] text-white font-semibold tracking-wide"
+                className="h-11 px-8 rounded-xl ui-btn-primary font-semibold tracking-wide"
               >
                 {t(language, 'invoker.start')}{' '}
                 <span className="text-white/70 font-mono text-xs ml-1">ENTER</span>
@@ -382,12 +382,12 @@ const InvokerGame: React.FC<InvokerGameProps> = ({ language, onBack }) => {
                     maxLength={16}
                     autoFocus
                     placeholder={t(language, 'invoker.nickPlaceholder')}
-                    className="w-full bg-[#111] border border-[#4a3728] focus:border-[#d4af37] outline-none px-3 py-2 rounded-xl text-center font-mono text-[#f0c060] tracking-wide"
+                    className="w-full ui-field px-3 py-2 rounded-xl text-center font-mono text-[#f0c060] tracking-wide"
                   />
                   <button
                     type="submit"
                     data-sfx="button"
-                    className="w-full h-10 rounded-xl bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] text-white text-sm font-semibold"
+                    className="w-full h-10 rounded-xl ui-btn-primary text-sm font-semibold"
                   >
                     {t(language, 'invoker.nickSave')}
                   </button>
@@ -486,7 +486,7 @@ const InvokerGame: React.FC<InvokerGameProps> = ({ language, onBack }) => {
             type="button"
             data-sfx="button"
             onClick={g.resetKeybinds}
-            className="h-9 px-3 text-xs text-zinc-400 hover:text-white border border-[#333] hover:border-[#666] rounded-lg"
+            className="h-9 px-3 ui-btn text-xs rounded-lg"
           >
             {t(language, 'invoker.bindsReset')}
           </button>

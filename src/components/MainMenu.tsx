@@ -111,8 +111,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
 
         {/* RIGHT — news matches left column height on lg+ */}
         <div className="lg:col-span-7 xl:col-span-7 lg:row-start-1 relative min-h-[300px] lg:min-h-0">
-          <div className="rounded-2xl border-2 border-[#4a3728]/80 overflow-hidden flex flex-col h-full min-h-[300px] lg:absolute lg:inset-0 lg:min-h-0 bg-black/35 backdrop-blur-md shadow-lg shadow-black/40">
-            <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-[#4a3728]/70 bg-black/25 flex-shrink-0">
+          <div className="ui-panel rounded-2xl overflow-hidden flex flex-col h-full min-h-[300px] lg:absolute lg:inset-0 lg:min-h-0">
+            <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-[#4a3728]/70 flex-shrink-0">
               <div className="flex items-center gap-2.5">
                 <i className="fa-solid fa-newspaper text-[#d4af37]"></i>
                 <h2 className="font-display text-lg sm:text-xl tracking-tight text-[#f0c060]">
@@ -132,12 +132,12 @@ const MainMenu: React.FC<MainMenuProps> = ({
                 >
                   <div className="flex flex-wrap items-center gap-2 mb-1.5">
                     {item.version && (
-                      <span className="text-[10px] font-mono tracking-wider px-2 py-0.5 rounded border border-[#4a3728] text-[#d4af37] bg-[#111]">
+                      <span className="text-[10px] font-mono tracking-wider px-2 py-0.5 rounded border border-[#5a422a] text-[#f0c060] bg-[#16110e]">
                         v{item.version}
                       </span>
                     )}
                     {item.tag && (
-                      <span className="text-[10px] tracking-wider px-2 py-0.5 rounded border border-[#333] text-zinc-400">
+                      <span className="text-[10px] tracking-wider px-2 py-0.5 rounded border border-[#5a422a]/70 text-[#cbbfa6]">
                         {item.tag[language]}
                       </span>
                     )}

@@ -26,7 +26,7 @@ function ItemSlot({
     <div
       className={`w-12 h-12 sm:w-14 sm:h-14 ${shape} overflow-hidden flex items-center justify-center ${
         muted
-          ? 'border border-[#2a2a2a] bg-[#141414] opacity-70'
+          ? 'border border-[#3a2a1c] bg-[#16110e] opacity-70'
           : 'border border-[#4a3728] bg-[#0c0c0c]'
       }`}
       title={item?.dname || emptyTitle || ''}
@@ -44,7 +44,7 @@ function ItemSlot({
       ) : (
         <div
           className={`w-full h-full ${round ? 'rounded-full' : ''} ${
-            muted ? 'bg-[#1a1a1a]' : 'bg-black/50'
+            muted ? 'bg-[#16110e]' : 'bg-black/50'
           }`}
         />
       )}
@@ -83,7 +83,7 @@ export default function WhoseBuildGame({ language, onBack }: WhoseBuildGameProps
             type="button"
             data-sfx="button"
             onClick={onBack}
-            className="h-10 px-4 text-sm text-zinc-400 hover:text-white border border-[#333] hover:border-[#666] rounded-xl"
+            className="h-10 px-4 ui-btn text-sm rounded-xl"
           >
             {t(language, 'minigames.back')}
           </button>
@@ -132,7 +132,7 @@ export default function WhoseBuildGame({ language, onBack }: WhoseBuildGameProps
               type="button"
               data-sfx="button"
               onClick={() => void g.newGame()}
-              className="h-11 px-8 rounded-xl bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] text-white font-semibold"
+              className="h-11 px-8 rounded-xl ui-btn-primary font-semibold"
             >
               {t(language, 'build.retry')}
             </button>

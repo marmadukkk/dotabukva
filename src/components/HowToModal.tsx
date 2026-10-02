@@ -14,7 +14,7 @@ const HowToModal: React.FC<HowToModalProps> = ({ language, open, onClose }) => {
     <div 
       id="howto-modal" 
       onClick={onClose} 
-      className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-5"
+      className="modal-shade fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-5"
     >
       <div 
         onClick={e => e.stopPropagation()} 
@@ -26,21 +26,21 @@ const HowToModal: React.FC<HowToModalProps> = ({ language, open, onClose }) => {
         </div>
         <div className="space-y-5 text-[15px] text-[#e0d2b0]">
           <div className="flex gap-4">
-            <div className="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">1</div>
+            <div className="w-6 h-6 rounded-full bg-[#d4af37] text-[#1a120c] flex-shrink-0 flex items-center justify-center text-xs font-bold">1</div>
             <div>{t(language, 'modal.howto1').replace('{leader}', t(language, 'role.leaderTitle')).replace('{guesser}', t(language, 'role.guesserTitle'))}</div>
           </div>
           <div className="flex gap-4">
-            <div className="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">2</div>
+            <div className="w-6 h-6 rounded-full bg-[#d4af37] text-[#1a120c] flex-shrink-0 flex items-center justify-center text-xs font-bold">2</div>
             <div>{t(language, 'modal.howto2').replace('{heroLetter}', t(language, 'misc.hero') + ' + ' + t(language, 'leader.letter').toLowerCase())}</div>
           </div>
           <div className="flex gap-4">
-            <div className="w-6 h-6 rounded-full bg-[#c23c2a] flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#d4af37]">3</div>
+            <div className="w-6 h-6 rounded-full bg-[#d4af37] text-[#1a120c] flex-shrink-0 flex items-center justify-center text-xs font-bold">3</div>
             <div>{t(language, 'modal.howto3')}</div>
           </div>
         </div>
         <button 
           onClick={onClose} 
-          className="mt-6 w-full h-11 bg-[#c23c2a] hover:bg-[#e04a38] text-white font-semibold rounded border border-[#d4af37] tracking-widest"
+          className="ui-btn-primary mt-6 w-full h-11 font-semibold rounded-xl tracking-widest"
         >
           {t(language, 'modal.howtoBtn')}
         </button>

@@ -1102,6 +1102,7 @@ const App: React.FC = () => {
         }}
       />
 
+      <div key={screen} className="screen-enter">
       {/* MAIN MENU */}
       {screen === 'main-menu' && (
         <MainMenu
@@ -1194,7 +1195,7 @@ const App: React.FC = () => {
       {/* ROOM LOBBY */}
       {roundBanner && (
         <div className="max-w-3xl mx-auto px-5 pt-4">
-          <div className="rounded-xl border border-[#d4af37] bg-black/70 px-4 py-3 text-center text-[#f0c060]">
+          <div className="banner-in rounded-xl border border-[#d4af37] bg-black/70 px-4 py-3 text-center text-[#f0c060]">
             {roundBanner}
           </div>
         </div>
@@ -1278,6 +1279,7 @@ const App: React.FC = () => {
           onImageLoad={handleTableImageLoad}
         />
       )}
+      </div>
 
       {/* Loading Overlay */}
       <LoadingOverlay

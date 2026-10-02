@@ -23,25 +23,25 @@ const RoleMenu: React.FC<RoleMenuProps> = ({ language, currentMode, onLoadMode, 
         {/* Mode switch exact */}
         <div className="mt-4 mb-2">
           <div className="text-[10px] text-zinc-500 tracking-[1.5px] mb-1">{t(language, 'role.mode')}</div>
-          <div className="inline-grid grid-cols-3 rounded-2xl border border-[#4a3728] overflow-hidden text-sm">
+          <div className="inline-grid grid-cols-3 rounded-xl border border-[#5a422a] overflow-hidden text-sm bg-[#120e0c]/80">
             <button 
               onClick={() => onLoadMode('heroes')}
               data-sfx="button"
-              className={`px-4 py-1.5 font-medium text-center ${currentMode==='heroes' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'}`}
+              className={`px-4 py-1.5 font-medium text-center ${currentMode==='heroes' ? 'bg-[#3a2a1c] text-[#f0c060]' : 'text-[#cbbfa6] hover:bg-[#2a2118]'}`}
             >
               {t(language, 'role.heroes')}
             </button>
             <button 
               onClick={() => onLoadMode('items')}
               data-sfx="button"
-              className={`px-4 py-1.5 font-medium text-center ${currentMode==='items' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'} border-l border-[#4a3728]`}
+              className={`px-4 py-1.5 font-medium text-center ${currentMode==='items' ? 'bg-[#3a2a1c] text-[#f0c060]' : 'text-[#cbbfa6] hover:bg-[#2a2118]'} border-l border-[#5a422a]`}
             >
               {t(language, 'role.items')}
             </button>
             <button 
               onClick={() => onLoadMode('abilities')}
               data-sfx="button"
-              className={`px-4 py-1.5 font-medium text-center ${currentMode==='abilities' ? 'bg-[#1f1f1f]' : 'hover:bg-[#2a2a2a]'} border-l border-[#4a3728]`}
+              className={`px-4 py-1.5 font-medium text-center ${currentMode==='abilities' ? 'bg-[#3a2a1c] text-[#f0c060]' : 'text-[#cbbfa6] hover:bg-[#2a2118]'} border-l border-[#5a422a]`}
             >
               {t(language, 'role.abilities')}
             </button>
@@ -53,7 +53,7 @@ const RoleMenu: React.FC<RoleMenuProps> = ({ language, currentMode, onLoadMode, 
         <div onClick={onEnterLeader} data-sfx="rolepick" className="dota-card group cursor-pointer rounded-2xl p-6 border-2 border-[#4a3728] hover:border-[#d4af37] transition-all active:scale-[0.985]">
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-xs tracking-[2.5px] text-[#c23c2a] font-bold">{t(language, 'role.leaderBadge')}</div>
+              <div className="text-xs tracking-[2.5px] text-[#f0c060] font-bold">{t(language, 'role.leaderBadge')}</div>
               <div className="font-display text-4xl tracking-[-1.5px] mt-1 group-hover:text-[#f0c060] transition-colors text-white">{t(language, 'role.leaderTitle')}</div>
             </div>
             <i className="fa-solid fa-crown text-4xl text-[#d4af37] group-hover:rotate-12 group-hover:scale-110 transition-transform"></i>

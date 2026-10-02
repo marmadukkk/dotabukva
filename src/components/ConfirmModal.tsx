@@ -16,7 +16,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ language, show, title, mess
     <div 
       id="confirm-modal" 
       onClick={() => onConfirm(false)} 
-      className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[120] flex items-center justify-center p-5 show"
+      className="modal-shade fixed inset-0 bg-black/90 backdrop-blur-sm z-[120] flex items-center justify-center p-5 show"
     >
       <div 
         onClick={e => e.stopPropagation()} 
@@ -28,13 +28,13 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ language, show, title, mess
         <div className="flex gap-3">
           <button 
             onClick={() => onConfirm(false)} 
-            className="flex-1 h-10 text-sm font-medium rounded-xl border border-[#4a3728] hover:bg-[#1a1a1a]"
+            className="ui-btn flex-1 h-10 text-sm font-medium rounded-xl"
           >
             {t(language, 'modal.confirmCancel')}
           </button>
           <button 
             onClick={() => onConfirm(true)} 
-            className="flex-1 h-10 text-sm font-semibold rounded-xl bg-[#c23c2a] hover:bg-[#e04a38] border border-[#d4af37] text-white"
+            className="ui-btn-primary flex-1 h-10 text-sm font-semibold rounded-xl"
           >
             {t(language, 'modal.confirmYes')}
           </button>
